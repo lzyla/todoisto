@@ -43,9 +43,14 @@ class ScreenshotTest {
     private val tasks = listOf(
         Task(1, "Zadzwonić do Beaty", "Ustalić budżet", false, Priority.P1, today, durationMinutes = 30, projectId = 1, labelIds = listOf(1)),
         Task(2, "Wysłać raport kwartalny", "", false, Priority.P2, today + 1, deadline = today + 3, projectId = 1),
-        Task(3, "Podlać kwiaty", "", false, Priority.P4, today, recurrence = Recurrence.WEEKLY),
         Task(4, "Kupić mleko", "", false, Priority.P4, null, labelIds = listOf(2)),
         Task(5, "Przygotować prezentację", "", false, Priority.P3, today - 1, durationMinutes = 120)
+    )
+
+    private val routines = listOf(
+        Task(3, "Podlać kwiaty", "", false, Priority.P4, today, recurrence = Recurrence.WEEKLY),
+        Task(6, "Medytacja", "", false, Priority.P4, today, recurrence = Recurrence.DAILY),
+        Task(7, "Czytanie 20 stron", "", false, Priority.P4, today, recurrence = Recurrence.DAILY)
     )
 
     private fun uiState() = TodoUiState(
@@ -56,12 +61,15 @@ class ScreenshotTest {
         todayCount = 3,
         inboxCount = 1,
         doneToday = 3,
-        doneWeek = 12
+        doneWeek = 12,
+        routines = routines,
+        routinesDone = 2
     )
 
     @Composable
-    private fun listScreen() {
+    private fun listScreen(routinesExpanded: Boolean = false) {
         TaskListScreen(
+            routinesExpandedInitially = routinesExpanded,
             uiState = uiState(),
             projects = projects,
             labels = labels,
@@ -93,6 +101,14 @@ class ScreenshotTest {
         GlassTheme.dark = false
         paparazzi.snapshot {
             TodoistoTheme { GlassBackground { listScreen() } }
+        }
+    }
+
+    @Test
+    fun taskListRoutinesExpanded() {
+        GlassTheme.dark = false
+        paparazzi.snapshot {
+            TodoistoTheme { GlassBackground { listScreen(routinesExpanded = true) } }
         }
     }
 

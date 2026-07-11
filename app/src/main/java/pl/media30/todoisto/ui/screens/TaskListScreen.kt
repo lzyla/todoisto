@@ -88,6 +88,7 @@ import pl.media30.todoisto.ui.AppView
 import pl.media30.todoisto.ui.SectionGroup
 import pl.media30.todoisto.ui.SortMode
 import pl.media30.todoisto.ui.TodoUiState
+import pl.media30.todoisto.ui.components.RoutinesBar
 import pl.media30.todoisto.ui.components.TaskItem
 import pl.media30.todoisto.ui.components.bouncy
 import pl.media30.todoisto.ui.components.glassFieldColors
@@ -125,7 +126,8 @@ fun TaskListScreen(
     onClearCompleted: () -> Unit,
     onSort: (SortMode) -> Unit,
     onSetGoals: (Int, Int) -> Unit,
-    onToggleTheme: () -> Unit
+    onToggleTheme: () -> Unit,
+    routinesExpandedInitially: Boolean = false
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -240,12 +242,22 @@ fun TaskListScreen(
                     icon = { Icon(Icons.Filled.Add, null) },
                     text = { Text("Dodaj zadanie", fontWeight = FontWeight.SemiBold) }
                 )
+            },
+            bottomBar = {
+                if (uiState.view == AppView.Today) {
+                    RoutinesBar(
+                        routines = uiState.routines,
+                        doneCount = uiState.routinesDone,
+                        onComplete = onToggle,
+                        initiallyExpanded = routinesExpandedInitially
+                    )
+                }
             }
         ) { innerPadding ->
             Box(Modifier.padding(innerPadding).fillMaxSize()) {
                 Crossfade(targetState = uiState.isEmpty, label = "listOrEmpty") { empty ->
                     if (empty) {
-                        EmptyState(uiState.view)
+                        EmptyState(uiState.view, hasRoutines = uiState.routines.isNotEmpty())
                     } else {
                         TaskList(uiState.groups, labels, onToggle, onTaskClick)
                     }
@@ -751,7 +763,7 @@ private fun GoalsDialog(daily: Int, weekly: Int, onDismiss: () -> Unit, onConfir
 }
 
 @Composable
-private fun EmptyState(view: AppView) {
+private fun EmptyState(view: AppView, hasRoutines: Boolean = false) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
@@ -761,11 +773,12 @@ private fun EmptyState(view: AppView) {
                 modifier = Modifier.size(72.dp).padding(bottom = 12.dp)
             )
             Text(
-                text = when (view) {
-                    AppView.Completed -> "Brak ukończonych zadań"
-                    AppView.Today -> "Nic na dzisiaj 🎉"
-                    AppView.Upcoming -> "Brak nadchodzących zadań"
-                    AppView.Inbox -> "Skrzynka pusta"
+                text = when {
+                    view == AppView.Today && hasRoutines -> "Zostały tylko rutyny 🔁"
+                    view == AppView.Today -> "Nic na dzisiaj 🎉"
+                    view == AppView.Completed -> "Brak ukończonych zadań"
+                    view == AppView.Upcoming -> "Brak nadchodzących zadań"
+                    view == AppView.Inbox -> "Skrzynka pusta"
                     else -> "Brak zadań tutaj"
                 },
                 style = MaterialTheme.typography.bodyLarge,

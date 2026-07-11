@@ -68,7 +68,11 @@ data class TodoUiState(
     val goalDaily: Int = 5,
     val goalWeekly: Int = 25,
     val currentProject: Project? = null,
-    val currentLabel: Label? = null
+    val currentLabel: Label? = null,
+    /** Habit-style tasks for the Today routines bar (recurring, P3/P4, no fixed time). */
+    val routines: List<Task> = emptyList(),
+    /** Routines already completed today (their due date has advanced). */
+    val routinesDone: Int = 0
 )
 
 private data class Sources(
@@ -124,9 +128,15 @@ class TodoViewModel(
 
         val inArchived = { t: Task -> t.projectId != null && archivedIds.contains(t.projectId) }
 
+        // Routine = recurring habit: no fixed time, priority P3/P4. P1/P2 and
+        // timed recurring tasks are scheduled events and stay in the main list.
+        val isRoutine = { t: Task ->
+            t.recurrence != null && t.dueTimeMinutes == null && t.priority.ordinal >= 2
+        }
+
         val matching = topLevel.filter { t ->
             when (view) {
-                AppView.Today -> !t.isCompleted && t.dueDate != null && t.dueDate <= today && !inArchived(t)
+                AppView.Today -> !t.isCompleted && t.dueDate != null && t.dueDate <= today && !inArchived(t) && !isRoutine(t)
                 AppView.Upcoming -> !t.isCompleted && t.dueDate != null && t.dueDate > today && !inArchived(t)
                 AppView.Inbox -> !t.isCompleted && t.projectId == null
                 AppView.Completed -> t.isCompleted && !inArchived(t)
@@ -174,12 +184,20 @@ class TodoViewModel(
         val monday = todayDate.with(DayOfWeek.MONDAY)
         var doneToday = 0
         var doneWeek = 0
+        var routinesDone = 0
         src.tasks.forEach { t ->
             val at = t.completedAt ?: return@forEach
             val date = Instant.ofEpochMilli(at).atZone(zone).toLocalDate()
             if (date == todayDate) doneToday++
             if (!date.isBefore(monday) && !date.isAfter(todayDate)) doneWeek++
+            if (date == todayDate && isRoutine(t)) routinesDone++
         }
+
+        val routines = if (view == AppView.Today) {
+            topLevel
+                .filter { !it.isCompleted && it.dueDate != null && it.dueDate <= today && !inArchived(it) && isRoutine(it) }
+                .sortedBy { it.title.lowercase() }
+        } else emptyList()
 
         return TodoUiState(
             view = view,
@@ -194,7 +212,9 @@ class TodoViewModel(
             goalDaily = prefs.goalDaily,
             goalWeekly = prefs.goalWeekly,
             currentProject = (view as? AppView.ProjectView)?.let { v -> src.projects.firstOrNull { it.id == v.id } },
-            currentLabel = (view as? AppView.LabelView)?.let { v -> src.labels.firstOrNull { it.id == v.id } }
+            currentLabel = (view as? AppView.LabelView)?.let { v -> src.labels.firstOrNull { it.id == v.id } },
+            routines = routines,
+            routinesDone = routinesDone
         )
     }
 

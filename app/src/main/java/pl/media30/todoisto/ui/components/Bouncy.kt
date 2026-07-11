@@ -27,10 +27,16 @@ fun Modifier.bouncy(scaleDown: Float = 0.95f, onClick: () -> Unit): Modifier {
         animationSpec = spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow),
         label = "pressScale"
     )
+    val dim by animateFloatAsState(
+        targetValue = if (pressed) 0.86f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "pressDim"
+    )
     return Modifier
         .graphicsLayer {
             scaleX = scale
             scaleY = scale
+            alpha = dim
         }
         .then(this)
         .clickable(

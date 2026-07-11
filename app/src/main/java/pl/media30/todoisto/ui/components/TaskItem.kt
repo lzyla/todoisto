@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -141,18 +142,21 @@ private fun MetaRow(task: Task, labels: List<Label>, subtaskDone: Int, subtaskTo
 
 @Composable
 private fun Chip(text: String, tint: Color, icon: androidx.compose.ui.graphics.vector.ImageVector?) {
+    // In the dark theme saturated tints sink into the purple backdrop —
+    // lift them towards white so chips stay readable on translucent panels.
+    val effTint = if (GlassTheme.dark) lerp(tint, Color.White, 0.45f) else tint
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(tint.copy(alpha = 0.14f))
+            .background(effTint.copy(alpha = if (GlassTheme.dark) 0.20f else 0.14f))
             .padding(horizontal = 9.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (icon != null) {
-            Icon(icon, null, tint = tint, modifier = Modifier.size(13.dp))
+            Icon(icon, null, tint = effTint, modifier = Modifier.size(13.dp))
             Spacer(Modifier.width(4.dp))
         }
-        Text(text, style = MaterialTheme.typography.labelMedium, color = tint)
+        Text(text, style = MaterialTheme.typography.labelMedium, color = effTint)
     }
 }
 

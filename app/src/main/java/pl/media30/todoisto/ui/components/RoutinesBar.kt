@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -53,9 +54,9 @@ import pl.media30.todoisto.ui.theme.GlassTheme
 // Muted, neutral shades — deliberately desaturated and distinct from both the
 // glass task cards and the priority colors: the "routines zone" reads as a
 // different mode before you read a single word.
-private val zoneBg: Color get() = if (GlassTheme.dark) Color(0xFF4A4066) else Color(0xFFECE9F2)
+private val zoneBg: Color get() = if (GlassTheme.dark) Color(0xD94A4066) else Color(0xD9ECE9F2)
 private val zoneBorder: Color get() = if (GlassTheme.dark) Color(0xFF6A5F8A) else Color(0xFFD6D0E2)
-private val pillBg: Color get() = if (GlassTheme.dark) Color(0xFF574D75) else Color(0xFFF8F6FB)
+private val pillBg: Color get() = if (GlassTheme.dark) Color(0xCC574D75) else Color(0xE6F8F6FB)
 
 /**
  * Collapsed-by-default routines zone docked under the Today list.
@@ -87,6 +88,7 @@ fun RoutinesBar(
             .padding(bottom = 10.dp)
             .navigationBarsPadding()
             .fillMaxWidth()
+            .shadow(10.dp, RoundedCornerShape(26.dp), spotColor = Color(0x40352359), ambientColor = Color(0x26352359))
             .clip(RoundedCornerShape(26.dp))
             .background(zoneBg)
             .border(1.dp, zoneBorder, RoundedCornerShape(26.dp))

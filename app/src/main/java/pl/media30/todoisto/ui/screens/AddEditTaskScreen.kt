@@ -439,16 +439,19 @@ private fun SelectChip(text: String, selected: Boolean, color: Color, onClick: (
 @Composable
 private fun Pill(onClick: () -> Unit, accent: Color? = null, content: @Composable () -> Unit) {
     val shape = RoundedCornerShape(50)
-    val bg = if (accent != null) {
-        Brush.horizontalGradient(listOf(accent, accent.copy(alpha = 0.85f)))
-    } else {
-        Brush.verticalGradient(listOf(GlassPanelTint.copy(alpha = 0.16f), GlassPanelTint.copy(alpha = 0.08f)))
-    }
+    // Flat translucent fill + specular rim: no gradients on elements.
+    val bg = accent ?: GlassPanelTint.copy(alpha = 0.12f)
+    val rim = Brush.linearGradient(
+        listOf(
+            Color.White.copy(alpha = if (accent != null) 0.75f else 0.9f),
+            GlassPanelTint.copy(alpha = 0.15f)
+        )
+    )
     Row(
         modifier = Modifier
             .clip(shape)
             .background(bg)
-            .border(1.dp, if (accent != null) Color.White.copy(alpha = 0.5f) else GlassPanelTint.copy(alpha = 0.35f), shape)
+            .border(1.dp, rim, shape)
             .bouncy(scaleDown = 0.93f, onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,

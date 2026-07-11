@@ -343,7 +343,9 @@ private fun TaskList(
                 Column(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.animateItem(
-                        placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)
+                        fadeInSpec = spring(stiffness = Spring.StiffnessLow),
+                        placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+                        fadeOutSpec = spring(stiffness = Spring.StiffnessMedium)
                     )
                 ) {
                     TaskItem(

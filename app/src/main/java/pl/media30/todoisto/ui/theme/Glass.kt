@@ -1,5 +1,11 @@
 package pl.media30.todoisto.ui.theme
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -24,8 +30,11 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-// ---- Liquid-glass theme (two palettes: light = white backdrop with purple
-// glass, dark = vivid purple backdrop with white glass) ----------------------
+// ---- Liquid-glass theme ------------------------------------------------------
+// Modeled after Apple's Liquid Glass material: elements are uniformly
+// translucent (content shows through — no gradient fills on controls), with a
+// specular highlight around the rim as if lit from the top-left, soft diffuse
+// shadows for depth, and slow fluid motion in the backdrop.
 
 object GlassTheme {
     /** Toggled from settings; all palette getters below react to it. */
@@ -34,9 +43,9 @@ object GlassTheme {
 
 private val d get() = GlassTheme.dark
 
-val GlassBgTop: Color get() = if (d) Color(0xFF8B5CFF) else Color(0xFFFFFFFF)
-val GlassBgMid: Color get() = if (d) Color(0xFF7141E8) else Color(0xFFF6F1FF)
-val GlassBgBottom: Color get() = if (d) Color(0xFF5527C4) else Color(0xFFEFE7FF)
+val GlassBgTop: Color get() = if (d) Color(0xFF6E45D9) else Color(0xFFFDFBFF)
+val GlassBgMid: Color get() = if (d) Color(0xFF5B35C4) else Color(0xFFF6F1FE)
+val GlassBgBottom: Color get() = if (d) Color(0xFF44239E) else Color(0xFFEFE8FC)
 
 val GlassBlobViolet: Color get() = if (d) Color(0xFFB388FF) else Color(0xFFA875FF)
 val GlassBlobMagenta = Color(0xFFE96BFF)
@@ -44,57 +53,41 @@ val GlassBlobBlue = Color(0xFF7C9EFF)
 
 val GlassAccent: Color get() = if (d) Color(0xFF9B6BFF) else Color(0xFF6B3FE0)
 val GlassTextPrimary: Color get() = if (d) Color(0xFFFFFFFF) else Color(0xFF2A1655)
-val GlassTextSecondary: Color get() = if (d) Color(0xFFEDE5FF) else Color(0xFF6E5A9E)
+val GlassTextSecondary: Color get() = if (d) Color(0xFFE6DDFB) else Color(0xFF6E5A9E)
 
 /** Tint used for the glass panel fills and hairlines. */
 val GlassPanelTint: Color get() = if (d) Color.White else Color(0xFF8B5CFF)
 
 /** Solid surface for drawers, sheets, menus and dialogs. */
-val GlassSurface: Color get() = if (d) Color(0xFF6B3FE0) else Color(0xFFF6F0FF)
+val GlassSurface: Color get() = if (d) Color(0xFF5B35C4) else Color(0xFFF7F2FF)
 
 /**
- * Full-screen vibrant purple backdrop with soft glowing blobs.
- * Everything glassy is layered on top of this so the translucency reads.
+ * Full-screen backdrop: a gentle vertical gradient with soft colour glows that
+ * drift very slowly — the "liquid" in liquid glass. The gradient lives here,
+ * on the background only; the elements above stay flat and translucent.
  */
 @Composable
 fun GlassBackground(content: @Composable () -> Unit) {
+    val drift = rememberInfiniteTransition(label = "liquidDrift")
+    val t by drift.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 26_000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "driftT"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(GlassBgTop, GlassBgMid, GlassBgBottom)
-                )
-            )
+            .background(Brush.verticalGradient(listOf(GlassBgTop, GlassBgMid, GlassBgBottom)))
     ) {
-        Blob(
-            color = GlassBlobMagenta,
-            size = 340.dp,
-            alignment = Alignment.TopStart,
-            offsetX = (-90).dp,
-            offsetY = (-70).dp
-        )
-        Blob(
-            color = GlassBlobViolet,
-            size = 380.dp,
-            alignment = Alignment.TopEnd,
-            offsetX = 120.dp,
-            offsetY = (-110).dp
-        )
-        Blob(
-            color = GlassBlobBlue,
-            size = 320.dp,
-            alignment = Alignment.BottomStart,
-            offsetX = (-60).dp,
-            offsetY = 120.dp
-        )
-        Blob(
-            color = GlassBlobViolet,
-            size = 300.dp,
-            alignment = Alignment.BottomEnd,
-            offsetX = 90.dp,
-            offsetY = 100.dp
-        )
+        Blob(GlassBlobMagenta, 360.dp, Alignment.TopStart, (-100 + 40 * t).dp, (-80 + 24 * t).dp)
+        Blob(GlassBlobViolet, 400.dp, Alignment.TopEnd, (130 - 36 * t).dp, (-120 + 30 * t).dp)
+        Blob(GlassBlobBlue, 340.dp, Alignment.BottomStart, (-70 + 28 * t).dp, (130 - 30 * t).dp)
+        Blob(GlassBlobViolet, 320.dp, Alignment.BottomEnd, (100 - 30 * t).dp, (110 - 22 * t).dp)
         content()
     }
 }
@@ -112,10 +105,10 @@ private fun BoxScope.Blob(
             .align(alignment)
             .offset(x = offsetX, y = offsetY)
             .size(size)
-            .blur(80.dp)
+            .blur(100.dp)
             .background(
                 Brush.radialGradient(
-                    listOf(color.copy(alpha = if (GlassTheme.dark) 0.75f else 0.45f), Color.Transparent)
+                    listOf(color.copy(alpha = if (GlassTheme.dark) 0.45f else 0.22f), Color.Transparent)
                 ),
                 CircleShape
             )
@@ -123,30 +116,24 @@ private fun BoxScope.Blob(
 }
 
 /**
- * Frosted-glass surface treatment: soft drop shadow, translucent gradient fill
- * and a bright hairline border that catches the light.
+ * Liquid-glass surface: soft diffuse shadow underneath, a single flat
+ * translucent fill (the background shows through), and a specular rim —
+ * brightest at the top-left as if catching the light — instead of any
+ * gradient fill on the element itself.
  */
 fun Modifier.glass(shape: Shape = RoundedCornerShape(28.dp)): Modifier {
     val dark = GlassTheme.dark
-    val fillTop = if (dark) 0.30f else 0.16f
-    val fillBottom = if (dark) 0.12f else 0.07f
-    val borderStart = Color.White.copy(alpha = if (dark) 0.75f else 0.95f)
-    val borderEnd = if (dark) Color.White.copy(alpha = 0.20f) else GlassPanelTint.copy(alpha = 0.35f)
-    val shadowColor = if (dark) Color(0x59200A66) else Color(0x40551FC2)
+    val fill = if (dark) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.42f)
+    val rimBright = Color.White.copy(alpha = if (dark) 0.65f else 1.0f)
+    val rimFaint = if (dark) Color.White.copy(alpha = 0.10f) else GlassPanelTint.copy(alpha = 0.18f)
+    val shadowColor = if (dark) Color(0x66200A66) else Color(0x33551FC2)
     return this
-        .shadow(elevation = if (dark) 12.dp else 10.dp, shape = shape, spotColor = shadowColor, ambientColor = shadowColor)
+        .shadow(elevation = 14.dp, shape = shape, spotColor = shadowColor, ambientColor = shadowColor.copy(alpha = 0.35f))
         .clip(shape)
-        .background(
-            Brush.verticalGradient(
-                listOf(
-                    GlassPanelTint.copy(alpha = fillTop),
-                    GlassPanelTint.copy(alpha = fillBottom)
-                )
-            )
-        )
+        .background(fill)
         .border(
-            width = 1.5.dp,
-            brush = Brush.linearGradient(listOf(borderStart, borderEnd)),
+            width = 1.2.dp,
+            brush = Brush.linearGradient(listOf(rimBright, rimFaint, rimBright.copy(alpha = 0.25f))),
             shape = shape
         )
 }

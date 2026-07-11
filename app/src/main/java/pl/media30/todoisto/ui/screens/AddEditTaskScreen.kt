@@ -40,8 +40,10 @@ import androidx.compose.material.icons.outlined.AccountTree
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Sell
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
@@ -102,6 +104,7 @@ fun AddEditTaskScreen(
     onSave: (Task) -> Unit,
     onAddSubtask: (String) -> Unit,
     onToggleSubtask: (Task) -> Unit,
+    onDuplicate: (() -> Unit)? = null,
     onDelete: (() -> Unit)?,
     onClose: () -> Unit
 ) {
@@ -111,6 +114,7 @@ fun AddEditTaskScreen(
     var dueDate by remember { mutableStateOf(existing?.dueDate) }
     var deadline by remember { mutableStateOf(existing?.deadline) }
     var recurrence by remember { mutableStateOf(existing?.recurrence) }
+    var durationMinutes by remember { mutableStateOf(existing?.durationMinutes) }
     var projectId by remember { mutableStateOf(existing?.projectId) }
     var selectedLabels by remember { mutableStateOf(existing?.labelIds?.toSet() ?: emptySet()) }
     var newSubtask by remember { mutableStateOf("") }
@@ -127,6 +131,7 @@ fun AddEditTaskScreen(
         dueDate = dueDate,
         deadline = deadline,
         recurrence = recurrence,
+        durationMinutes = durationMinutes,
         projectId = projectId,
         labelIds = selectedLabels.toList()
     )
@@ -140,6 +145,9 @@ fun AddEditTaskScreen(
                     IconButton(onClick = onClose) { Icon(Icons.Filled.Close, "Zamknij", tint = GlassTextPrimary) }
                 },
                 actions = {
+                    if (isEditing && onDuplicate != null) {
+                        IconButton(onClick = onDuplicate) { Icon(Icons.Outlined.ContentCopy, "Duplikuj", tint = GlassTextPrimary) }
+                    }
                     if (isEditing && onDelete != null) {
                         IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, "Usuń", tint = GlassTextPrimary) }
                     }
@@ -219,6 +227,19 @@ fun AddEditTaskScreen(
                 SelectChip("Nie", recurrence == null, Color(0xFF6B3FE0)) { recurrence = null }
                 Recurrence.entries.forEach { r ->
                     SelectChip(r.label, recurrence == r, Color(0xFF6B3FE0)) { recurrence = r }
+                }
+            }
+
+            // Duration
+            Spacer(Modifier.height(24.dp))
+            SectionLabel(Icons.Outlined.Timer, "Czas trwania")
+            Spacer(Modifier.height(10.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SelectChip("Brak", durationMinutes == null, GlassAccent) { durationMinutes = null }
+                listOf(15, 30, 45, 60, 90, 120).forEach { minutes ->
+                    SelectChip(durationLabel(minutes), durationMinutes == minutes, GlassAccent) {
+                        durationMinutes = minutes
+                    }
                 }
             }
 
@@ -326,6 +347,16 @@ fun AddEditTaskScreen(
 }
 
 private enum class DateTarget { Due, Deadline }
+
+private fun durationLabel(minutes: Int): String {
+    val h = minutes / 60
+    val m = minutes % 60
+    return when {
+        h > 0 && m > 0 -> "${h}h ${m}min"
+        h > 0 -> "${h}h"
+        else -> "${m} min"
+    }
+}
 
 @Composable
 private fun DateRow(

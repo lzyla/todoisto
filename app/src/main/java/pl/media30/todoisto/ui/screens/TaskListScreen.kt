@@ -32,19 +32,24 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Inbox
+import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Sell
 import androidx.compose.material.icons.outlined.Today
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
@@ -57,6 +62,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,8 +76,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.DrawerValue
 import kotlinx.coroutines.launch
 import pl.media30.todoisto.data.Label
 import pl.media30.todoisto.data.PaletteColors
@@ -80,12 +86,14 @@ import pl.media30.todoisto.data.QuickAddParser
 import pl.media30.todoisto.data.Task
 import pl.media30.todoisto.ui.AppView
 import pl.media30.todoisto.ui.SectionGroup
+import pl.media30.todoisto.ui.SortMode
 import pl.media30.todoisto.ui.TodoUiState
 import pl.media30.todoisto.ui.components.TaskItem
 import pl.media30.todoisto.ui.components.bouncy
 import pl.media30.todoisto.ui.components.glassFieldColors
 import pl.media30.todoisto.ui.theme.GlassAccent
 import pl.media30.todoisto.ui.theme.GlassPanelTint
+import pl.media30.todoisto.ui.theme.GlassSurface
 import pl.media30.todoisto.ui.theme.GlassTextPrimary
 import pl.media30.todoisto.ui.theme.GlassTextSecondary
 import java.time.LocalDate
@@ -98,21 +106,37 @@ fun TaskListScreen(
     uiState: TodoUiState,
     projects: List<Project>,
     labels: List<Label>,
+    isDarkTheme: Boolean,
+    quickAddPrefill: String?,
+    onPrefillConsumed: () -> Unit,
     onSelectView: (AppView) -> Unit,
     onToggle: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
     onQuickAdd: (String) -> Unit,
     onAddProject: (String, Long) -> Unit,
     onDeleteProject: (Long) -> Unit,
+    onDuplicateProject: (Long) -> Unit,
+    onArchiveProject: (Long, Boolean) -> Unit,
+    onToggleProjectFavorite: (Long) -> Unit,
+    onToggleLabelFavorite: (Long) -> Unit,
+    onDeleteLabel: (Long) -> Unit,
     onAddLabel: (String, Long) -> Unit,
     onAddSection: (Long, String) -> Unit,
-    onClearCompleted: () -> Unit
+    onClearCompleted: () -> Unit,
+    onSort: (SortMode) -> Unit,
+    onSetGoals: (Int, Int) -> Unit,
+    onToggleTheme: () -> Unit
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var menuOpen by remember { mutableStateOf(false) }
+    var sortMenuOpen by remember { mutableStateOf(false) }
     var showQuickAdd by remember { mutableStateOf(false) }
     var dialog by remember { mutableStateOf<DialogKind?>(null) }
+
+    LaunchedEffect(quickAddPrefill) {
+        if (!quickAddPrefill.isNullOrBlank()) showQuickAdd = true
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -121,14 +145,16 @@ fun TaskListScreen(
                 current = uiState.view,
                 projects = projects,
                 labels = labels,
-                todayCount = uiState.todayCount,
-                inboxCount = uiState.inboxCount,
+                uiState = uiState,
+                isDarkTheme = isDarkTheme,
                 onSelect = {
                     onSelectView(it)
                     scope.launch { drawerState.close() }
                 },
                 onAddProject = { dialog = DialogKind.AddProject },
-                onAddLabel = { dialog = DialogKind.AddLabel }
+                onAddLabel = { dialog = DialogKind.AddLabel },
+                onGoalsClick = { dialog = DialogKind.Goals },
+                onToggleTheme = onToggleTheme
             )
         }
     ) {
@@ -151,20 +177,56 @@ fun TaskListScreen(
                             Icon(Icons.Filled.MoreVert, "Więcej", tint = GlassTextPrimary)
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            if (uiState.view is AppView.ProjectView) {
+                            DropdownMenuItem(
+                                text = { Text("Sortowanie: ${uiState.sortMode.label}") },
+                                onClick = { menuOpen = false; sortMenuOpen = true }
+                            )
+                            val project = uiState.currentProject
+                            if (project != null) {
+                                DropdownMenuItem(
+                                    text = { Text(if (project.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") },
+                                    onClick = { menuOpen = false; onToggleProjectFavorite(project.id) }
+                                )
                                 DropdownMenuItem(
                                     text = { Text("Dodaj sekcję") },
                                     onClick = { menuOpen = false; dialog = DialogKind.AddSection }
                                 )
                                 DropdownMenuItem(
+                                    text = { Text("Duplikuj projekt") },
+                                    onClick = { menuOpen = false; onDuplicateProject(project.id) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (project.isArchived) "Przywróć z archiwum" else "Archiwizuj projekt") },
+                                    onClick = { menuOpen = false; onArchiveProject(project.id, !project.isArchived) }
+                                )
+                                DropdownMenuItem(
                                     text = { Text("Usuń projekt") },
-                                    onClick = { menuOpen = false; onDeleteProject((uiState.view as AppView.ProjectView).id) }
+                                    onClick = { menuOpen = false; onDeleteProject(project.id) }
+                                )
+                            }
+                            val label = uiState.currentLabel
+                            if (label != null) {
+                                DropdownMenuItem(
+                                    text = { Text(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") },
+                                    onClick = { menuOpen = false; onToggleLabelFavorite(label.id) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Usuń etykietę") },
+                                    onClick = { menuOpen = false; onDeleteLabel(label.id) }
                                 )
                             }
                             DropdownMenuItem(
                                 text = { Text("Usuń ukończone") },
                                 onClick = { menuOpen = false; onClearCompleted() }
                             )
+                        }
+                        DropdownMenu(expanded = sortMenuOpen, onDismissRequest = { sortMenuOpen = false }) {
+                            SortMode.entries.forEach { mode ->
+                                DropdownMenuItem(
+                                    text = { Text((if (mode == uiState.sortMode) "✓ " else "") + mode.label) },
+                                    onClick = { sortMenuOpen = false; onSort(mode) }
+                                )
+                            }
                         }
                     }
                 )
@@ -195,10 +257,15 @@ fun TaskListScreen(
     if (showQuickAdd) {
         QuickAddSheet(
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            onDismiss = { showQuickAdd = false },
+            initialText = quickAddPrefill.orEmpty(),
+            onDismiss = {
+                showQuickAdd = false
+                onPrefillConsumed()
+            },
             onAdd = { text ->
                 onQuickAdd(text)
                 showQuickAdd = false
+                onPrefillConsumed()
             }
         )
     }
@@ -222,11 +289,17 @@ fun TaskListScreen(
                 dialog = null
             }
         )
+        DialogKind.Goals -> GoalsDialog(
+            daily = uiState.goalDaily,
+            weekly = uiState.goalWeekly,
+            onDismiss = { dialog = null },
+            onConfirm = { d, w -> onSetGoals(d, w); dialog = null }
+        )
         null -> {}
     }
 }
 
-private enum class DialogKind { AddProject, AddLabel, AddSection }
+private enum class DialogKind { AddProject, AddLabel, AddSection, Goals }
 
 @Composable
 private fun TaskList(
@@ -244,7 +317,7 @@ private fun TaskList(
                 item(key = "sec-${group.sectionId}") {
                     Text(
                         group.name,
-                        style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = GlassTextSecondary,
                         modifier = Modifier.padding(start = 4.dp, top = 6.dp)
@@ -290,15 +363,25 @@ private fun DrawerContent(
     current: AppView,
     projects: List<Project>,
     labels: List<Label>,
-    todayCount: Int,
-    inboxCount: Int,
+    uiState: TodoUiState,
+    isDarkTheme: Boolean,
     onSelect: (AppView) -> Unit,
     onAddProject: () -> Unit,
-    onAddLabel: () -> Unit
+    onAddLabel: () -> Unit,
+    onGoalsClick: () -> Unit,
+    onToggleTheme: () -> Unit
 ) {
+    val activeProjects = projects.filter { !it.isArchived }
+    val archived = projects.filter { it.isArchived }
+    val favorites: List<Pair<AppView, Triple<Color, String, ImageVector?>>> =
+        projects.filter { it.isFavorite && !it.isArchived }
+            .map { AppView.ProjectView(it.id) as AppView to Triple(Color(it.colorArgb), it.name, null as ImageVector?) } +
+        labels.filter { it.isFavorite }
+            .map { AppView.LabelView(it.id) as AppView to Triple(Color(it.colorArgb), it.name, Icons.Outlined.Sell as ImageVector?) }
+
     ModalDrawerSheet(
-        drawerContainerColor = Color(0xFFF6F0FF),
-        modifier = Modifier.fillMaxWidth(0.82f)
+        drawerContainerColor = GlassSurface,
+        modifier = Modifier.fillMaxWidth(0.84f)
     ) {
         Column(
             Modifier
@@ -306,19 +389,44 @@ private fun DrawerContent(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            Text("Todoisto", style = androidx.compose.material3.MaterialTheme.typography.headlineSmall, color = GlassTextPrimary)
-            Spacer(Modifier.height(20.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Todoisto",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = GlassTextPrimary,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = onToggleTheme) {
+                    Icon(
+                        if (isDarkTheme) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
+                        contentDescription = "Zmień motyw",
+                        tint = GlassTextSecondary
+                    )
+                }
+            }
 
-            DrawerItem(Icons.Outlined.Today, "Dzisiaj", todayCount, current == AppView.Today) { onSelect(AppView.Today) }
+            GoalsCard(uiState, onClick = onGoalsClick)
+            Spacer(Modifier.height(12.dp))
+
+            DrawerItem(Icons.Outlined.Today, "Dzisiaj", uiState.todayCount, current == AppView.Today) { onSelect(AppView.Today) }
             DrawerItem(Icons.Outlined.DateRange, "Nadchodzące", 0, current == AppView.Upcoming) { onSelect(AppView.Upcoming) }
-            DrawerItem(Icons.Outlined.Inbox, "Skrzynka", inboxCount, current == AppView.Inbox) { onSelect(AppView.Inbox) }
+            DrawerItem(Icons.Outlined.Inbox, "Skrzynka", uiState.inboxCount, current == AppView.Inbox) { onSelect(AppView.Inbox) }
             DrawerItem(Icons.Outlined.CheckCircle, "Ukończone", 0, current == AppView.Completed) { onSelect(AppView.Completed) }
 
+            if (favorites.isNotEmpty()) {
+                DrawerHeader("Ulubione", null)
+                favorites.forEach { (view, meta) ->
+                    DrawerDot(meta.first, meta.second, current == view, icon = meta.third ?: Icons.Filled.Star) {
+                        onSelect(view)
+                    }
+                }
+            }
+
             DrawerHeader("Projekty", onAddProject)
-            projects.forEach { p ->
+            activeProjects.forEach { p ->
                 DrawerDot(Color(p.colorArgb), p.name, current == AppView.ProjectView(p.id)) { onSelect(AppView.ProjectView(p.id)) }
             }
-            if (projects.isEmpty()) DrawerHint("Brak projektów")
+            if (activeProjects.isEmpty()) DrawerHint("Brak projektów")
 
             DrawerHeader("Etykiety", onAddLabel)
             labels.forEach { l ->
@@ -327,7 +435,55 @@ private fun DrawerContent(
                 }
             }
             if (labels.isEmpty()) DrawerHint("Brak etykiet")
+
+            if (archived.isNotEmpty()) {
+                DrawerHeader("Archiwum", null)
+                archived.forEach { p ->
+                    DrawerDot(Color(p.colorArgb).copy(alpha = 0.5f), p.name, current == AppView.ProjectView(p.id)) {
+                        onSelect(AppView.ProjectView(p.id))
+                    }
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun GoalsCard(uiState: TodoUiState, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(GlassPanelTint.copy(alpha = 0.10f))
+            .border(1.dp, GlassPanelTint.copy(alpha = 0.25f), RoundedCornerShape(20.dp))
+            .bouncy(scaleDown = 0.97f, onClick = onClick)
+            .padding(14.dp)
+    ) {
+        Text(
+            "Cele produktywności",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = GlassTextSecondary
+        )
+        Spacer(Modifier.height(8.dp))
+        GoalRow("Dzisiaj", uiState.doneToday, uiState.goalDaily)
+        Spacer(Modifier.height(6.dp))
+        GoalRow("Tydzień", uiState.doneWeek, uiState.goalWeekly)
+    }
+}
+
+@Composable
+private fun GoalRow(label: String, done: Int, goal: Int) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = GlassTextPrimary, modifier = Modifier.width(56.dp))
+        LinearProgressIndicator(
+            progress = { if (goal <= 0) 0f else (done.toFloat() / goal).coerceIn(0f, 1f) },
+            color = GlassAccent,
+            trackColor = GlassPanelTint.copy(alpha = 0.15f),
+            modifier = Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(50))
+        )
+        Spacer(Modifier.width(10.dp))
+        Text("$done/$goal", style = MaterialTheme.typography.labelMedium, color = GlassTextSecondary)
     }
 }
 
@@ -349,7 +505,7 @@ private fun DrawerItem(icon: ImageVector, label: String, count: Int, selected: B
         Icon(icon, null, tint = if (selected) GlassAccent else GlassTextSecondary, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(14.dp))
         Text(label, color = GlassTextPrimary, modifier = Modifier.weight(1f))
-        if (count > 0) Text("$count", color = GlassTextSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
+        if (count > 0) Text("$count", color = GlassTextSecondary, style = MaterialTheme.typography.labelMedium)
     }
 }
 
@@ -379,17 +535,19 @@ private fun DrawerDot(color: Color, label: String, selected: Boolean, icon: Imag
 }
 
 @Composable
-private fun DrawerHeader(title: String, onAdd: () -> Unit) {
+private fun DrawerHeader(title: String, onAdd: (() -> Unit)?) {
     Spacer(Modifier.height(18.dp))
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 12.dp)) {
-        Text(title, style = androidx.compose.material3.MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = GlassTextSecondary, modifier = Modifier.weight(1f))
-        IconButton(onClick = onAdd) { Icon(Icons.Filled.Add, "Dodaj", tint = GlassTextSecondary, modifier = Modifier.size(20.dp)) }
+        Text(title, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = GlassTextSecondary, modifier = Modifier.weight(1f))
+        if (onAdd != null) {
+            IconButton(onClick = onAdd) { Icon(Icons.Filled.Add, "Dodaj", tint = GlassTextSecondary, modifier = Modifier.size(20.dp)) }
+        }
     }
 }
 
 @Composable
 private fun DrawerHint(text: String) {
-    Text(text, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium, color = GlassTextSecondary.copy(alpha = 0.6f), modifier = Modifier.padding(start = 12.dp, bottom = 4.dp))
+    Text(text, style = MaterialTheme.typography.bodyMedium, color = GlassTextSecondary.copy(alpha = 0.6f), modifier = Modifier.padding(start = 12.dp, bottom = 4.dp))
 }
 
 // ---- Quick Add -------------------------------------------------------------
@@ -398,23 +556,24 @@ private fun DrawerHint(text: String) {
 @Composable
 private fun QuickAddSheet(
     sheetState: androidx.compose.material3.SheetState,
+    initialText: String,
     onDismiss: () -> Unit,
     onAdd: (String) -> Unit
 ) {
-    var text by remember { mutableStateOf("") }
+    var text by remember { mutableStateOf(initialText) }
     val parsed = remember(text) { QuickAddParser().parse(text) }
     val fmt = remember { DateTimeFormatter.ofPattern("d MMM", Locale.forLanguageTag("pl")) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color(0xFFF6F0FF)
+        containerColor = GlassSurface
     ) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
-                placeholder = { Text("np. Zadzwonić do Beaty jutro o 15:00 #fundacja p1") },
+                placeholder = { Text("np. Zadzwonić do Beaty jutro o 15:00 2h #fundacja p1") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = false,
                 shape = RoundedCornerShape(22.dp),
@@ -430,6 +589,7 @@ private fun QuickAddSheet(
             ) {
                 parsed.dueDate?.let { PreviewChip("📅 " + dueText(it, fmt)) }
                 parsed.dueTimeMinutes?.let { PreviewChip("🕒 %02d:%02d".format(it / 60, it % 60)) }
+                parsed.durationMinutes?.let { PreviewChip("⏱ " + durationText(it)) }
                 if (parsed.recurrence != null) PreviewChip("🔁 " + parsed.recurrence!!.label)
                 if (parsed.priority.ordinal < 3) PreviewChip("🚩 P${parsed.priority.ordinal + 1}")
                 parsed.projectName?.let { PreviewChip("# $it") }
@@ -450,11 +610,21 @@ private fun QuickAddSheet(
     }
 }
 
+private fun durationText(minutes: Int): String {
+    val h = minutes / 60
+    val m = minutes % 60
+    return when {
+        h > 0 && m > 0 -> "${h}h ${m}min"
+        h > 0 -> "${h}h"
+        else -> "${m}min"
+    }
+}
+
 @Composable
 private fun PreviewChip(text: String) {
     Text(
         text,
-        style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+        style = MaterialTheme.typography.labelMedium,
         color = GlassTextPrimary,
         modifier = Modifier
             .clip(RoundedCornerShape(50))
@@ -480,7 +650,7 @@ private fun NameColorDialog(title: String, onDismiss: () -> Unit, onConfirm: (St
     var color by remember { mutableStateOf(PaletteColors.options.first()) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFFF6F0FF),
+        containerColor = GlassSurface,
         title = { Text(title, color = GlassTextPrimary) },
         text = {
             Column {
@@ -518,7 +688,7 @@ private fun NameDialog(title: String, onDismiss: () -> Unit, onConfirm: (String)
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFFF6F0FF),
+        containerColor = GlassSurface,
         title = { Text(title, color = GlassTextPrimary) },
         text = {
             OutlinedTextField(
@@ -532,6 +702,50 @@ private fun NameDialog(title: String, onDismiss: () -> Unit, onConfirm: (String)
             )
         },
         confirmButton = { TextButton(onClick = { if (name.isNotBlank()) onConfirm(name) }) { Text("Zapisz") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Anuluj") } }
+    )
+}
+
+@Composable
+private fun GoalsDialog(daily: Int, weekly: Int, onDismiss: () -> Unit, onConfirm: (Int, Int) -> Unit) {
+    var dailyText by remember { mutableStateOf(daily.toString()) }
+    var weeklyText by remember { mutableStateOf(weekly.toString()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = GlassSurface,
+        title = { Text("Cele produktywności", color = GlassTextPrimary) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = dailyText,
+                    onValueChange = { dailyText = it.filter(Char::isDigit).take(3) },
+                    label = { Text("Cel dzienny (zadania)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = glassFieldColors(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = weeklyText,
+                    onValueChange = { weeklyText = it.filter(Char::isDigit).take(4) },
+                    label = { Text("Cel tygodniowy (zadania)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = glassFieldColors(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val d = dailyText.toIntOrNull() ?: daily
+                val w = weeklyText.toIntOrNull() ?: weekly
+                onConfirm(d.coerceAtLeast(1), w.coerceAtLeast(1))
+            }) { Text("Zapisz") }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Anuluj") } }
     )
 }
@@ -554,7 +768,7 @@ private fun EmptyState(view: AppView) {
                     AppView.Inbox -> "Skrzynka pusta"
                     else -> "Brak zadań tutaj"
                 },
-                style = androidx.compose.material3.MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyLarge,
                 color = GlassTextSecondary
             )
         }

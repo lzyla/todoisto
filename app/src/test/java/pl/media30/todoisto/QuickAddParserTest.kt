@@ -92,6 +92,28 @@ class QuickAddParserTest {
     }
 
     @Test
+    fun durationShorthand() {
+        val r = parser.parse("Pisanie raportu 2h30")
+        assertEquals("Pisanie raportu", r.title)
+        assertEquals(150, r.durationMinutes)
+    }
+
+    @Test
+    fun durationWithPrzez() {
+        val r = parser.parse("Trening przez 45 min jutro")
+        assertEquals("Trening", r.title)
+        assertEquals(45, r.durationMinutes)
+        assertEquals(today.plusDays(1).toEpochDay(), r.dueDate)
+    }
+
+    @Test
+    fun durationHoursWord() {
+        val r = parser.parse("Warsztaty przez 2 godziny")
+        assertEquals("Warsztaty", r.title)
+        assertEquals(120, r.durationMinutes)
+    }
+
+    @Test
     fun everythingTogether() {
         val r = parser.parse("Przygotować prezentację #praca @ważne jutro o 9:30 p2")
         assertEquals("Przygotować prezentację", r.title)

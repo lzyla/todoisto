@@ -53,6 +53,9 @@ interface ProjectDao {
     @Query("SELECT * FROM projects WHERE name = :name LIMIT 1")
     suspend fun findByName(name: String): Project?
 
+    @Query("SELECT * FROM projects WHERE id = :id LIMIT 1")
+    suspend fun findById(id: Long): Project?
+
     @Query("DELETE FROM projects WHERE id = :id")
     suspend fun deleteById(id: Long)
 }
@@ -88,6 +91,9 @@ interface LabelDao {
 
     @Query("SELECT * FROM labels WHERE name = :name LIMIT 1")
     suspend fun findByName(name: String): Label?
+
+    @Query("SELECT * FROM labels WHERE id = :id LIMIT 1")
+    suspend fun findById(id: Long): Label?
 
     @Query("DELETE FROM labels WHERE id = :id")
     suspend fun deleteById(id: Long)

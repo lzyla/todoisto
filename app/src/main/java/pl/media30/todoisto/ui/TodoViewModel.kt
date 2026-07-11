@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import pl.media30.todoisto.data.Label
@@ -15,9 +16,13 @@ import pl.media30.todoisto.data.Priority
 import pl.media30.todoisto.data.Project
 import pl.media30.todoisto.data.QuickAddParser
 import pl.media30.todoisto.data.Section
+import pl.media30.todoisto.data.SettingsStore
 import pl.media30.todoisto.data.Task
 import pl.media30.todoisto.data.TaskRepository
+import java.time.DayOfWeek
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 
 /** Which collection of tasks the main screen is showing. */
 sealed class AppView {
@@ -27,6 +32,14 @@ sealed class AppView {
     data object Completed : AppView()
     data class ProjectView(val id: Long) : AppView()
     data class LabelView(val id: Long) : AppView()
+}
+
+enum class SortMode(val label: String) {
+    SMART("Sprytne"),
+    PRIORITY("Priorytet"),
+    DATE("Data"),
+    ALPHA("Alfabetycznie"),
+    NEWEST("Najnowsze")
 }
 
 /** A top-level task together with its subtasks. */
@@ -48,12 +61,41 @@ data class TodoUiState(
     val groups: List<SectionGroup> = emptyList(),
     val isEmpty: Boolean = true,
     val todayCount: Int = 0,
-    val inboxCount: Int = 0
+    val inboxCount: Int = 0,
+    val sortMode: SortMode = SortMode.SMART,
+    val doneToday: Int = 0,
+    val doneWeek: Int = 0,
+    val goalDaily: Int = 5,
+    val goalWeekly: Int = 25,
+    val currentProject: Project? = null,
+    val currentLabel: Label? = null
 )
 
-class TodoViewModel(private val repository: TaskRepository) : ViewModel() {
+private data class Sources(
+    val tasks: List<Task>,
+    val sections: List<Section>,
+    val projects: List<Project>,
+    val labels: List<Label>
+)
+
+private data class Prefs(
+    val sort: SortMode,
+    val goalDaily: Int,
+    val goalWeekly: Int
+)
+
+class TodoViewModel(
+    private val repository: TaskRepository,
+    private val settings: SettingsStore
+) : ViewModel() {
 
     private val _view = MutableStateFlow<AppView>(AppView.Today)
+    private val _sort = MutableStateFlow(SortMode.SMART)
+
+    val darkTheme: StateFlow<Boolean> = settings.darkTheme
+    fun setDarkTheme(value: Boolean) = settings.setDarkTheme(value)
+    fun setGoals(daily: Int, weekly: Int) = settings.setGoals(daily, weekly)
+    fun setSort(mode: SortMode) { _sort.value = mode }
 
     val allTasks: StateFlow<List<Task>> =
         repository.allTasks.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -64,53 +106,57 @@ class TodoViewModel(private val repository: TaskRepository) : ViewModel() {
     val labels: StateFlow<List<Label>> =
         repository.allLabels.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    private val sources = combine(
+        repository.allTasks, repository.allSections, repository.allProjects, repository.allLabels
+    ) { tasks, sections, projects, labels -> Sources(tasks, sections, projects, labels) }
+
+    private val prefsFlow = combine(_sort, settings.dailyGoal, settings.weeklyGoal) { s, d, w -> Prefs(s, d, w) }
+
     val uiState: StateFlow<TodoUiState> =
-        combine(
-            repository.allTasks,
-            repository.allSections,
-            _view,
-            repository.allProjects,
-            repository.allLabels
-        ) { tasks, sections, view, projects, labels ->
-            buildState(tasks, sections, view, projects, labels)
+        combine(sources, _view, prefsFlow) { src, view, prefs ->
+            buildState(src, view, prefs)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodoUiState())
 
-    private fun buildState(
-        tasks: List<Task>,
-        sections: List<Section>,
-        view: AppView,
-        projects: List<Project>,
-        labels: List<Label>
-    ): TodoUiState {
+    private fun buildState(src: Sources, view: AppView, prefs: Prefs): TodoUiState {
         val today = LocalDate.now().toEpochDay()
-        val topLevel = tasks.filter { it.parentId == null }
+        val archivedIds = src.projects.filter { it.isArchived }.map { it.id }.toSet()
+        val topLevel = src.tasks.filter { it.parentId == null }
+
+        val inArchived = { t: Task -> t.projectId != null && archivedIds.contains(t.projectId) }
 
         val matching = topLevel.filter { t ->
             when (view) {
-                AppView.Today -> !t.isCompleted && t.dueDate != null && t.dueDate <= today
-                AppView.Upcoming -> !t.isCompleted && t.dueDate != null && t.dueDate > today
+                AppView.Today -> !t.isCompleted && t.dueDate != null && t.dueDate <= today && !inArchived(t)
+                AppView.Upcoming -> !t.isCompleted && t.dueDate != null && t.dueDate > today && !inArchived(t)
                 AppView.Inbox -> !t.isCompleted && t.projectId == null
-                AppView.Completed -> t.isCompleted
+                AppView.Completed -> t.isCompleted && !inArchived(t)
                 is AppView.ProjectView -> !t.isCompleted && t.projectId == view.id
-                is AppView.LabelView -> !t.isCompleted && t.labelIds.contains(view.id)
+                is AppView.LabelView -> !t.isCompleted && t.labelIds.contains(view.id) && !inArchived(t)
             }
         }
 
-        fun nodeOf(t: Task) = TaskNode(t, tasks.filter { it.parentId == t.id })
+        val sorted = when (prefs.sort) {
+            SortMode.SMART -> matching
+            SortMode.PRIORITY -> matching.sortedWith(compareBy({ it.priority.ordinal }, { it.dueDate ?: Long.MAX_VALUE }))
+            SortMode.DATE -> matching.sortedWith(compareBy(nullsLast()) { it.dueDate })
+            SortMode.ALPHA -> matching.sortedBy { it.title.lowercase() }
+            SortMode.NEWEST -> matching.sortedByDescending { it.createdAt }
+        }
+
+        fun nodeOf(t: Task) = TaskNode(t, src.tasks.filter { it.parentId == t.id })
 
         val groups: List<SectionGroup> = if (view is AppView.ProjectView) {
-            val projectSections = sections.filter { it.projectId == view.id }.sortedBy { it.position }
-            val bySection = matching.groupBy { it.sectionId }
+            val projectSections = src.sections.filter { it.projectId == view.id }.sortedBy { it.position }
+            val bySection = sorted.groupBy { it.sectionId }
             buildList {
                 val noSection = bySection[null].orEmpty().map(::nodeOf)
                 if (noSection.isNotEmpty()) add(SectionGroup(null, null, noSection))
-                // Keep every defined section visible, even when empty, so structure shows.
                 projectSections.forEach { sec ->
                     add(SectionGroup(sec.id, sec.name, bySection[sec.id].orEmpty().map(::nodeOf)))
                 }
             }
         } else {
-            listOf(SectionGroup(null, null, matching.map(::nodeOf)))
+            listOf(SectionGroup(null, null, sorted.map(::nodeOf)))
         }
 
         val title = when (view) {
@@ -118,17 +164,37 @@ class TodoViewModel(private val repository: TaskRepository) : ViewModel() {
             AppView.Upcoming -> "Nadchodzące"
             AppView.Inbox -> "Skrzynka"
             AppView.Completed -> "Ukończone"
-            is AppView.ProjectView -> projects.firstOrNull { it.id == view.id }?.name ?: "Projekt"
-            is AppView.LabelView -> "@" + (labels.firstOrNull { it.id == view.id }?.name ?: "etykieta")
+            is AppView.ProjectView -> src.projects.firstOrNull { it.id == view.id }?.name ?: "Projekt"
+            is AppView.LabelView -> "@" + (src.labels.firstOrNull { it.id == view.id }?.name ?: "etykieta")
+        }
+
+        // Goal counters from completedAt timestamps
+        val zone = ZoneId.systemDefault()
+        val todayDate = LocalDate.now()
+        val monday = todayDate.with(DayOfWeek.MONDAY)
+        var doneToday = 0
+        var doneWeek = 0
+        src.tasks.forEach { t ->
+            val at = t.completedAt ?: return@forEach
+            val date = Instant.ofEpochMilli(at).atZone(zone).toLocalDate()
+            if (date == todayDate) doneToday++
+            if (!date.isBefore(monday) && !date.isAfter(todayDate)) doneWeek++
         }
 
         return TodoUiState(
             view = view,
             title = title,
             groups = groups,
-            isEmpty = matching.isEmpty(),
-            todayCount = topLevel.count { !it.isCompleted && it.dueDate != null && it.dueDate <= today },
-            inboxCount = topLevel.count { !it.isCompleted && it.projectId == null }
+            isEmpty = sorted.isEmpty(),
+            todayCount = topLevel.count { !it.isCompleted && it.dueDate != null && it.dueDate <= today && !inArchived(it) },
+            inboxCount = topLevel.count { !it.isCompleted && it.projectId == null },
+            sortMode = prefs.sort,
+            doneToday = doneToday,
+            doneWeek = doneWeek,
+            goalDaily = prefs.goalDaily,
+            goalWeekly = prefs.goalWeekly,
+            currentProject = (view as? AppView.ProjectView)?.let { v -> src.projects.firstOrNull { it.id == v.id } },
+            currentLabel = (view as? AppView.LabelView)?.let { v -> src.labels.firstOrNull { it.id == v.id } }
         )
     }
 
@@ -159,6 +225,7 @@ class TodoViewModel(private val repository: TaskRepository) : ViewModel() {
                     priority = parsed.priority,
                     dueDate = parsed.dueDate,
                     dueTimeMinutes = parsed.dueTimeMinutes,
+                    durationMinutes = parsed.durationMinutes,
                     deadline = parsed.deadline,
                     recurrence = parsed.recurrence,
                     reminderAt = reminderAt,
@@ -168,11 +235,6 @@ class TodoViewModel(private val repository: TaskRepository) : ViewModel() {
                 )
             )
         }
-    }
-
-    fun addTask(task: Task) {
-        if (task.title.isBlank()) return
-        viewModelScope.launch { repository.insert(task.copy(createdAt = System.currentTimeMillis())) }
     }
 
     fun updateTask(task: Task) {
@@ -192,6 +254,7 @@ class TodoViewModel(private val repository: TaskRepository) : ViewModel() {
     fun toggleCompleted(task: Task) = viewModelScope.launch { repository.toggleCompleted(task) }
     fun deleteTask(task: Task) = viewModelScope.launch { repository.deleteWithSubtasks(task.id) }
     fun deleteCompleted() = viewModelScope.launch { repository.deleteCompleted() }
+    fun duplicateTask(id: Long) = viewModelScope.launch { repository.duplicateTask(id) }
 
     // --- projects / sections / labels ---
     fun addProject(name: String, colorArgb: Long) {
@@ -203,6 +266,18 @@ class TodoViewModel(private val repository: TaskRepository) : ViewModel() {
         if (_view.value == AppView.ProjectView(id)) _view.value = AppView.Today
         repository.deleteProject(id)
     }
+
+    fun duplicateProject(id: Long) = viewModelScope.launch {
+        repository.duplicateProject(id, repository.allSections.first(), repository.allTasks.first())
+    }
+
+    fun archiveProject(id: Long, archived: Boolean) = viewModelScope.launch {
+        if (archived && _view.value == AppView.ProjectView(id)) _view.value = AppView.Today
+        repository.setProjectArchived(id, archived)
+    }
+
+    fun toggleProjectFavorite(id: Long) = viewModelScope.launch { repository.toggleProjectFavorite(id) }
+    fun toggleLabelFavorite(id: Long) = viewModelScope.launch { repository.toggleLabelFavorite(id) }
 
     fun addSection(projectId: Long, name: String) {
         if (name.isBlank()) return
@@ -221,11 +296,14 @@ class TodoViewModel(private val repository: TaskRepository) : ViewModel() {
 
     suspend fun getTask(id: Long): Task? = repository.getTaskById(id)
 
-    class Factory(private val repository: TaskRepository) : ViewModelProvider.Factory {
+    class Factory(
+        private val repository: TaskRepository,
+        private val settings: SettingsStore
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(TodoViewModel::class.java)) {
-                return TodoViewModel(repository) as T
+                return TodoViewModel(repository, settings) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }

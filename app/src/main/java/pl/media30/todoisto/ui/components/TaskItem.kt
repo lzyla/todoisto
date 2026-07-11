@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Sell
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -45,6 +46,7 @@ import pl.media30.todoisto.data.Priority
 import pl.media30.todoisto.data.Task
 import pl.media30.todoisto.ui.theme.GlassAccent
 import pl.media30.todoisto.ui.theme.GlassPanelTint
+import pl.media30.todoisto.ui.theme.GlassTheme
 import pl.media30.todoisto.ui.theme.GlassTextPrimary
 import pl.media30.todoisto.ui.theme.GlassTextSecondary
 import pl.media30.todoisto.ui.theme.glass
@@ -126,7 +128,10 @@ private fun MetaRow(task: Task, labels: List<Label>, subtaskDone: Int, subtaskTo
         modifier = Modifier.wrapContentHeight()
     ) {
         task.dueDate?.let { Chip(dueLabel(it), dueTint(it), Icons.Outlined.CalendarToday) }
-        if (task.recurrence != null) Chip("Cykl", GlassAccent, Icons.Outlined.Repeat)
+        task.durationMinutes?.let { Chip(durationLabel(it), GlassTextSecondary, Icons.Outlined.Timer) }
+        if (task.recurrence != null) {
+            Chip("Cykl", if (GlassTheme.dark) Color.White else GlassAccent, Icons.Outlined.Repeat)
+        }
         task.deadline?.let { Chip("do " + LocalDate.ofEpochDay(it).format(dateFormatter), Color(0xFFB33B00), Icons.Outlined.Flag) }
         if (task.priority != Priority.P4) Chip("P${task.priority.ordinal + 1}", task.priority.color, null)
         if (subtaskTotal > 0) Chip("$subtaskDone/$subtaskTotal", GlassTextSecondary, null)
@@ -153,7 +158,11 @@ private fun Chip(text: String, tint: Color, icon: androidx.compose.ui.graphics.v
 
 @Composable
 private fun CheckCircle(checked: Boolean, color: Color, size: androidx.compose.ui.unit.Dp, onToggle: () -> Unit) {
-    val ring = if (color == Priority.P4.color) GlassAccent else color
+    val ring = when {
+        color != Priority.P4.color -> color
+        GlassTheme.dark -> Color.White.copy(alpha = 0.9f)
+        else -> GlassAccent
+    }
     val fill by animateColorAsState(
         targetValue = if (checked) ring else ring.copy(alpha = 0.08f),
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
@@ -184,6 +193,16 @@ private fun CheckCircle(checked: Boolean, color: Color, size: androidx.compose.u
     }
 }
 
+private fun durationLabel(minutes: Int): String {
+    val h = minutes / 60
+    val m = minutes % 60
+    return when {
+        h > 0 && m > 0 -> "${h}h ${m}min"
+        h > 0 -> "${h}h"
+        else -> "${m} min"
+    }
+}
+
 private fun dueLabel(epochDay: Long): String {
     val today = LocalDate.now().toEpochDay()
     return when {
@@ -198,8 +217,8 @@ private fun dueLabel(epochDay: Long): String {
 private fun dueTint(epochDay: Long): Color {
     val today = LocalDate.now().toEpochDay()
     return when {
-        epochDay < today -> Color(0xFFB3261E)
-        epochDay <= today + 1 -> GlassAccent
+        epochDay < today -> if (GlassTheme.dark) Color(0xFFFFB4AB) else Color(0xFFB3261E)
+        epochDay <= today + 1 -> if (GlassTheme.dark) Color.White else GlassAccent
         else -> GlassTextSecondary
     }
 }

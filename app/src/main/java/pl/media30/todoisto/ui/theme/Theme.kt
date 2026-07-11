@@ -11,14 +11,15 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 /**
- * A single vibrant "liquid glass" scheme. Surfaces are intentionally
- * translucent — real fills come from [Modifier.glass] layered over
- * [GlassBackground], so most container colors are transparent here.
+ * Liquid-glass scheme. Reads [GlassTheme.dark], so recomposes when the theme
+ * toggles. Surfaces are transparent — real fills come from [Modifier.glass]
+ * layered over [GlassBackground]; menus/dialogs use the surfaceContainer set.
  */
-private val GlassColors = darkColorScheme(
+@Composable
+private fun glassColorScheme() = darkColorScheme(
     primary = GlassAccent,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFF8B5CFF).copy(alpha = 0.14f),
+    primaryContainer = GlassPanelTint.copy(alpha = 0.14f),
     onPrimaryContainer = GlassTextPrimary,
     secondary = GlassBlobMagenta,
     onSecondary = Color.White,
@@ -27,35 +28,34 @@ private val GlassColors = darkColorScheme(
     onBackground = GlassTextPrimary,
     surface = Color.Transparent,
     onSurface = GlassTextPrimary,
-    surfaceVariant = Color(0xFF8B5CFF).copy(alpha = 0.12f),
+    surfaceVariant = GlassPanelTint.copy(alpha = 0.12f),
     onSurfaceVariant = GlassTextSecondary,
-    outline = Color(0xFF8B5CFF).copy(alpha = 0.35f),
-    // Menus, dialogs and pickers draw on these — keep them light lavender, not gray.
-    surfaceContainer = Color(0xFFF6F0FF),
-    surfaceContainerHigh = Color(0xFFF2EAFF),
-    surfaceContainerHighest = Color(0xFFEDE3FF),
-    surfaceContainerLow = Color(0xFFF9F5FF),
-    surfaceContainerLowest = Color(0xFFFFFFFF)
+    outline = GlassPanelTint.copy(alpha = 0.35f),
+    surfaceContainer = GlassSurface,
+    surfaceContainerHigh = GlassSurface,
+    surfaceContainerHighest = GlassSurface,
+    surfaceContainerLow = GlassSurface,
+    surfaceContainerLowest = GlassSurface
 )
 
 @Composable
 fun TodoistoTheme(
-    darkTheme: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val view = LocalView.current
     val activity = view.context as? Activity
+    val dark = GlassTheme.dark
     if (!view.isInEditMode && activity != null) {
         SideEffect {
             val window = activity.window
             window.statusBarColor = AndroidColor.TRANSPARENT
             window.navigationBarColor = AndroidColor.TRANSPARENT
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !dark
         }
     }
 
     MaterialTheme(
-        colorScheme = GlassColors,
+        colorScheme = glassColorScheme(),
         typography = Typography,
         content = content
     )

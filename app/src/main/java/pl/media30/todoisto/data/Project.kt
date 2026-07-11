@@ -9,7 +9,9 @@ data class Project(
     val id: Long = 0,
     val name: String,
     val colorArgb: Long = 0xFF9B6BFF,
-    val position: Int = 0
+    val position: Int = 0,
+    val isFavorite: Boolean = false,
+    val isArchived: Boolean = false
 )
 
 @Entity(tableName = "sections")
@@ -26,7 +28,8 @@ data class Label(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val name: String,
-    val colorArgb: Long = 0xFF4D6BFF
+    val colorArgb: Long = 0xFF4D6BFF,
+    val isFavorite: Boolean = false
 )
 
 /** Preset colours offered when creating projects/labels. */

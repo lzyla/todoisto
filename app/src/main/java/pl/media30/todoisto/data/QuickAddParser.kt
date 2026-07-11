@@ -12,6 +12,7 @@ data class ParsedTask(
     val priority: Priority = Priority.P4,
     val dueDate: Long? = null,        // epoch-day
     val dueTimeMinutes: Int? = null,  // minutes from midnight
+    val durationMinutes: Int? = null, // planned duration
     val deadline: Long? = null,       // epoch-day
     val recurrence: Recurrence? = null,
     val projectName: String? = null,
@@ -57,6 +58,8 @@ class QuickAddParser(private val today: LocalDate = LocalDate.now()) {
     )
 
     private val timeRegex = Regex("""^([01]?\d|2[0-3]):([0-5]\d)$""")
+    private val durationHRegex = Regex("""^(\d{1,2})h(?:([0-5]?\d)(?:m|min)?)?$""")
+    private val durationMinRegex = Regex("""^(\d{1,3})(?:m|min)$""")
     private val isoDateRegex = Regex("""^(\d{4})-(\d{2})-(\d{2})$""")
     private val dotDateRegex = Regex("""^(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?$""")
 
@@ -67,6 +70,7 @@ class QuickAddParser(private val today: LocalDate = LocalDate.now()) {
         var priority = Priority.P4
         var dueDate: Long? = null
         var dueTime: Int? = null
+        var duration: Int? = null
         var deadline: Long? = null
         var recurrence: Recurrence? = null
         var projectName: String? = null
@@ -95,6 +99,26 @@ class QuickAddParser(private val today: LocalDate = LocalDate.now()) {
             }
             if (timeRegex.matches(lower)) {
                 dueTime = parseTime(lower); i++; continue
+            }
+
+            // --- duration: "2h", "2h30", "45min", "przez 2 godziny", "przez 45 min" ---
+            val bareDuration = parseDuration(lower)
+            if (bareDuration != null) { duration = bareDuration; i++; continue }
+            if (lower == "przez" && i + 1 < tokens.size) {
+                val d1 = parseDuration(tokens[i + 1].lowercase())
+                if (d1 != null) { duration = d1; i += 2; continue }
+                if (i + 2 < tokens.size) {
+                    val amount = tokens[i + 1].toIntOrNull()
+                    val unit = tokens[i + 2].lowercase()
+                    if (amount != null) {
+                        val d2 = when {
+                            unit.startsWith("godz") || unit == "h" -> amount * 60
+                            unit.startsWith("min") || unit == "m" -> amount
+                            else -> null
+                        }
+                        if (d2 != null) { duration = d2; i += 3; continue }
+                    }
+                }
             }
 
             // --- recurrence: "codziennie", "co <unit>" ---
@@ -170,11 +194,24 @@ class QuickAddParser(private val today: LocalDate = LocalDate.now()) {
             priority = priority,
             dueDate = dueDate,
             dueTimeMinutes = dueTime,
+            durationMinutes = duration,
             deadline = deadline,
             recurrence = recurrence,
             projectName = projectName,
             labelNames = labels.distinct()
         )
+    }
+
+    private fun parseDuration(token: String): Int? {
+        durationHRegex.find(token)?.let {
+            val h = it.groupValues[1].toIntOrNull() ?: return null
+            val m = it.groupValues[2].toIntOrNull() ?: 0
+            return h * 60 + m
+        }
+        durationMinRegex.find(token)?.let {
+            return it.groupValues[1].toIntOrNull()
+        }
+        return null
     }
 
     private fun parseTime(token: String): Int? {

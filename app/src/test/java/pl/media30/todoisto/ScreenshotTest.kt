@@ -1,5 +1,6 @@
 package pl.media30.todoisto
 
+import androidx.compose.runtime.Composable
 import app.cash.paparazzi.DeviceConfig
 import app.cash.paparazzi.Paparazzi
 import org.junit.Rule
@@ -16,6 +17,7 @@ import pl.media30.todoisto.ui.TodoUiState
 import pl.media30.todoisto.ui.screens.AddEditTaskScreen
 import pl.media30.todoisto.ui.screens.TaskListScreen
 import pl.media30.todoisto.ui.theme.GlassBackground
+import pl.media30.todoisto.ui.theme.GlassTheme
 import pl.media30.todoisto.ui.theme.TodoistoTheme
 import java.time.LocalDate
 
@@ -30,7 +32,7 @@ class ScreenshotTest {
     private val today = LocalDate.now().toEpochDay()
 
     private val projects = listOf(
-        Project(1, "Fundacja", 0xFFC24DFF),
+        Project(1, "Fundacja", 0xFFC24DFF, isFavorite = true),
         Project(2, "Dom", 0xFF34D399)
     )
     private val labels = listOf(
@@ -39,40 +41,73 @@ class ScreenshotTest {
     )
 
     private val tasks = listOf(
-        Task(1, "Zadzwonić do Beaty", "Ustalić budżet", false, Priority.P1, today, projectId = 1, labelIds = listOf(1)),
+        Task(1, "Zadzwonić do Beaty", "Ustalić budżet", false, Priority.P1, today, durationMinutes = 30, projectId = 1, labelIds = listOf(1)),
         Task(2, "Wysłać raport kwartalny", "", false, Priority.P2, today + 1, deadline = today + 3, projectId = 1),
         Task(3, "Podlać kwiaty", "", false, Priority.P4, today, recurrence = Recurrence.WEEKLY),
         Task(4, "Kupić mleko", "", false, Priority.P4, null, labelIds = listOf(2)),
-        Task(5, "Przygotować prezentację", "", false, Priority.P3, today - 1)
+        Task(5, "Przygotować prezentację", "", false, Priority.P3, today - 1, durationMinutes = 120)
     )
 
+    private fun uiState() = TodoUiState(
+        view = AppView.Today,
+        title = "Dzisiaj",
+        groups = listOf(SectionGroup(null, null, tasks.map { TaskNode(it, emptyList()) })),
+        isEmpty = false,
+        todayCount = 3,
+        inboxCount = 1,
+        doneToday = 3,
+        doneWeek = 12
+    )
+
+    @Composable
+    private fun listScreen() {
+        TaskListScreen(
+            uiState = uiState(),
+            projects = projects,
+            labels = labels,
+            isDarkTheme = GlassTheme.dark,
+            quickAddPrefill = null,
+            onPrefillConsumed = {},
+            onSelectView = {},
+            onToggle = {},
+            onTaskClick = {},
+            onQuickAdd = {},
+            onAddProject = { _, _ -> },
+            onDeleteProject = {},
+            onDuplicateProject = {},
+            onArchiveProject = { _, _ -> },
+            onToggleProjectFavorite = {},
+            onToggleLabelFavorite = {},
+            onDeleteLabel = {},
+            onAddLabel = { _, _ -> },
+            onAddSection = { _, _ -> },
+            onClearCompleted = {},
+            onSort = {},
+            onSetGoals = { _, _ -> },
+            onToggleTheme = {}
+        )
+    }
+
     @Test
-    fun taskList() {
-        val groups = listOf(SectionGroup(null, null, tasks.map { TaskNode(it, emptyList()) }))
+    fun taskListLight() {
+        GlassTheme.dark = false
         paparazzi.snapshot {
-            TodoistoTheme {
-                GlassBackground {
-                    TaskListScreen(
-                        uiState = TodoUiState(AppView.Today, "Dzisiaj", groups, isEmpty = false, todayCount = 3, inboxCount = 1),
-                        projects = projects,
-                        labels = labels,
-                        onSelectView = {},
-                        onToggle = {},
-                        onTaskClick = {},
-                        onQuickAdd = {},
-                        onAddProject = { _, _ -> },
-                        onDeleteProject = {},
-                        onAddLabel = { _, _ -> },
-                        onAddSection = { _, _ -> },
-                        onClearCompleted = {}
-                    )
-                }
-            }
+            TodoistoTheme { GlassBackground { listScreen() } }
         }
     }
 
     @Test
+    fun taskListDark() {
+        GlassTheme.dark = true
+        paparazzi.snapshot {
+            TodoistoTheme { GlassBackground { listScreen() } }
+        }
+        GlassTheme.dark = false
+    }
+
+    @Test
     fun editTask() {
+        GlassTheme.dark = false
         paparazzi.snapshot {
             TodoistoTheme {
                 GlassBackground {
@@ -80,7 +115,8 @@ class ScreenshotTest {
                         existing = Task(
                             id = 1, title = "Zadzwonić do Beaty", notes = "Ustalić budżet",
                             priority = Priority.P1, dueDate = today, deadline = today + 3,
-                            recurrence = Recurrence.WEEKLY, projectId = 1, labelIds = listOf(1)
+                            recurrence = Recurrence.WEEKLY, durationMinutes = 30,
+                            projectId = 1, labelIds = listOf(1)
                         ),
                         projects = projects,
                         labels = labels,
@@ -88,28 +124,8 @@ class ScreenshotTest {
                         onSave = {},
                         onAddSubtask = {},
                         onToggleSubtask = {},
+                        onDuplicate = {},
                         onDelete = {},
-                        onClose = {}
-                    )
-                }
-            }
-        }
-    }
-
-    @Test
-    fun newTask() {
-        paparazzi.snapshot {
-            TodoistoTheme {
-                GlassBackground {
-                    AddEditTaskScreen(
-                        existing = null,
-                        projects = projects,
-                        labels = labels,
-                        subtasks = emptyList(),
-                        onSave = {},
-                        onAddSubtask = {},
-                        onToggleSubtask = {},
-                        onDelete = null,
                         onClose = {}
                     )
                 }

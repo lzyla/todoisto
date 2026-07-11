@@ -1,8 +1,16 @@
 package pl.media30.todoisto.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,10 +32,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,18 +63,19 @@ fun TaskItem(
     subtaskTotal: Int = 0,
     compact: Boolean = false
 ) {
-    val shape = RoundedCornerShape(if (compact) 16.dp else 20.dp)
+    val shape = RoundedCornerShape(if (compact) 22.dp else 28.dp)
     val base = if (compact) {
         modifier
             .clip(shape)
-            .background(Color.White.copy(alpha = 0.06f))
-            .border(1.dp, Color.White.copy(alpha = 0.12f), shape)
+            .background(Color.White.copy(alpha = 0.16f))
+            .border(1.dp, Color.White.copy(alpha = 0.35f), shape)
     } else {
         modifier.glass(shape = shape)
     }
     Row(
         modifier = base
-            .clickable(onClick = onClick)
+            .bouncy(scaleDown = 0.97f, onClick = onClick)
+            .animateContentSize(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow))
             .padding(horizontal = 16.dp, vertical = if (compact) 10.dp else 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -115,10 +124,10 @@ private fun MetaRow(task: Task, labels: List<Label>, subtaskDone: Int, subtaskTo
         modifier = Modifier.wrapContentHeight()
     ) {
         task.dueDate?.let { Chip(dueLabel(it), dueTint(it), Icons.Outlined.CalendarToday) }
-        if (task.recurrence != null) Chip("Cykl", MaterialTheme.colorScheme.primary, Icons.Outlined.Repeat)
-        task.deadline?.let { Chip("do " + LocalDate.ofEpochDay(it).format(dateFormatter), Color(0xFFFF8A5B), Icons.Outlined.Flag) }
+        if (task.recurrence != null) Chip("Cykl", Color.White, Icons.Outlined.Repeat)
+        task.deadline?.let { Chip("do " + LocalDate.ofEpochDay(it).format(dateFormatter), Color(0xFFB33B00), Icons.Outlined.Flag) }
         if (task.priority != Priority.P4) Chip("P${task.priority.ordinal + 1}", task.priority.color, null)
-        if (subtaskTotal > 0) Chip("$subtaskDone/$subtaskTotal", GlassTextSecondary, null)
+        if (subtaskTotal > 0) Chip("$subtaskDone/$subtaskTotal", Color.White, null)
         labels.forEach { Chip(it.name, Color(it.colorArgb), Icons.Outlined.Sell) }
     }
 }
@@ -127,9 +136,9 @@ private fun MetaRow(task: Task, labels: List<Label>, subtaskDone: Int, subtaskTo
 private fun Chip(text: String, tint: Color, icon: androidx.compose.ui.graphics.vector.ImageVector?) {
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(tint.copy(alpha = 0.16f))
-            .padding(horizontal = 8.dp, vertical = 3.dp),
+            .clip(RoundedCornerShape(50))
+            .background(Color.White.copy(alpha = 0.18f))
+            .padding(horizontal = 9.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (icon != null) {
@@ -142,21 +151,33 @@ private fun Chip(text: String, tint: Color, icon: androidx.compose.ui.graphics.v
 
 @Composable
 private fun CheckCircle(checked: Boolean, color: Color, size: androidx.compose.ui.unit.Dp, onToggle: () -> Unit) {
-    val ring = if (color == Priority.P4.color) MaterialTheme.colorScheme.primary else color
+    val ring = if (color == Priority.P4.color) Color.White.copy(alpha = 0.9f) else color
+    val fill by animateColorAsState(
+        targetValue = if (checked) ring else Color.White.copy(alpha = 0.10f),
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "checkFill"
+    )
     Row(
         modifier = Modifier
             .size(size)
             .clip(CircleShape)
-            .then(
-                if (checked) Modifier.background(Brush.verticalGradient(listOf(ring, ring.copy(alpha = 0.7f))))
-                else Modifier.background(Color.White.copy(alpha = 0.05f)).border(2.dp, ring, CircleShape)
-            )
-            .clickable(onClick = onToggle),
+            .background(fill)
+            .border(2.dp, ring, CircleShape)
+            .bouncy(scaleDown = 0.8f, onClick = onToggle),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (checked) {
-            Icon(Icons.Filled.Check, contentDescription = "Ukończone", tint = Color.White, modifier = Modifier.size(15.dp))
+        AnimatedVisibility(
+            visible = checked,
+            enter = scaleIn(spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium)) + fadeIn(),
+            exit = scaleOut() + fadeOut()
+        ) {
+            Icon(
+                Icons.Filled.Check,
+                contentDescription = "Ukończone",
+                tint = if (color == Priority.P4.color) Color(0xFF6B3FE0) else Color.White,
+                modifier = Modifier.size(15.dp)
+            )
         }
     }
 }
@@ -175,8 +196,7 @@ private fun dueLabel(epochDay: Long): String {
 private fun dueTint(epochDay: Long): Color {
     val today = LocalDate.now().toEpochDay()
     return when {
-        epochDay < today -> Color(0xFFFF6B6B)
-        epochDay <= today + 1 -> MaterialTheme.colorScheme.primary
-        else -> GlassTextSecondary
+        epochDay < today -> Color(0xFFB3261E)
+        else -> Color.White
     }
 }

@@ -23,17 +23,17 @@ import androidx.compose.ui.unit.dp
 
 // ---- Liquid-glass palette -------------------------------------------------
 
-val GlassBgTop = Color(0xFF1B0F38)
-val GlassBgMid = Color(0xFF2C1863)
-val GlassBgBottom = Color(0xFF140A2C)
+val GlassBgTop = Color(0xFF8B5CFF)
+val GlassBgMid = Color(0xFF7141E8)
+val GlassBgBottom = Color(0xFF5527C4)
 
-val GlassBlobViolet = Color(0xFF8A5CFF)
-val GlassBlobMagenta = Color(0xFFC24DFF)
-val GlassBlobBlue = Color(0xFF4D6BFF)
+val GlassBlobViolet = Color(0xFFB388FF)
+val GlassBlobMagenta = Color(0xFFE96BFF)
+val GlassBlobBlue = Color(0xFF7C9EFF)
 
 val GlassAccent = Color(0xFF9B6BFF)
-val GlassTextPrimary = Color(0xFFF4F1FF)
-val GlassTextSecondary = Color(0xFFBEB4E8)
+val GlassTextPrimary = Color(0xFFFFFFFF)
+val GlassTextSecondary = Color(0xFFEDE5FF)
 
 /**
  * Full-screen vibrant purple backdrop with soft glowing blobs.
@@ -95,9 +95,9 @@ private fun BoxScope.Blob(
             .align(alignment)
             .offset(x = offsetX, y = offsetY)
             .size(size)
-            .blur(90.dp)
+            .blur(80.dp)
             .background(
-                Brush.radialGradient(listOf(color.copy(alpha = 0.55f), Color.Transparent)),
+                Brush.radialGradient(listOf(color.copy(alpha = 0.75f), Color.Transparent)),
                 CircleShape
             )
     )
@@ -108,11 +108,11 @@ private fun BoxScope.Blob(
  * and a bright hairline border that catches the light.
  */
 fun Modifier.glass(
-    shape: Shape = RoundedCornerShape(22.dp),
-    fillAlphaTop: Float = 0.16f,
-    fillAlphaBottom: Float = 0.05f
+    shape: Shape = RoundedCornerShape(28.dp),
+    fillAlphaTop: Float = 0.30f,
+    fillAlphaBottom: Float = 0.12f
 ): Modifier = this
-    .shadow(elevation = 10.dp, shape = shape, spotColor = Color.Black, ambientColor = Color.Black)
+    .shadow(elevation = 12.dp, shape = shape, spotColor = Color(0x59200A66), ambientColor = Color(0x40200A66))
     .clip(shape)
     .background(
         Brush.verticalGradient(
@@ -123,11 +123,11 @@ fun Modifier.glass(
         )
     )
     .border(
-        width = 1.dp,
+        width = 1.5.dp,
         brush = Brush.linearGradient(
             listOf(
-                Color.White.copy(alpha = 0.45f),
-                Color.White.copy(alpha = 0.08f)
+                Color.White.copy(alpha = 0.75f),
+                Color.White.copy(alpha = 0.20f)
             )
         ),
         shape = shape

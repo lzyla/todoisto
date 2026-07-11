@@ -1,5 +1,10 @@
 package pl.media30.todoisto.ui.screens
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -77,6 +82,7 @@ import pl.media30.todoisto.ui.AppView
 import pl.media30.todoisto.ui.SectionGroup
 import pl.media30.todoisto.ui.TodoUiState
 import pl.media30.todoisto.ui.components.TaskItem
+import pl.media30.todoisto.ui.components.bouncy
 import pl.media30.todoisto.ui.components.glassFieldColors
 import pl.media30.todoisto.ui.theme.GlassAccent
 import pl.media30.todoisto.ui.theme.GlassTextPrimary
@@ -165,18 +171,21 @@ fun TaskListScreen(
             floatingActionButton = {
                 ExtendedFloatingActionButton(
                     onClick = { showQuickAdd = true },
-                    containerColor = GlassAccent,
-                    contentColor = Color.White,
+                    shape = RoundedCornerShape(50),
+                    containerColor = Color.White,
+                    contentColor = Color(0xFF6B3FE0),
                     icon = { Icon(Icons.Filled.Add, null) },
                     text = { Text("Dodaj zadanie", fontWeight = FontWeight.SemiBold) }
                 )
             }
         ) { innerPadding ->
             Box(Modifier.padding(innerPadding).fillMaxSize()) {
-                if (uiState.isEmpty) {
-                    EmptyState(uiState.view)
-                } else {
-                    TaskList(uiState.groups, labels, onToggle, onTaskClick)
+                Crossfade(targetState = uiState.isEmpty, label = "listOrEmpty") { empty ->
+                    if (empty) {
+                        EmptyState(uiState.view)
+                    } else {
+                        TaskList(uiState.groups, labels, onToggle, onTaskClick)
+                    }
                 }
             }
         }
@@ -242,7 +251,12 @@ private fun TaskList(
                 }
             }
             items(group.nodes, key = { it.task.id }) { node ->
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.animateItem(
+                        placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)
+                    )
+                ) {
                     TaskItem(
                         task = node.task,
                         labels = labels.filter { node.task.labelIds.contains(it.id) },
@@ -282,7 +296,7 @@ private fun DrawerContent(
     onAddLabel: () -> Unit
 ) {
     ModalDrawerSheet(
-        drawerContainerColor = Color(0xFF201142),
+        drawerContainerColor = Color(0xFF6B3FE0),
         modifier = Modifier.fillMaxWidth(0.82f)
     ) {
         Column(
@@ -318,13 +332,17 @@ private fun DrawerContent(
 
 @Composable
 private fun DrawerItem(icon: ImageVector, label: String, count: Int, selected: Boolean, onClick: () -> Unit) {
+    val bg by animateColorAsState(
+        targetValue = if (selected) Color.White.copy(alpha = 0.22f) else Color.Transparent,
+        label = "drawerBg"
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (selected) GlassAccent.copy(alpha = 0.28f) else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+            .clip(RoundedCornerShape(50))
+            .background(bg)
+            .bouncy(scaleDown = 0.97f, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, null, tint = if (selected) Color.White else GlassTextSecondary, modifier = Modifier.size(20.dp))
@@ -336,13 +354,17 @@ private fun DrawerItem(icon: ImageVector, label: String, count: Int, selected: B
 
 @Composable
 private fun DrawerDot(color: Color, label: String, selected: Boolean, icon: ImageVector? = null, onClick: () -> Unit) {
+    val bg by animateColorAsState(
+        targetValue = if (selected) Color.White.copy(alpha = 0.22f) else Color.Transparent,
+        label = "drawerBg"
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (selected) GlassAccent.copy(alpha = 0.28f) else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+            .clip(RoundedCornerShape(50))
+            .background(bg)
+            .bouncy(scaleDown = 0.97f, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (icon != null) {
@@ -385,7 +407,7 @@ private fun QuickAddSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color(0xFF241448)
+        containerColor = Color(0xFF6B3FE0)
     ) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
             OutlinedTextField(
@@ -394,12 +416,17 @@ private fun QuickAddSheet(
                 placeholder = { Text("np. Zadzwonić do Beaty jutro o 15:00 #fundacja p1") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = false,
+                shape = RoundedCornerShape(22.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { if (text.isNotBlank()) onAdd(text) }),
                 colors = glassFieldColors()
             )
             Spacer(Modifier.height(12.dp))
-            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().animateContentSize()
+            ) {
                 parsed.dueDate?.let { PreviewChip("📅 " + dueText(it, fmt)) }
                 parsed.dueTimeMinutes?.let { PreviewChip("🕒 %02d:%02d".format(it / 60, it % 60)) }
                 if (parsed.recurrence != null) PreviewChip("🔁 " + parsed.recurrence!!.label)
@@ -411,8 +438,9 @@ private fun QuickAddSheet(
             Spacer(Modifier.height(16.dp))
             ExtendedFloatingActionButton(
                 onClick = { if (text.isNotBlank()) onAdd(text) },
-                containerColor = GlassAccent,
-                contentColor = Color.White,
+                shape = RoundedCornerShape(50),
+                containerColor = Color.White,
+                contentColor = Color(0xFF6B3FE0),
                 modifier = Modifier.fillMaxWidth(),
                 icon = { Icon(Icons.Filled.Add, null) },
                 text = { Text("Dodaj", fontWeight = FontWeight.SemiBold) }
@@ -451,7 +479,7 @@ private fun NameColorDialog(title: String, onDismiss: () -> Unit, onConfirm: (St
     var color by remember { mutableStateOf(PaletteColors.options.first()) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF241448),
+        containerColor = Color(0xFF6B3FE0),
         title = { Text(title, color = GlassTextPrimary) },
         text = {
             Column {
@@ -460,6 +488,7 @@ private fun NameColorDialog(title: String, onDismiss: () -> Unit, onConfirm: (St
                     onValueChange = { name = it },
                     label = { Text("Nazwa") },
                     singleLine = true,
+                    shape = RoundedCornerShape(22.dp),
                     colors = glassFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -488,7 +517,7 @@ private fun NameDialog(title: String, onDismiss: () -> Unit, onConfirm: (String)
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF241448),
+        containerColor = Color(0xFF6B3FE0),
         title = { Text(title, color = GlassTextPrimary) },
         text = {
             OutlinedTextField(
@@ -496,6 +525,7 @@ private fun NameDialog(title: String, onDismiss: () -> Unit, onConfirm: (String)
                 onValueChange = { name = it },
                 label = { Text("Nazwa") },
                 singleLine = true,
+                shape = RoundedCornerShape(22.dp),
                 colors = glassFieldColors(),
                 modifier = Modifier.fillMaxWidth()
             )

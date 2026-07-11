@@ -1,5 +1,15 @@
 package pl.media30.todoisto.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -68,6 +78,7 @@ import pl.media30.todoisto.data.Priority
 import pl.media30.todoisto.data.Project
 import pl.media30.todoisto.data.Recurrence
 import pl.media30.todoisto.data.Task
+import pl.media30.todoisto.ui.components.bouncy
 import pl.media30.todoisto.ui.components.glassFieldColors
 import pl.media30.todoisto.ui.theme.GlassAccent
 import pl.media30.todoisto.ui.theme.GlassTextPrimary
@@ -150,13 +161,13 @@ fun AddEditTaskScreen(
                 value = title, onValueChange = { title = it },
                 label = { Text("Co jest do zrobienia?") }, singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                colors = glassFieldColors(), modifier = Modifier.fillMaxWidth()
+                shape = RoundedCornerShape(22.dp), colors = glassFieldColors(), modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(16.dp))
             OutlinedTextField(
                 value = notes, onValueChange = { notes = it },
                 label = { Text("Notatki (opcjonalnie)") }, minLines = 2,
-                colors = glassFieldColors(), modifier = Modifier.fillMaxWidth()
+                shape = RoundedCornerShape(22.dp), colors = glassFieldColors(), modifier = Modifier.fillMaxWidth()
             )
 
             // Project
@@ -204,9 +215,9 @@ fun AddEditTaskScreen(
             SectionLabel(Icons.Outlined.Repeat, "Powtarzanie")
             Spacer(Modifier.height(10.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SelectChip("Nie", recurrence == null, GlassAccent) { recurrence = null }
+                SelectChip("Nie", recurrence == null, Color(0xFF6B3FE0)) { recurrence = null }
                 Recurrence.entries.forEach { r ->
-                    SelectChip(r.label, recurrence == r, GlassAccent) { recurrence = r }
+                    SelectChip(r.label, recurrence == r, Color(0xFF6B3FE0)) { recurrence = r }
                 }
             }
 
@@ -242,6 +253,7 @@ fun AddEditTaskScreen(
                 Spacer(Modifier.height(24.dp))
                 SectionLabel(Icons.Outlined.AccountTree, "Podzadania")
                 Spacer(Modifier.height(10.dp))
+                Column(Modifier.animateContentSize(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow))) {
                 subtasks.forEach { sub ->
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
                         Box(
@@ -267,11 +279,12 @@ fun AddEditTaskScreen(
                         keyboardActions = KeyboardActions(onDone = {
                             if (newSubtask.isNotBlank()) { onAddSubtask(newSubtask); newSubtask = "" }
                         }),
-                        colors = glassFieldColors(), modifier = Modifier.weight(1f)
+                        shape = RoundedCornerShape(22.dp), colors = glassFieldColors(), modifier = Modifier.weight(1f)
                     )
                     IconButton(onClick = { if (newSubtask.isNotBlank()) { onAddSubtask(newSubtask); newSubtask = "" } }) {
-                        Icon(Icons.Filled.Add, "Dodaj", tint = GlassAccent)
+                        Icon(Icons.Filled.Add, "Dodaj", tint = Color.White)
                     }
+                }
                 }
             }
 
@@ -281,9 +294,9 @@ fun AddEditTaskScreen(
                 enabled = title.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().height(54.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = GlassAccent, contentColor = Color.White,
-                    disabledContainerColor = Color.White.copy(alpha = 0.10f),
-                    disabledContentColor = GlassTextSecondary.copy(alpha = 0.6f)
+                    containerColor = Color.White, contentColor = Color(0xFF6B3FE0),
+                    disabledContainerColor = Color.White.copy(alpha = 0.18f),
+                    disabledContentColor = GlassTextSecondary.copy(alpha = 0.7f)
                 )
             ) {
                 Text(if (isEditing) "Zapisz zmiany" else "Dodaj zadanie", fontWeight = FontWeight.SemiBold)
@@ -317,29 +330,37 @@ private enum class DateTarget { Due, Deadline }
 private fun DateRow(
     value: Long?,
     emptyLabel: String,
-    accentColor: Color = GlassAccent,
+    accentColor: Color = Color(0xFF5E2ED6),
     onPick: () -> Unit,
     onClear: () -> Unit
 ) {
-    if (value == null) {
-        Pill(onClick = onPick) {
-            Icon(Icons.Filled.Add, null, tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(emptyLabel, color = GlassTextPrimary, style = MaterialTheme.typography.bodyMedium)
-        }
-    } else {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Pill(onClick = onPick, accent = accentColor) {
-                Icon(Icons.Outlined.CalendarToday, null, tint = Color.White, modifier = Modifier.size(18.dp))
+    AnimatedContent(
+        targetState = value,
+        transitionSpec = {
+            (fadeIn() + scaleIn(initialScale = 0.9f)) togetherWith (fadeOut() + scaleOut(targetScale = 0.9f))
+        },
+        label = "dateRow"
+    ) { current ->
+        if (current == null) {
+            Pill(onClick = onPick) {
+                Icon(Icons.Filled.Add, null, tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(
-                    LocalDate.ofEpochDay(value).format(dateFormatter),
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                )
+                Text(emptyLabel, color = GlassTextPrimary, style = MaterialTheme.typography.bodyMedium)
             }
-            Spacer(Modifier.width(10.dp))
-            IconButton(onClick = onClear) { Icon(Icons.Filled.Close, "Wyczyść", tint = GlassTextSecondary) }
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Pill(onClick = onPick, accent = accentColor) {
+                    Icon(Icons.Outlined.CalendarToday, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        LocalDate.ofEpochDay(current).format(dateFormatter),
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                IconButton(onClick = onClear) { Icon(Icons.Filled.Close, "Wyczyść", tint = GlassTextSecondary) }
+            }
         }
     }
 }
@@ -355,20 +376,30 @@ private fun SectionLabel(icon: ImageVector, text: String) {
 
 @Composable
 private fun SelectChip(text: String, selected: Boolean, color: Color, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(50)
+    val bg by animateColorAsState(
+        targetValue = if (selected) Color.White else Color.White.copy(alpha = 0.16f),
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "chipBg"
+    )
+    val textColor by animateColorAsState(
+        targetValue = if (selected) color else GlassTextSecondary,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "chipText"
+    )
     Row(
         modifier = Modifier
             .clip(shape)
-            .background(if (selected) color.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.07f))
-            .border(1.dp, if (selected) color else Color.White.copy(alpha = 0.18f), shape)
-            .clickable(onClick = onClick)
+            .background(bg)
+            .border(1.dp, if (selected) Color.White else Color.White.copy(alpha = 0.35f), shape)
+            .bouncy(scaleDown = 0.9f, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text,
             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = if (selected) color else GlassTextSecondary
+            color = textColor
         )
     }
 }
@@ -377,16 +408,16 @@ private fun SelectChip(text: String, selected: Boolean, color: Color, onClick: (
 private fun Pill(onClick: () -> Unit, accent: Color? = null, content: @Composable () -> Unit) {
     val shape = RoundedCornerShape(50)
     val bg = if (accent != null) {
-        Brush.horizontalGradient(listOf(accent, accent.copy(alpha = 0.8f)))
+        Brush.horizontalGradient(listOf(accent, accent.copy(alpha = 0.85f)))
     } else {
-        Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.14f), Color.White.copy(alpha = 0.05f)))
+        Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.26f), Color.White.copy(alpha = 0.12f)))
     }
     Row(
         modifier = Modifier
             .clip(shape)
             .background(bg)
-            .border(1.dp, Color.White.copy(alpha = if (accent != null) 0.35f else 0.18f), shape)
-            .clickable(onClick = onClick)
+            .border(1.dp, Color.White.copy(alpha = if (accent != null) 0.5f else 0.4f), shape)
+            .bouncy(scaleDown = 0.93f, onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
         content = { content() }

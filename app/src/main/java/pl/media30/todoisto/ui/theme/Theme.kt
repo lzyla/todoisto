@@ -27,9 +27,15 @@ private val GlassColors = darkColorScheme(
     onBackground = GlassTextPrimary,
     surface = Color.Transparent,
     onSurface = GlassTextPrimary,
-    surfaceVariant = Color.White.copy(alpha = 0.10f),
+    surfaceVariant = Color.White.copy(alpha = 0.14f),
     onSurfaceVariant = GlassTextSecondary,
-    outline = Color.White.copy(alpha = 0.25f)
+    outline = Color.White.copy(alpha = 0.35f),
+    // Menus, dialogs and pickers draw on these — keep them purple, not gray.
+    surfaceContainer = Color(0xFF6B3FE0),
+    surfaceContainerHigh = Color(0xFF6B3FE0),
+    surfaceContainerHighest = Color(0xFF7A4DEA),
+    surfaceContainerLow = Color(0xFF6236D6),
+    surfaceContainerLowest = Color(0xFF5A2FC8)
 )
 
 @Composable

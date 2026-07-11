@@ -4,7 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,25 +16,33 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.outlined.AccountTree
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Repeat
+import androidx.compose.material.icons.outlined.Sell
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -48,11 +59,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import pl.media30.todoisto.data.Label
 import pl.media30.todoisto.data.Priority
+import pl.media30.todoisto.data.Project
+import pl.media30.todoisto.data.Recurrence
 import pl.media30.todoisto.data.Task
+import pl.media30.todoisto.ui.components.glassFieldColors
 import pl.media30.todoisto.ui.theme.GlassAccent
 import pl.media30.todoisto.ui.theme.GlassTextPrimary
 import pl.media30.todoisto.ui.theme.GlassTextSecondary
@@ -64,11 +80,16 @@ import java.util.Locale
 
 private val dateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.forLanguageTag("pl"))
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AddEditTaskScreen(
     existing: Task?,
-    onSave: (title: String, notes: String, priority: Priority, dueDate: Long?) -> Unit,
+    projects: List<Project>,
+    labels: List<Label>,
+    subtasks: List<Task>,
+    onSave: (Task) -> Unit,
+    onAddSubtask: (String) -> Unit,
+    onToggleSubtask: (Task) -> Unit,
     onDelete: (() -> Unit)?,
     onClose: () -> Unit
 ) {
@@ -76,31 +97,39 @@ fun AddEditTaskScreen(
     var notes by remember { mutableStateOf(existing?.notes ?: "") }
     var priority by remember { mutableStateOf(existing?.priority ?: Priority.P4) }
     var dueDate by remember { mutableStateOf(existing?.dueDate) }
-    var showDatePicker by remember { mutableStateOf(false) }
+    var deadline by remember { mutableStateOf(existing?.deadline) }
+    var recurrence by remember { mutableStateOf(existing?.recurrence) }
+    var projectId by remember { mutableStateOf(existing?.projectId) }
+    var selectedLabels by remember { mutableStateOf(existing?.labelIds?.toSet() ?: emptySet()) }
+    var newSubtask by remember { mutableStateOf("") }
+
+    var datePickerFor by remember { mutableStateOf<DateTarget?>(null) }
+    var projectMenu by remember { mutableStateOf(false) }
 
     val isEditing = existing != null
+
+    fun assemble(): Task = (existing ?: Task(title = "")).copy(
+        title = title.trim(),
+        notes = notes.trim(),
+        priority = priority,
+        dueDate = dueDate,
+        deadline = deadline,
+        recurrence = recurrence,
+        projectId = projectId,
+        labelIds = selectedLabels.toList()
+    )
 
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        if (isEditing) "Edytuj zadanie" else "Nowe zadanie",
-                        fontWeight = FontWeight.Bold,
-                        color = GlassTextPrimary
-                    )
-                },
+                title = { Text(if (isEditing) "Edytuj zadanie" else "Nowe zadanie", fontWeight = FontWeight.Bold, color = GlassTextPrimary) },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.Filled.Close, contentDescription = "Zamknij", tint = GlassTextPrimary)
-                    }
+                    IconButton(onClick = onClose) { Icon(Icons.Filled.Close, "Zamknij", tint = GlassTextPrimary) }
                 },
                 actions = {
                     if (isEditing && onDelete != null) {
-                        IconButton(onClick = onDelete) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Usuń", tint = GlassTextPrimary)
-                        }
+                        IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, "Usuń", tint = GlassTextPrimary) }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -118,180 +147,248 @@ fun AddEditTaskScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("Co jest do zrobienia?") },
-                singleLine = true,
+                value = title, onValueChange = { title = it },
+                label = { Text("Co jest do zrobienia?") }, singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                colors = glassFieldColors(),
-                modifier = Modifier.fillMaxWidth()
+                colors = glassFieldColors(), modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(16.dp))
             OutlinedTextField(
-                value = notes,
-                onValueChange = { notes = it },
-                label = { Text("Notatki (opcjonalnie)") },
-                minLines = 2,
-                colors = glassFieldColors(),
-                modifier = Modifier.fillMaxWidth()
+                value = notes, onValueChange = { notes = it },
+                label = { Text("Notatki (opcjonalnie)") }, minLines = 2,
+                colors = glassFieldColors(), modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(Modifier.height(28.dp))
+            // Project
+            Spacer(Modifier.height(24.dp))
+            SectionLabel(Icons.Outlined.Folder, "Projekt")
+            Spacer(Modifier.height(10.dp))
+            Box {
+                Pill(onClick = { projectMenu = true }) {
+                    val current = projects.firstOrNull { it.id == projectId }
+                    Box(Modifier.size(10.dp).clip(CircleShape).background(current?.let { Color(it.colorArgb) } ?: GlassTextSecondary))
+                    Spacer(Modifier.width(8.dp))
+                    Text(current?.name ?: "Skrzynka", color = GlassTextPrimary, style = MaterialTheme.typography.bodyMedium)
+                }
+                DropdownMenu(expanded = projectMenu, onDismissRequest = { projectMenu = false }) {
+                    DropdownMenuItem(text = { Text("Skrzynka") }, onClick = { projectId = null; projectMenu = false })
+                    projects.forEach { p ->
+                        DropdownMenuItem(text = { Text(p.name) }, onClick = { projectId = p.id; projectMenu = false })
+                    }
+                }
+            }
+
+            // Priority
+            Spacer(Modifier.height(24.dp))
             SectionLabel(Icons.Outlined.Flag, "Priorytet")
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Priority.entries.forEach { p ->
-                    PriorityChip(
-                        priority = p,
-                        selected = priority == p,
-                        onClick = { priority = p }
-                    )
+                    SelectChip("P${p.ordinal + 1}", priority == p, p.color) { priority = p }
                 }
             }
 
-            Spacer(Modifier.height(28.dp))
+            // Due date
+            Spacer(Modifier.height(24.dp))
             SectionLabel(Icons.Outlined.CalendarToday, "Termin")
             Spacer(Modifier.height(10.dp))
-            if (dueDate == null) {
-                GlassPill(onClick = { showDatePicker = true }) {
-                    Icon(Icons.Filled.Add, null, tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Ustaw termin", color = GlassTextPrimary, style = MaterialTheme.typography.bodyMedium)
+            DateRow(
+                value = dueDate,
+                emptyLabel = "Ustaw termin",
+                onPick = { datePickerFor = DateTarget.Due },
+                onClear = { dueDate = null }
+            )
+
+            // Recurrence
+            Spacer(Modifier.height(24.dp))
+            SectionLabel(Icons.Outlined.Repeat, "Powtarzanie")
+            Spacer(Modifier.height(10.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SelectChip("Nie", recurrence == null, GlassAccent) { recurrence = null }
+                Recurrence.entries.forEach { r ->
+                    SelectChip(r.label, recurrence == r, GlassAccent) { recurrence = r }
                 }
-            } else {
-                // Date is set: show only the date chip + a clear button — no redundant "set date".
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    GlassPill(onClick = { showDatePicker = true }, accent = true) {
-                        Icon(Icons.Outlined.CalendarToday, null, tint = Color.White, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            LocalDate.ofEpochDay(dueDate!!).format(dateFormatter),
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                        )
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    IconButton(onClick = { dueDate = null }) {
-                        Icon(Icons.Filled.Close, contentDescription = "Usuń termin", tint = GlassTextSecondary)
+            }
+
+            // Deadline
+            Spacer(Modifier.height(24.dp))
+            SectionLabel(Icons.Outlined.Flag, "Deadline (nieprzekraczalny)")
+            Spacer(Modifier.height(10.dp))
+            DateRow(
+                value = deadline,
+                emptyLabel = "Ustaw deadline",
+                accentColor = Color(0xFFFF8A5B),
+                onPick = { datePickerFor = DateTarget.Deadline },
+                onClear = { deadline = null }
+            )
+
+            // Labels
+            if (labels.isNotEmpty()) {
+                Spacer(Modifier.height(24.dp))
+                SectionLabel(Icons.Outlined.Sell, "Etykiety")
+                Spacer(Modifier.height(10.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    labels.forEach { l ->
+                        val sel = selectedLabels.contains(l.id)
+                        SelectChip(l.name, sel, Color(l.colorArgb)) {
+                            selectedLabels = if (sel) selectedLabels - l.id else selectedLabels + l.id
+                        }
                     }
                 }
             }
 
-            Spacer(Modifier.height(36.dp))
+            // Subtasks (only for saved tasks)
+            if (isEditing) {
+                Spacer(Modifier.height(24.dp))
+                SectionLabel(Icons.Outlined.AccountTree, "Podzadania")
+                Spacer(Modifier.height(10.dp))
+                subtasks.forEach { sub ->
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+                        Box(
+                            Modifier.size(20.dp).clip(CircleShape)
+                                .then(
+                                    if (sub.isCompleted) Modifier.background(GlassAccent)
+                                    else Modifier.border(2.dp, GlassTextSecondary, CircleShape)
+                                )
+                                .clickable { onToggleSubtask(sub) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (sub.isCompleted) Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(13.dp))
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Text(sub.title, color = if (sub.isCompleted) GlassTextSecondary else GlassTextPrimary)
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = newSubtask, onValueChange = { newSubtask = it },
+                        placeholder = { Text("Dodaj podzadanie") }, singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = {
+                            if (newSubtask.isNotBlank()) { onAddSubtask(newSubtask); newSubtask = "" }
+                        }),
+                        colors = glassFieldColors(), modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = { if (newSubtask.isNotBlank()) { onAddSubtask(newSubtask); newSubtask = "" } }) {
+                        Icon(Icons.Filled.Add, "Dodaj", tint = GlassAccent)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(32.dp))
             Button(
-                onClick = { onSave(title, notes, priority, dueDate) },
+                onClick = { onSave(assemble()) },
                 enabled = title.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().height(54.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = GlassAccent,
-                    contentColor = Color.White,
+                    containerColor = GlassAccent, contentColor = Color.White,
                     disabledContainerColor = Color.White.copy(alpha = 0.10f),
                     disabledContentColor = GlassTextSecondary.copy(alpha = 0.6f)
                 )
             ) {
                 Text(if (isEditing) "Zapisz zmiany" else "Dodaj zadanie", fontWeight = FontWeight.SemiBold)
             }
+            Spacer(Modifier.height(24.dp))
         }
     }
 
-    if (showDatePicker) {
-        val initialMillis = dueDate?.let { it * 24L * 60 * 60 * 1000 }
-        val state = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+    datePickerFor?.let { target ->
+        val initial = (if (target == DateTarget.Due) dueDate else deadline)?.let { it * 24L * 60 * 60 * 1000 }
+        val state = rememberDatePickerState(initialSelectedDateMillis = initial)
         DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
+            onDismissRequest = { datePickerFor = null },
             confirmButton = {
                 TextButton(onClick = {
                     state.selectedDateMillis?.let { millis ->
-                        dueDate = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate().toEpochDay()
+                        val epochDay = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate().toEpochDay()
+                        if (target == DateTarget.Due) dueDate = epochDay else deadline = epochDay
                     }
-                    showDatePicker = false
+                    datePickerFor = null
                 }) { Text("OK") }
             },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Anuluj") }
+            dismissButton = { TextButton(onClick = { datePickerFor = null }) { Text("Anuluj") } }
+        ) { DatePicker(state = state) }
+    }
+}
+
+private enum class DateTarget { Due, Deadline }
+
+@Composable
+private fun DateRow(
+    value: Long?,
+    emptyLabel: String,
+    accentColor: Color = GlassAccent,
+    onPick: () -> Unit,
+    onClear: () -> Unit
+) {
+    if (value == null) {
+        Pill(onClick = onPick) {
+            Icon(Icons.Filled.Add, null, tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(emptyLabel, color = GlassTextPrimary, style = MaterialTheme.typography.bodyMedium)
+        }
+    } else {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Pill(onClick = onPick, accent = accentColor) {
+                Icon(Icons.Outlined.CalendarToday, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    LocalDate.ofEpochDay(value).format(dateFormatter),
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                )
             }
-        ) {
-            DatePicker(state = state)
+            Spacer(Modifier.width(10.dp))
+            IconButton(onClick = onClear) { Icon(Icons.Filled.Close, "Wyczyść", tint = GlassTextSecondary) }
         }
     }
 }
 
 @Composable
-private fun SectionLabel(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+private fun SectionLabel(icon: ImageVector, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, null, tint = GlassAccent, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
-        Text(
-            text,
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-            color = GlassTextPrimary
-        )
+        Text(text, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold), color = GlassTextPrimary)
     }
 }
 
 @Composable
-private fun PriorityChip(priority: Priority, selected: Boolean, onClick: () -> Unit) {
+private fun SelectChip(text: String, selected: Boolean, color: Color, onClick: () -> Unit) {
     val shape = RoundedCornerShape(14.dp)
     Row(
         modifier = Modifier
             .clip(shape)
-            .background(
-                if (selected) priority.color.copy(alpha = 0.28f)
-                else Color.White.copy(alpha = 0.07f)
-            )
-            .border(
-                1.dp,
-                if (selected) priority.color else Color.White.copy(alpha = 0.18f),
-                shape
-            )
+            .background(if (selected) color.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.07f))
+            .border(1.dp, if (selected) color else Color.White.copy(alpha = 0.18f), shape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            "P${priority.ordinal + 1}",
+            text,
             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = if (selected) priority.color else GlassTextSecondary
+            color = if (selected) color else GlassTextSecondary
         )
     }
 }
 
 @Composable
-private fun GlassPill(
-    onClick: () -> Unit,
-    accent: Boolean = false,
-    content: @Composable () -> Unit
-) {
+private fun Pill(onClick: () -> Unit, accent: Color? = null, content: @Composable () -> Unit) {
     val shape = RoundedCornerShape(50)
-    val bg = if (accent) {
-        Brush.horizontalGradient(listOf(GlassAccent, GlassAccent.copy(alpha = 0.8f)))
+    val bg = if (accent != null) {
+        Brush.horizontalGradient(listOf(accent, accent.copy(alpha = 0.8f)))
     } else {
-        Brush.verticalGradient(
-            listOf(Color.White.copy(alpha = 0.14f), Color.White.copy(alpha = 0.05f))
-        )
+        Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.14f), Color.White.copy(alpha = 0.05f)))
     }
     Row(
         modifier = Modifier
             .clip(shape)
             .background(bg)
-            .border(1.dp, Color.White.copy(alpha = if (accent) 0.35f else 0.18f), shape)
+            .border(1.dp, Color.White.copy(alpha = if (accent != null) 0.35f else 0.18f), shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
         content = { content() }
     )
 }
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun glassFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedTextColor = GlassTextPrimary,
-    unfocusedTextColor = GlassTextPrimary,
-    cursorColor = GlassAccent,
-    focusedBorderColor = GlassAccent,
-    unfocusedBorderColor = Color.White.copy(alpha = 0.22f),
-    focusedLabelColor = GlassAccent,
-    unfocusedLabelColor = GlassTextSecondary,
-    focusedContainerColor = Color.White.copy(alpha = 0.06f),
-    unfocusedContainerColor = Color.White.copy(alpha = 0.04f)
-)

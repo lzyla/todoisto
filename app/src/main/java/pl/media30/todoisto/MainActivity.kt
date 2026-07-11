@@ -5,19 +5,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import pl.media30.todoisto.data.Task
 import pl.media30.todoisto.ui.TodoViewModel
 import pl.media30.todoisto.ui.screens.AddEditTaskScreen
 import pl.media30.todoisto.ui.screens.TaskListScreen
@@ -33,9 +28,7 @@ class MainActivity : ComponentActivity() {
             TodoistoTheme {
                 GlassBackground {
                     TodoistoApp(
-                        viewModel = viewModel(
-                            factory = TodoViewModel.Factory(app.repository)
-                        )
+                        viewModel = viewModel(factory = TodoViewModel.Factory(app.repository))
                     )
                 }
             }
@@ -45,7 +38,6 @@ class MainActivity : ComponentActivity() {
 
 private object Routes {
     const val LIST = "list"
-    const val ADD = "add"
     const val EDIT = "edit/{taskId}"
     fun edit(taskId: Long) = "edit/$taskId"
 }
@@ -54,27 +46,25 @@ private object Routes {
 fun TodoistoApp(viewModel: TodoViewModel) {
     val navController = rememberNavController()
     val uiState by viewModel.uiState.collectAsState()
+    val projects by viewModel.projects.collectAsState()
+    val labels by viewModel.labels.collectAsState()
+    val allTasks by viewModel.allTasks.collectAsState()
 
     NavHost(navController = navController, startDestination = Routes.LIST) {
         composable(Routes.LIST) {
             TaskListScreen(
                 uiState = uiState,
-                onSelectFilter = viewModel::setFilter,
+                projects = projects,
+                labels = labels,
+                onSelectView = viewModel::setView,
                 onToggle = viewModel::toggleCompleted,
                 onTaskClick = { navController.navigate(Routes.edit(it.id)) },
-                onAddClick = { navController.navigate(Routes.ADD) },
+                onQuickAdd = viewModel::quickAdd,
+                onAddProject = viewModel::addProject,
+                onDeleteProject = viewModel::deleteProject,
+                onAddLabel = viewModel::addLabel,
+                onAddSection = viewModel::addSection,
                 onClearCompleted = viewModel::deleteCompleted
-            )
-        }
-        composable(Routes.ADD) {
-            AddEditTaskScreen(
-                existing = null,
-                onSave = { title, notes, priority, dueDate ->
-                    viewModel.addTask(title, notes, priority, dueDate)
-                    navController.popBackStack()
-                },
-                onDelete = null,
-                onClose = { navController.popBackStack() }
             )
         }
         composable(
@@ -82,33 +72,25 @@ fun TodoistoApp(viewModel: TodoViewModel) {
             arguments = listOf(navArgument("taskId") { type = NavType.LongType })
         ) { backStackEntry ->
             val taskId = backStackEntry.arguments?.getLong("taskId") ?: -1L
-            var task by remember { mutableStateOf<Task?>(null) }
-            var loaded by remember { mutableStateOf(false) }
+            val existing = allTasks.firstOrNull { it.id == taskId }
+            val subtasks = allTasks.filter { it.parentId == taskId }
 
-            LaunchedEffect(taskId) {
-                task = viewModel.getTask(taskId)
-                loaded = true
-            }
-
-            val current = task
-            if (loaded && current == null) {
-                LaunchedEffect(Unit) { navController.popBackStack() }
-            } else if (current != null) {
+            if (existing == null) {
+                androidx.compose.runtime.LaunchedEffect(taskId) { navController.popBackStack() }
+            } else {
                 AddEditTaskScreen(
-                    existing = current,
-                    onSave = { title, notes, priority, dueDate ->
-                        viewModel.updateTask(
-                            current.copy(
-                                title = title,
-                                notes = notes,
-                                priority = priority,
-                                dueDate = dueDate
-                            )
-                        )
+                    existing = existing,
+                    projects = projects,
+                    labels = labels,
+                    subtasks = subtasks,
+                    onSave = { updated ->
+                        viewModel.updateTask(updated)
                         navController.popBackStack()
                     },
+                    onAddSubtask = { viewModel.addSubtask(taskId, existing.projectId, it) },
+                    onToggleSubtask = { viewModel.toggleCompleted(it) },
                     onDelete = {
-                        viewModel.deleteTask(current)
+                        viewModel.deleteTask(existing)
                         navController.popBackStack()
                     },
                     onClose = { navController.popBackStack() }

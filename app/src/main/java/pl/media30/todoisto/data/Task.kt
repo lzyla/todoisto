@@ -6,7 +6,9 @@ import androidx.room.PrimaryKey
 /**
  * A single to-do item.
  *
- * @param dueDate stored as epoch-day (days since 1970-01-01), or null when no due date.
+ * Dates are stored as epoch-day (days since 1970-01-01); [dueTimeMinutes] is
+ * minutes from midnight. [projectId] null means the Inbox. [parentId] non-null
+ * marks a subtask. [labelIds] is a compact list persisted via a type converter.
  */
 @Entity(tableName = "tasks")
 data class Task(
@@ -17,5 +19,14 @@ data class Task(
     val isCompleted: Boolean = false,
     val priority: Priority = Priority.P4,
     val dueDate: Long? = null,
+    val dueTimeMinutes: Int? = null,
+    val deadline: Long? = null,
+    val recurrence: Recurrence? = null,
+    val reminderAt: Long? = null,
+    val projectId: Long? = null,
+    val sectionId: Long? = null,
+    val parentId: Long? = null,
+    val labelIds: List<Long> = emptyList(),
+    val position: Int = 0,
     val createdAt: Long = 0L
 )

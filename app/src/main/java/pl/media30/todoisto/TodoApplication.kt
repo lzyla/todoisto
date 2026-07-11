@@ -6,6 +6,7 @@ import pl.media30.todoisto.data.TodoDatabase
 
 class TodoApplication : Application() {
     val repository: TaskRepository by lazy {
-        TaskRepository(TodoDatabase.getInstance(this).taskDao())
+        val db = TodoDatabase.getInstance(this)
+        TaskRepository(db.taskDao(), db.projectDao(), db.sectionDao(), db.labelDao())
     }
 }

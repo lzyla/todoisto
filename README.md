@@ -4,17 +4,32 @@ Aplikacja zadań (to-do) na Androida w stylu Todoista, z fioletową kolorystyką
 Napisana natywnie w **Kotlinie** z użyciem **Jetpack Compose**, **Material 3** i
 **Room** do lokalnego przechowywania danych.
 
-## Funkcje (wersja podstawowa)
+## Funkcje
 
-- ➕ **Dodawanie zadań** z tytułem, notatkami, priorytetem i terminem
-- ✅ **Oznaczanie jako ukończone** jednym dotknięciem (okrągły checkbox)
-- ✏️ **Edycja** i 🗑️ **usuwanie** zadań
-- 🚩 **Priorytety P1–P4** (jak w Todoiście) z kolorowym oznaczeniem
-- 📅 **Terminy** z wygodnym wyborem daty; etykiety „Dzisiaj”, „Jutro”, „Zaległe”
-- 🔍 **Filtry**: Wszystkie · Dzisiaj · Nadchodzące · Ukończone
-- 💾 **Trwałe dane lokalne** (Room / SQLite) – zadania nie znikają po zamknięciu
-- 🌗 Obsługa trybu jasnego i ciemnego
-- 🟣 Spójna **fioletowa** kolorystyka Material You
+- ⭐ **Szybkie dodawanie (Quick Add)** z parserem języka naturalnego (polski):
+  daty (`jutro`, `w poniedziałek`, `za 3 dni`, `2026-07-20`, `20.07`), godzina
+  (`o 15:00`), priorytet (`p1`–`p4`), projekt (`#projekt`), etykiety (`@etykieta`),
+  rekurencja (`codziennie`, `co tydzień`, `co poniedziałek`), deadline (`do 2026-07-31`).
+  Podgląd rozpoznanych tokenów na żywo.
+- 📁 **Projekty** + **sekcje** wewnątrz projektu
+- 🏷️ **Etykiety** (przekrojowa kategoryzacja niezależna od projektu)
+- ✅ **Podzadania** — rozbijanie złożonych zadań, z postępem (np. 1/3)
+- 🚩 **Priorytety P1–P4** z kolorowym oznaczeniem
+- 📅 **Termin (due date)** oraz osobny **Deadline** (nieprzekraczalny)
+- 🔁 **Rekurencja** — po ukończeniu zadanie samo przechodzi na kolejny termin
+- 🗂️ **Widoki**: Dzisiaj · Nadchodzące · Skrzynka · Ukończone · per projekt · per etykieta
+- 🧭 **Szuflada nawigacji** z licznikami (Dzisiaj / Skrzynka)
+- 💾 **Trwałe dane lokalne, w pełni offline** (Room / SQLite)
+- 🟣 Interfejs **liquid glass** — żywe fioletowe tło, oszronione półprzezroczyste panele
+
+### Roadmap (kolejne fazy)
+
+Funkcje wymagające dodatkowej infrastruktury, zaplanowane na następne iteracje:
+przypomnienia czasowe i lokalizacyjne (powiadomienia / geofencing), własne filtry
+ze składnią zapytań, komentarze i załączniki, widżety ekranu głównego, widok Kanban,
+szablony projektów, karma / statystyki, a także funkcje wymagające konta/serwera:
+synchronizacja wielourządzeniowa, współdzielone projekty z przypisywaniem oraz
+dwukierunkowa integracja z kalendarzem.
 
 ## Architektura
 

@@ -6,11 +6,18 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
-@Database(entities = [Task::class], version = 1, exportSchema = false)
+@Database(
+    entities = [Task::class, Project::class, Section::class, Label::class],
+    version = 2,
+    exportSchema = false
+)
 @TypeConverters(Converters::class)
 abstract class TodoDatabase : RoomDatabase() {
 
     abstract fun taskDao(): TaskDao
+    abstract fun projectDao(): ProjectDao
+    abstract fun sectionDao(): SectionDao
+    abstract fun labelDao(): LabelDao
 
     companion object {
         @Volatile
@@ -22,7 +29,10 @@ abstract class TodoDatabase : RoomDatabase() {
                     context.applicationContext,
                     TodoDatabase::class.java,
                     "todoisto.db"
-                ).build().also { INSTANCE = it }
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
+                    .also { INSTANCE = it }
             }
         }
     }

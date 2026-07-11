@@ -9,3 +9,5 @@
 .cxx
 local.properties
 /app/build
+# Built APK artifacts (reproducible via ./gradlew assembleDebug)
+*.apk

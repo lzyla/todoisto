@@ -85,6 +85,7 @@ import pl.media30.todoisto.ui.components.TaskItem
 import pl.media30.todoisto.ui.components.bouncy
 import pl.media30.todoisto.ui.components.glassFieldColors
 import pl.media30.todoisto.ui.theme.GlassAccent
+import pl.media30.todoisto.ui.theme.GlassPanelTint
 import pl.media30.todoisto.ui.theme.GlassTextPrimary
 import pl.media30.todoisto.ui.theme.GlassTextSecondary
 import java.time.LocalDate
@@ -142,7 +143,7 @@ fun TaskListScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.White.copy(alpha = 0.06f),
+                        containerColor = GlassPanelTint.copy(alpha = 0.08f),
                         titleContentColor = GlassTextPrimary
                     ),
                     actions = {
@@ -172,8 +173,8 @@ fun TaskListScreen(
                 ExtendedFloatingActionButton(
                     onClick = { showQuickAdd = true },
                     shape = RoundedCornerShape(50),
-                    containerColor = Color.White,
-                    contentColor = Color(0xFF6B3FE0),
+                    containerColor = GlassAccent,
+                    contentColor = Color.White,
                     icon = { Icon(Icons.Filled.Add, null) },
                     text = { Text("Dodaj zadanie", fontWeight = FontWeight.SemiBold) }
                 )
@@ -296,7 +297,7 @@ private fun DrawerContent(
     onAddLabel: () -> Unit
 ) {
     ModalDrawerSheet(
-        drawerContainerColor = Color(0xFF6B3FE0),
+        drawerContainerColor = Color(0xFFF6F0FF),
         modifier = Modifier.fillMaxWidth(0.82f)
     ) {
         Column(
@@ -333,7 +334,7 @@ private fun DrawerContent(
 @Composable
 private fun DrawerItem(icon: ImageVector, label: String, count: Int, selected: Boolean, onClick: () -> Unit) {
     val bg by animateColorAsState(
-        targetValue = if (selected) Color.White.copy(alpha = 0.22f) else Color.Transparent,
+        targetValue = if (selected) GlassPanelTint.copy(alpha = 0.16f) else Color.Transparent,
         label = "drawerBg"
     )
     Row(
@@ -345,9 +346,9 @@ private fun DrawerItem(icon: ImageVector, label: String, count: Int, selected: B
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, null, tint = if (selected) Color.White else GlassTextSecondary, modifier = Modifier.size(20.dp))
+        Icon(icon, null, tint = if (selected) GlassAccent else GlassTextSecondary, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(14.dp))
-        Text(label, color = if (selected) Color.White else GlassTextPrimary, modifier = Modifier.weight(1f))
+        Text(label, color = GlassTextPrimary, modifier = Modifier.weight(1f))
         if (count > 0) Text("$count", color = GlassTextSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
     }
 }
@@ -355,7 +356,7 @@ private fun DrawerItem(icon: ImageVector, label: String, count: Int, selected: B
 @Composable
 private fun DrawerDot(color: Color, label: String, selected: Boolean, icon: ImageVector? = null, onClick: () -> Unit) {
     val bg by animateColorAsState(
-        targetValue = if (selected) Color.White.copy(alpha = 0.22f) else Color.Transparent,
+        targetValue = if (selected) GlassPanelTint.copy(alpha = 0.16f) else Color.Transparent,
         label = "drawerBg"
     )
     Row(
@@ -373,7 +374,7 @@ private fun DrawerDot(color: Color, label: String, selected: Boolean, icon: Imag
             Box(Modifier.size(12.dp).clip(CircleShape).background(color))
         }
         Spacer(Modifier.width(14.dp))
-        Text(label, color = if (selected) Color.White else GlassTextPrimary)
+        Text(label, color = GlassTextPrimary)
     }
 }
 
@@ -407,7 +408,7 @@ private fun QuickAddSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color(0xFF6B3FE0)
+        containerColor = Color(0xFFF6F0FF)
     ) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
             OutlinedTextField(
@@ -439,8 +440,8 @@ private fun QuickAddSheet(
             ExtendedFloatingActionButton(
                 onClick = { if (text.isNotBlank()) onAdd(text) },
                 shape = RoundedCornerShape(50),
-                containerColor = Color.White,
-                contentColor = Color(0xFF6B3FE0),
+                containerColor = GlassAccent,
+                contentColor = Color.White,
                 modifier = Modifier.fillMaxWidth(),
                 icon = { Icon(Icons.Filled.Add, null) },
                 text = { Text("Dodaj", fontWeight = FontWeight.SemiBold) }
@@ -457,7 +458,7 @@ private fun PreviewChip(text: String) {
         color = GlassTextPrimary,
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(Color.White.copy(alpha = 0.12f))
+            .background(GlassPanelTint.copy(alpha = 0.12f))
             .padding(horizontal = 12.dp, vertical = 6.dp)
     )
 }
@@ -479,7 +480,7 @@ private fun NameColorDialog(title: String, onDismiss: () -> Unit, onConfirm: (St
     var color by remember { mutableStateOf(PaletteColors.options.first()) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF6B3FE0),
+        containerColor = Color(0xFFF6F0FF),
         title = { Text(title, color = GlassTextPrimary) },
         text = {
             Column {
@@ -500,7 +501,7 @@ private fun NameColorDialog(title: String, onDismiss: () -> Unit, onConfirm: (St
                                 .size(28.dp)
                                 .clip(CircleShape)
                                 .background(Color(c))
-                                .border(if (c == color) 3.dp else 0.dp, Color.White, CircleShape)
+                                .border(if (c == color) 3.dp else 0.dp, GlassTextPrimary, CircleShape)
                                 .clickable { color = c }
                         )
                     }
@@ -517,7 +518,7 @@ private fun NameDialog(title: String, onDismiss: () -> Unit, onConfirm: (String)
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF6B3FE0),
+        containerColor = Color(0xFFF6F0FF),
         title = { Text(title, color = GlassTextPrimary) },
         text = {
             OutlinedTextField(
@@ -542,7 +543,7 @@ private fun EmptyState(view: AppView) {
             Icon(
                 Icons.Outlined.CheckCircle,
                 null,
-                tint = Color.White.copy(alpha = 0.35f),
+                tint = GlassPanelTint.copy(alpha = 0.5f),
                 modifier = Modifier.size(72.dp).padding(bottom = 12.dp)
             )
             Text(

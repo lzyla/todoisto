@@ -21,19 +21,22 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-// ---- Liquid-glass palette -------------------------------------------------
+// ---- Liquid-glass palette (white backdrop, purple glass) -------------------
 
-val GlassBgTop = Color(0xFF8B5CFF)
-val GlassBgMid = Color(0xFF7141E8)
-val GlassBgBottom = Color(0xFF5527C4)
+val GlassBgTop = Color(0xFFFFFFFF)
+val GlassBgMid = Color(0xFFF6F1FF)
+val GlassBgBottom = Color(0xFFEFE7FF)
 
-val GlassBlobViolet = Color(0xFFB388FF)
+val GlassBlobViolet = Color(0xFFA875FF)
 val GlassBlobMagenta = Color(0xFFE96BFF)
 val GlassBlobBlue = Color(0xFF7C9EFF)
 
-val GlassAccent = Color(0xFF9B6BFF)
-val GlassTextPrimary = Color(0xFFFFFFFF)
-val GlassTextSecondary = Color(0xFFEDE5FF)
+val GlassAccent = Color(0xFF6B3FE0)
+val GlassTextPrimary = Color(0xFF2A1655)
+val GlassTextSecondary = Color(0xFF6E5A9E)
+
+/** Tint used for the purple-glass panel fills and hairlines. */
+val GlassPanelTint = Color(0xFF8B5CFF)
 
 /**
  * Full-screen vibrant purple backdrop with soft glowing blobs.
@@ -97,7 +100,7 @@ private fun BoxScope.Blob(
             .size(size)
             .blur(80.dp)
             .background(
-                Brush.radialGradient(listOf(color.copy(alpha = 0.75f), Color.Transparent)),
+                Brush.radialGradient(listOf(color.copy(alpha = 0.45f), Color.Transparent)),
                 CircleShape
             )
     )
@@ -109,16 +112,16 @@ private fun BoxScope.Blob(
  */
 fun Modifier.glass(
     shape: Shape = RoundedCornerShape(28.dp),
-    fillAlphaTop: Float = 0.30f,
-    fillAlphaBottom: Float = 0.12f
+    fillAlphaTop: Float = 0.16f,
+    fillAlphaBottom: Float = 0.07f
 ): Modifier = this
-    .shadow(elevation = 12.dp, shape = shape, spotColor = Color(0x59200A66), ambientColor = Color(0x40200A66))
+    .shadow(elevation = 10.dp, shape = shape, spotColor = Color(0x40551FC2), ambientColor = Color(0x26551FC2))
     .clip(shape)
     .background(
         Brush.verticalGradient(
             listOf(
-                Color.White.copy(alpha = fillAlphaTop),
-                Color.White.copy(alpha = fillAlphaBottom)
+                GlassPanelTint.copy(alpha = fillAlphaTop),
+                GlassPanelTint.copy(alpha = fillAlphaBottom)
             )
         )
     )
@@ -126,8 +129,8 @@ fun Modifier.glass(
         width = 1.5.dp,
         brush = Brush.linearGradient(
             listOf(
-                Color.White.copy(alpha = 0.75f),
-                Color.White.copy(alpha = 0.20f)
+                Color.White.copy(alpha = 0.95f),
+                GlassPanelTint.copy(alpha = 0.35f)
             )
         ),
         shape = shape

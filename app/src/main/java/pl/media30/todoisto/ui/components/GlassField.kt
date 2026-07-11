@@ -5,6 +5,8 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import pl.media30.todoisto.ui.theme.GlassAccent
+import pl.media30.todoisto.ui.theme.GlassPanelTint
 import pl.media30.todoisto.ui.theme.GlassTextPrimary
 import pl.media30.todoisto.ui.theme.GlassTextSecondary
 
@@ -14,13 +16,13 @@ import pl.media30.todoisto.ui.theme.GlassTextSecondary
 fun glassFieldColors(): TextFieldColors = OutlinedTextFieldDefaults.colors(
     focusedTextColor = GlassTextPrimary,
     unfocusedTextColor = GlassTextPrimary,
-    cursorColor = Color.White,
-    focusedBorderColor = Color.White,
-    unfocusedBorderColor = Color.White.copy(alpha = 0.45f),
-    focusedLabelColor = Color.White,
+    cursorColor = GlassAccent,
+    focusedBorderColor = GlassAccent,
+    unfocusedBorderColor = GlassPanelTint.copy(alpha = 0.40f),
+    focusedLabelColor = GlassAccent,
     unfocusedLabelColor = GlassTextSecondary,
     focusedPlaceholderColor = GlassTextSecondary,
     unfocusedPlaceholderColor = GlassTextSecondary,
-    focusedContainerColor = Color.White.copy(alpha = 0.16f),
-    unfocusedContainerColor = Color.White.copy(alpha = 0.10f)
+    focusedContainerColor = GlassPanelTint.copy(alpha = 0.10f),
+    unfocusedContainerColor = GlassPanelTint.copy(alpha = 0.06f)
 )

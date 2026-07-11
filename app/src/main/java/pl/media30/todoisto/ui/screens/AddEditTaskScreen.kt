@@ -80,6 +80,7 @@ import pl.media30.todoisto.data.Recurrence
 import pl.media30.todoisto.data.Task
 import pl.media30.todoisto.ui.components.bouncy
 import pl.media30.todoisto.ui.components.glassFieldColors
+import pl.media30.todoisto.ui.theme.GlassPanelTint
 import pl.media30.todoisto.ui.theme.GlassAccent
 import pl.media30.todoisto.ui.theme.GlassTextPrimary
 import pl.media30.todoisto.ui.theme.GlassTextSecondary
@@ -144,7 +145,7 @@ fun AddEditTaskScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White.copy(alpha = 0.06f),
+                    containerColor = GlassPanelTint.copy(alpha = 0.08f),
                     titleContentColor = GlassTextPrimary
                 )
             )
@@ -282,7 +283,7 @@ fun AddEditTaskScreen(
                         shape = RoundedCornerShape(22.dp), colors = glassFieldColors(), modifier = Modifier.weight(1f)
                     )
                     IconButton(onClick = { if (newSubtask.isNotBlank()) { onAddSubtask(newSubtask); newSubtask = "" } }) {
-                        Icon(Icons.Filled.Add, "Dodaj", tint = Color.White)
+                        Icon(Icons.Filled.Add, "Dodaj", tint = GlassAccent)
                     }
                 }
                 }
@@ -294,8 +295,8 @@ fun AddEditTaskScreen(
                 enabled = title.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().height(54.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White, contentColor = Color(0xFF6B3FE0),
-                    disabledContainerColor = Color.White.copy(alpha = 0.18f),
+                    containerColor = GlassAccent, contentColor = Color.White,
+                    disabledContainerColor = GlassPanelTint.copy(alpha = 0.18f),
                     disabledContentColor = GlassTextSecondary.copy(alpha = 0.7f)
                 )
             ) {
@@ -378,7 +379,7 @@ private fun SectionLabel(icon: ImageVector, text: String) {
 private fun SelectChip(text: String, selected: Boolean, color: Color, onClick: () -> Unit) {
     val shape = RoundedCornerShape(50)
     val bg by animateColorAsState(
-        targetValue = if (selected) Color.White else Color.White.copy(alpha = 0.16f),
+        targetValue = if (selected) color.copy(alpha = 0.16f) else GlassPanelTint.copy(alpha = 0.07f),
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "chipBg"
     )
@@ -391,7 +392,7 @@ private fun SelectChip(text: String, selected: Boolean, color: Color, onClick: (
         modifier = Modifier
             .clip(shape)
             .background(bg)
-            .border(1.dp, if (selected) Color.White else Color.White.copy(alpha = 0.35f), shape)
+            .border(1.dp, if (selected) color else GlassPanelTint.copy(alpha = 0.30f), shape)
             .bouncy(scaleDown = 0.9f, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -410,13 +411,13 @@ private fun Pill(onClick: () -> Unit, accent: Color? = null, content: @Composabl
     val bg = if (accent != null) {
         Brush.horizontalGradient(listOf(accent, accent.copy(alpha = 0.85f)))
     } else {
-        Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.26f), Color.White.copy(alpha = 0.12f)))
+        Brush.verticalGradient(listOf(GlassPanelTint.copy(alpha = 0.16f), GlassPanelTint.copy(alpha = 0.08f)))
     }
     Row(
         modifier = Modifier
             .clip(shape)
             .background(bg)
-            .border(1.dp, Color.White.copy(alpha = if (accent != null) 0.5f else 0.4f), shape)
+            .border(1.dp, if (accent != null) Color.White.copy(alpha = 0.5f) else GlassPanelTint.copy(alpha = 0.35f), shape)
             .bouncy(scaleDown = 0.93f, onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,

@@ -18,7 +18,7 @@ import androidx.core.view.WindowCompat
 private val GlassColors = darkColorScheme(
     primary = GlassAccent,
     onPrimary = Color.White,
-    primaryContainer = Color.White.copy(alpha = 0.12f),
+    primaryContainer = Color(0xFF8B5CFF).copy(alpha = 0.14f),
     onPrimaryContainer = GlassTextPrimary,
     secondary = GlassBlobMagenta,
     onSecondary = Color.White,
@@ -27,15 +27,15 @@ private val GlassColors = darkColorScheme(
     onBackground = GlassTextPrimary,
     surface = Color.Transparent,
     onSurface = GlassTextPrimary,
-    surfaceVariant = Color.White.copy(alpha = 0.14f),
+    surfaceVariant = Color(0xFF8B5CFF).copy(alpha = 0.12f),
     onSurfaceVariant = GlassTextSecondary,
-    outline = Color.White.copy(alpha = 0.35f),
-    // Menus, dialogs and pickers draw on these — keep them purple, not gray.
-    surfaceContainer = Color(0xFF6B3FE0),
-    surfaceContainerHigh = Color(0xFF6B3FE0),
-    surfaceContainerHighest = Color(0xFF7A4DEA),
-    surfaceContainerLow = Color(0xFF6236D6),
-    surfaceContainerLowest = Color(0xFF5A2FC8)
+    outline = Color(0xFF8B5CFF).copy(alpha = 0.35f),
+    // Menus, dialogs and pickers draw on these — keep them light lavender, not gray.
+    surfaceContainer = Color(0xFFF6F0FF),
+    surfaceContainerHigh = Color(0xFFF2EAFF),
+    surfaceContainerHighest = Color(0xFFEDE3FF),
+    surfaceContainerLow = Color(0xFFF9F5FF),
+    surfaceContainerLowest = Color(0xFFFFFFFF)
 )
 
 @Composable
@@ -50,7 +50,7 @@ fun TodoistoTheme(
             val window = activity.window
             window.statusBarColor = AndroidColor.TRANSPARENT
             window.navigationBarColor = AndroidColor.TRANSPARENT
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
         }
     }
 

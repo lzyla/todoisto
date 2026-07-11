@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.dp
 import pl.media30.todoisto.data.Label
 import pl.media30.todoisto.data.Priority
 import pl.media30.todoisto.data.Task
+import pl.media30.todoisto.ui.theme.GlassAccent
+import pl.media30.todoisto.ui.theme.GlassPanelTint
 import pl.media30.todoisto.ui.theme.GlassTextPrimary
 import pl.media30.todoisto.ui.theme.GlassTextSecondary
 import pl.media30.todoisto.ui.theme.glass
@@ -67,8 +69,8 @@ fun TaskItem(
     val base = if (compact) {
         modifier
             .clip(shape)
-            .background(Color.White.copy(alpha = 0.16f))
-            .border(1.dp, Color.White.copy(alpha = 0.35f), shape)
+            .background(GlassPanelTint.copy(alpha = 0.10f))
+            .border(1.dp, GlassPanelTint.copy(alpha = 0.30f), shape)
     } else {
         modifier.glass(shape = shape)
     }
@@ -124,10 +126,10 @@ private fun MetaRow(task: Task, labels: List<Label>, subtaskDone: Int, subtaskTo
         modifier = Modifier.wrapContentHeight()
     ) {
         task.dueDate?.let { Chip(dueLabel(it), dueTint(it), Icons.Outlined.CalendarToday) }
-        if (task.recurrence != null) Chip("Cykl", Color.White, Icons.Outlined.Repeat)
+        if (task.recurrence != null) Chip("Cykl", GlassAccent, Icons.Outlined.Repeat)
         task.deadline?.let { Chip("do " + LocalDate.ofEpochDay(it).format(dateFormatter), Color(0xFFB33B00), Icons.Outlined.Flag) }
         if (task.priority != Priority.P4) Chip("P${task.priority.ordinal + 1}", task.priority.color, null)
-        if (subtaskTotal > 0) Chip("$subtaskDone/$subtaskTotal", Color.White, null)
+        if (subtaskTotal > 0) Chip("$subtaskDone/$subtaskTotal", GlassTextSecondary, null)
         labels.forEach { Chip(it.name, Color(it.colorArgb), Icons.Outlined.Sell) }
     }
 }
@@ -137,7 +139,7 @@ private fun Chip(text: String, tint: Color, icon: androidx.compose.ui.graphics.v
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(Color.White.copy(alpha = 0.18f))
+            .background(tint.copy(alpha = 0.14f))
             .padding(horizontal = 9.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -151,9 +153,9 @@ private fun Chip(text: String, tint: Color, icon: androidx.compose.ui.graphics.v
 
 @Composable
 private fun CheckCircle(checked: Boolean, color: Color, size: androidx.compose.ui.unit.Dp, onToggle: () -> Unit) {
-    val ring = if (color == Priority.P4.color) Color.White.copy(alpha = 0.9f) else color
+    val ring = if (color == Priority.P4.color) GlassAccent else color
     val fill by animateColorAsState(
-        targetValue = if (checked) ring else Color.White.copy(alpha = 0.10f),
+        targetValue = if (checked) ring else ring.copy(alpha = 0.08f),
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "checkFill"
     )
@@ -175,7 +177,7 @@ private fun CheckCircle(checked: Boolean, color: Color, size: androidx.compose.u
             Icon(
                 Icons.Filled.Check,
                 contentDescription = "Ukończone",
-                tint = if (color == Priority.P4.color) Color(0xFF6B3FE0) else Color.White,
+                tint = Color.White,
                 modifier = Modifier.size(15.dp)
             )
         }
@@ -197,6 +199,7 @@ private fun dueTint(epochDay: Long): Color {
     val today = LocalDate.now().toEpochDay()
     return when {
         epochDay < today -> Color(0xFFB3261E)
-        else -> Color.White
+        epochDay <= today + 1 -> GlassAccent
+        else -> GlassTextSecondary
     }
 }

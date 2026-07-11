@@ -1,5 +1,8 @@
 package pl.media30.todoisto.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,11 +10,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.outlined.CalendarToday
@@ -21,12 +27,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,11 +45,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import pl.media30.todoisto.data.Priority
 import pl.media30.todoisto.data.Task
+import pl.media30.todoisto.ui.theme.GlassAccent
+import pl.media30.todoisto.ui.theme.GlassTextPrimary
+import pl.media30.todoisto.ui.theme.GlassTextSecondary
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -70,37 +81,31 @@ fun AddEditTaskScreen(
     val isEditing = existing != null
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
                     Text(
                         if (isEditing) "Edytuj zadanie" else "Nowe zadanie",
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = GlassTextPrimary
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(
-                            Icons.Filled.Close,
-                            contentDescription = "Zamknij",
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
+                        Icon(Icons.Filled.Close, contentDescription = "Zamknij", tint = GlassTextPrimary)
                     }
                 },
                 actions = {
                     if (isEditing && onDelete != null) {
                         IconButton(onClick = onDelete) {
-                            Icon(
-                                Icons.Filled.Delete,
-                                contentDescription = "Usuń",
-                                tint = MaterialTheme.colorScheme.onPrimary
-                            )
+                            Icon(Icons.Filled.Delete, contentDescription = "Usuń", tint = GlassTextPrimary)
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = Color.White.copy(alpha = 0.06f),
+                    titleContentColor = GlassTextPrimary
                 )
             )
         }
@@ -118,6 +123,7 @@ fun AddEditTaskScreen(
                 label = { Text("Co jest do zrobienia?") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                colors = glassFieldColors(),
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(16.dp))
@@ -126,50 +132,61 @@ fun AddEditTaskScreen(
                 onValueChange = { notes = it },
                 label = { Text("Notatki (opcjonalnie)") },
                 minLines = 2,
+                colors = glassFieldColors(),
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(Modifier.height(24.dp))
-            SectionLabel(icon = { Icon(Icons.Outlined.Flag, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size18()) }, text = "Priorytet")
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Spacer(Modifier.height(28.dp))
+            SectionLabel(Icons.Outlined.Flag, "Priorytet")
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Priority.entries.forEach { p ->
-                    FilterChip(
+                    PriorityChip(
+                        priority = p,
                         selected = priority == p,
-                        onClick = { priority = p },
-                        label = { Text("P${p.ordinal + 1}") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = p.color.copy(alpha = 0.18f),
-                            selectedLabelColor = p.color
+                        onClick = { priority = p }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(28.dp))
+            SectionLabel(Icons.Outlined.CalendarToday, "Termin")
+            Spacer(Modifier.height(10.dp))
+            if (dueDate == null) {
+                GlassPill(onClick = { showDatePicker = true }) {
+                    Icon(Icons.Filled.Add, null, tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Ustaw termin", color = GlassTextPrimary, style = MaterialTheme.typography.bodyMedium)
+                }
+            } else {
+                // Date is set: show only the date chip + a clear button — no redundant "set date".
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    GlassPill(onClick = { showDatePicker = true }, accent = true) {
+                        Icon(Icons.Outlined.CalendarToday, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            LocalDate.ofEpochDay(dueDate!!).format(dateFormatter),
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
-                    )
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    IconButton(onClick = { dueDate = null }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Usuń termin", tint = GlassTextSecondary)
+                    }
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
-            SectionLabel(icon = { Icon(Icons.Outlined.CalendarToday, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size18()) }, text = "Termin")
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { showDatePicker = true }) {
-                    Text(
-                        dueDate?.let { LocalDate.ofEpochDay(it).format(dateFormatter) }
-                            ?: "Ustaw termin"
-                    )
-                }
-                if (dueDate != null) {
-                    Spacer(Modifier.width(4.dp))
-                    TextButton(onClick = { dueDate = null }) { Text("Wyczyść") }
-                }
-            }
-
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(36.dp))
             Button(
                 onClick = { onSave(title, notes, priority, dueDate) },
                 enabled = title.isNotBlank(),
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier.fillMaxWidth().height(54.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = GlassAccent,
+                    contentColor = Color.White,
+                    disabledContainerColor = Color.White.copy(alpha = 0.10f),
+                    disabledContentColor = GlassTextSecondary.copy(alpha = 0.6f)
                 )
             ) {
                 Text(if (isEditing) "Zapisz zmiany" else "Dodaj zadanie", fontWeight = FontWeight.SemiBold)
@@ -200,12 +217,81 @@ fun AddEditTaskScreen(
 }
 
 @Composable
-private fun SectionLabel(icon: @Composable () -> Unit, text: String) {
+private fun SectionLabel(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        icon()
+        Icon(icon, null, tint = GlassAccent, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
-        Text(text, style = MaterialTheme.typography.titleLarge.copy(fontSize = MaterialTheme.typography.bodyLarge.fontSize), fontWeight = FontWeight.SemiBold)
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = GlassTextPrimary
+        )
     }
 }
 
-private fun Modifier.size18(): Modifier = this.then(Modifier.height(18.dp).width(18.dp))
+@Composable
+private fun PriorityChip(priority: Priority, selected: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(14.dp)
+    Row(
+        modifier = Modifier
+            .clip(shape)
+            .background(
+                if (selected) priority.color.copy(alpha = 0.28f)
+                else Color.White.copy(alpha = 0.07f)
+            )
+            .border(
+                1.dp,
+                if (selected) priority.color else Color.White.copy(alpha = 0.18f),
+                shape
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "P${priority.ordinal + 1}",
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = if (selected) priority.color else GlassTextSecondary
+        )
+    }
+}
+
+@Composable
+private fun GlassPill(
+    onClick: () -> Unit,
+    accent: Boolean = false,
+    content: @Composable () -> Unit
+) {
+    val shape = RoundedCornerShape(50)
+    val bg = if (accent) {
+        Brush.horizontalGradient(listOf(GlassAccent, GlassAccent.copy(alpha = 0.8f)))
+    } else {
+        Brush.verticalGradient(
+            listOf(Color.White.copy(alpha = 0.14f), Color.White.copy(alpha = 0.05f))
+        )
+    }
+    Row(
+        modifier = Modifier
+            .clip(shape)
+            .background(bg)
+            .border(1.dp, Color.White.copy(alpha = if (accent) 0.35f else 0.18f), shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        content = { content() }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun glassFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedTextColor = GlassTextPrimary,
+    unfocusedTextColor = GlassTextPrimary,
+    cursorColor = GlassAccent,
+    focusedBorderColor = GlassAccent,
+    unfocusedBorderColor = Color.White.copy(alpha = 0.22f),
+    focusedLabelColor = GlassAccent,
+    unfocusedLabelColor = GlassTextSecondary,
+    focusedContainerColor = Color.White.copy(alpha = 0.06f),
+    unfocusedContainerColor = Color.White.copy(alpha = 0.04f)
+)

@@ -4,9 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -14,7 +11,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -25,6 +21,7 @@ import pl.media30.todoisto.data.Task
 import pl.media30.todoisto.ui.TodoViewModel
 import pl.media30.todoisto.ui.screens.AddEditTaskScreen
 import pl.media30.todoisto.ui.screens.TaskListScreen
+import pl.media30.todoisto.ui.theme.GlassBackground
 import pl.media30.todoisto.ui.theme.TodoistoTheme
 
 class MainActivity : ComponentActivity() {
@@ -34,10 +31,7 @@ class MainActivity : ComponentActivity() {
         val app = application as TodoApplication
         setContent {
             TodoistoTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
+                GlassBackground {
                     TodoistoApp(
                         viewModel = viewModel(
                             factory = TodoViewModel.Factory(app.repository)

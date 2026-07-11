@@ -10,6 +10,7 @@ import pl.media30.todoisto.ui.TaskFilter
 import pl.media30.todoisto.ui.TodoUiState
 import pl.media30.todoisto.ui.screens.AddEditTaskScreen
 import pl.media30.todoisto.ui.screens.TaskListScreen
+import pl.media30.todoisto.ui.theme.GlassBackground
 import pl.media30.todoisto.ui.theme.TodoistoTheme
 import java.time.LocalDate
 
@@ -28,66 +29,61 @@ class ScreenshotTest {
         Task(2, "Zrobić przegląd samochodu", "Serwis na ul. Kwiatowej", false, Priority.P2, today + 2),
         Task(3, "Dokończyć raport kwartalny", "", false, Priority.P3, today + 1),
         Task(4, "Zadzwonić do dentysty", "", false, Priority.P4, null),
-        Task(5, "Wynieść śmieci", "", false, Priority.P4, today - 1),
-        Task(6, "Odpowiedzieć na maile", "", true, Priority.P4, null)
+        Task(5, "Wynieść śmieci", "", false, Priority.P4, today - 1)
     )
 
     @Test
     fun taskList() {
         paparazzi.snapshot {
             TodoistoTheme {
-                TaskListScreen(
-                    uiState = TodoUiState(
-                        tasks = sampleTasks.filter { !it.isCompleted },
-                        filter = TaskFilter.INBOX,
-                        activeCount = 5
-                    ),
-                    onSelectFilter = {},
-                    onToggle = {},
-                    onTaskClick = {},
-                    onAddClick = {},
-                    onClearCompleted = {}
-                )
+                GlassBackground {
+                    TaskListScreen(
+                        uiState = TodoUiState(sampleTasks, TaskFilter.INBOX, activeCount = 5),
+                        onSelectFilter = {},
+                        onToggle = {},
+                        onTaskClick = {},
+                        onAddClick = {},
+                        onClearCompleted = {}
+                    )
+                }
             }
         }
     }
 
     @Test
-    fun taskListDark() {
-        paparazzi.snapshot {
-            TodoistoTheme(darkTheme = true) {
-                TaskListScreen(
-                    uiState = TodoUiState(
-                        tasks = sampleTasks.filter { !it.isCompleted },
-                        filter = TaskFilter.TODAY,
-                        activeCount = 5
-                    ),
-                    onSelectFilter = {},
-                    onToggle = {},
-                    onTaskClick = {},
-                    onAddClick = {},
-                    onClearCompleted = {}
-                )
-            }
-        }
-    }
-
-    @Test
-    fun addTask() {
+    fun addTaskWithDate() {
         paparazzi.snapshot {
             TodoistoTheme {
-                AddEditTaskScreen(
-                    existing = Task(
-                        id = 1,
-                        title = "Kupić prezent urodzinowy dla mamy",
-                        notes = "Coś z jej listy życzeń",
-                        priority = Priority.P1,
-                        dueDate = today
-                    ),
-                    onSave = { _, _, _, _ -> },
-                    onDelete = {},
-                    onClose = {}
-                )
+                GlassBackground {
+                    AddEditTaskScreen(
+                        existing = Task(
+                            id = 1,
+                            title = "Kupić prezent urodzinowy dla mamy",
+                            notes = "Coś z jej listy życzeń",
+                            priority = Priority.P1,
+                            dueDate = today
+                        ),
+                        onSave = { _, _, _, _ -> },
+                        onDelete = {},
+                        onClose = {}
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun addTaskEmpty() {
+        paparazzi.snapshot {
+            TodoistoTheme {
+                GlassBackground {
+                    AddEditTaskScreen(
+                        existing = null,
+                        onSave = { _, _, _, _ -> },
+                        onDelete = null,
+                        onClose = {}
+                    )
+                }
             }
         }
     }

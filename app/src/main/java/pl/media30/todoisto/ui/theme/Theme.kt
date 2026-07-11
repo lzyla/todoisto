@@ -1,67 +1,55 @@
 package pl.media30.todoisto.ui.theme
 
 import android.app.Activity
-import androidx.compose.foundation.isSystemInDarkTheme
+import android.graphics.Color as AndroidColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val LightColors = lightColorScheme(
-    primary = Purple40,
+/**
+ * A single vibrant "liquid glass" scheme. Surfaces are intentionally
+ * translucent — real fills come from [Modifier.glass] layered over
+ * [GlassBackground], so most container colors are transparent here.
+ */
+private val GlassColors = darkColorScheme(
+    primary = GlassAccent,
     onPrimary = Color.White,
-    primaryContainer = Purple90,
-    onPrimaryContainer = Purple10,
-    secondary = PurpleGrey40,
-    secondaryContainer = PurpleGrey90,
-    tertiary = Pink40,
-    tertiaryContainer = Pink80,
-    background = SurfaceLight,
-    onBackground = Color(0xFF1C1B1F),
-    surface = SurfaceLight,
-    onSurface = Color(0xFF1C1B1F),
-    surfaceVariant = Purple90,
-    onSurfaceVariant = Color(0xFF49454F)
-)
-
-private val DarkColors = darkColorScheme(
-    primary = Purple80,
-    onPrimary = Purple20,
-    primaryContainer = Purple50,
-    onPrimaryContainer = Purple90,
-    secondary = PurpleGrey80,
-    tertiary = Pink80,
-    background = SurfaceDark,
-    onBackground = Color(0xFFE6E1E5),
-    surface = SurfaceDark,
-    onSurface = Color(0xFFE6E1E5),
-    surfaceVariant = Color(0xFF49454F),
-    onSurfaceVariant = Color(0xFFCAC4D0)
+    primaryContainer = Color.White.copy(alpha = 0.12f),
+    onPrimaryContainer = GlassTextPrimary,
+    secondary = GlassBlobMagenta,
+    onSecondary = Color.White,
+    tertiary = GlassBlobBlue,
+    background = GlassBgMid,
+    onBackground = GlassTextPrimary,
+    surface = Color.Transparent,
+    onSurface = GlassTextPrimary,
+    surfaceVariant = Color.White.copy(alpha = 0.10f),
+    onSurfaceVariant = GlassTextSecondary,
+    outline = Color.White.copy(alpha = 0.25f)
 )
 
 @Composable
 fun TodoistoTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColors else LightColors
     val view = LocalView.current
     val activity = view.context as? Activity
     if (!view.isInEditMode && activity != null) {
         SideEffect {
             val window = activity.window
-            window.statusBarColor = colorScheme.primary.toArgb()
+            window.statusBarColor = AndroidColor.TRANSPARENT
+            window.navigationBarColor = AndroidColor.TRANSPARENT
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }
     }
 
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = GlassColors,
         typography = Typography,
         content = content
     )

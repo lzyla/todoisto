@@ -51,9 +51,10 @@ fun TodoistoTheme(
 ) {
     val colorScheme = if (darkTheme) DarkColors else LightColors
     val view = LocalView.current
-    if (!view.isInEditMode) {
+    val activity = view.context as? Activity
+    if (!view.isInEditMode && activity != null) {
         SideEffect {
-            val window = (view.context as Activity).window
+            val window = activity.window
             window.statusBarColor = colorScheme.primary.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }

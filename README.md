@@ -1,2 +1,71 @@
-# todoisto
-todo
+# Todoisto
+
+Aplikacja zadań (to-do) na Androida w stylu Todoista, z fioletową kolorystyką.
+Napisana natywnie w **Kotlinie** z użyciem **Jetpack Compose**, **Material 3** i
+**Room** do lokalnego przechowywania danych.
+
+## Funkcje (wersja podstawowa)
+
+- ➕ **Dodawanie zadań** z tytułem, notatkami, priorytetem i terminem
+- ✅ **Oznaczanie jako ukończone** jednym dotknięciem (okrągły checkbox)
+- ✏️ **Edycja** i 🗑️ **usuwanie** zadań
+- 🚩 **Priorytety P1–P4** (jak w Todoiście) z kolorowym oznaczeniem
+- 📅 **Terminy** z wygodnym wyborem daty; etykiety „Dzisiaj”, „Jutro”, „Zaległe”
+- 🔍 **Filtry**: Wszystkie · Dzisiaj · Nadchodzące · Ukończone
+- 💾 **Trwałe dane lokalne** (Room / SQLite) – zadania nie znikają po zamknięciu
+- 🌗 Obsługa trybu jasnego i ciemnego
+- 🟣 Spójna **fioletowa** kolorystyka Material You
+
+## Architektura
+
+Wzorzec **MVVM** z jednokierunkowym przepływem danych:
+
+```
+UI (Compose)  ─►  TodoViewModel  ─►  TaskRepository  ─►  Room (TaskDao / TodoDatabase)
+     ▲                                                          │
+     └───────────────  StateFlow<TodoUiState>  ◄───────────────┘
+```
+
+- `data/` – encja `Task`, `TaskDao`, baza `TodoDatabase`, `TaskRepository`, `Priority`
+- `ui/` – `TodoViewModel`, motyw (`theme/`), ekrany (`screens/`), komponenty (`components/`)
+- Nawigacja: Jetpack Navigation Compose (lista → dodawanie / edycja)
+
+## Wymagania
+
+- Android Studio (Ladybug lub nowszy)
+- JDK 17
+- Android SDK 34, minSdk 24 (Android 7.0+)
+
+## Budowanie
+
+```bash
+./gradlew assembleDebug
+# APK: app/build/outputs/apk/debug/app-debug.apk
+```
+
+Lub otwórz projekt w Android Studio i uruchom konfigurację `app`.
+
+## Struktura projektu
+
+```
+app/src/main/java/pl/media30/todoisto/
+├── TodoApplication.kt          # wstrzyknięcie repozytorium
+├── MainActivity.kt             # host nawigacji Compose
+├── data/                       # warstwa danych (Room)
+│   ├── Task.kt · Priority.kt
+│   ├── TaskDao.kt · TodoDatabase.kt · Converters.kt
+│   └── TaskRepository.kt
+└── ui/
+    ├── TodoViewModel.kt        # logika + filtry + StateFlow
+    ├── theme/                  # paleta fioletowa, typografia
+    ├── screens/                # TaskListScreen, AddEditTaskScreen
+    └── components/             # TaskItem
+```
+
+## Dalsze pomysły (roadmap)
+
+- Projekty / etykiety i sekcje
+- Powiadomienia i przypomnienia
+- Zadania cykliczne
+- Przeciąganie w celu ukończenia / usunięcia (swipe)
+- Synchronizacja w chmurze

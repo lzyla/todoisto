@@ -15,6 +15,7 @@ import pl.media30.todoisto.data.Label
 import pl.media30.todoisto.data.Priority
 import pl.media30.todoisto.data.Project
 import pl.media30.todoisto.data.QuickAddParser
+import pl.media30.todoisto.data.Recurrence
 import pl.media30.todoisto.data.Section
 import pl.media30.todoisto.data.SettingsStore
 import pl.media30.todoisto.data.Task
@@ -33,6 +34,14 @@ sealed class AppView {
     data class ProjectView(val id: Long) : AppView()
     data class LabelView(val id: Long) : AppView()
 }
+
+/** Manual selections from the Quick Add sheet; they win over parsed tokens. */
+data class QuickAddOverrides(
+    val dueDate: Long? = null,
+    val priority: Priority? = null,
+    val projectId: Long? = null,
+    val recurrence: Recurrence? = null
+)
 
 enum class SortMode(val label: String) {
     SMART("Sprytne"),
@@ -220,8 +229,8 @@ class TodoViewModel(
 
     fun setView(view: AppView) { _view.value = view }
 
-    // --- Quick Add (natural language) ---
-    fun quickAdd(raw: String) {
+    // --- Quick Add (natural language + manual pickers) ---
+    fun quickAdd(raw: String, overrides: QuickAddOverrides = QuickAddOverrides()) {
         if (raw.isBlank()) return
         viewModelScope.launch {
             val parsed = QuickAddParser().parse(raw)
@@ -229,25 +238,30 @@ class TodoViewModel(
 
             val currentView = _view.value
             val projectId = when {
+                overrides.projectId != null -> overrides.projectId
                 parsed.projectName != null -> repository.ensureProject(parsed.projectName!!)
                 currentView is AppView.ProjectView -> currentView.id
                 else -> null
             }
             val labelIds = parsed.labelNames.map { repository.ensureLabel(it) }.filter { it != 0L }
 
-            val reminderAt = if (parsed.dueDate != null && parsed.dueTimeMinutes != null) {
-                (parsed.dueDate!! * 24L * 60 * 60 * 1000) + parsed.dueTimeMinutes!! * 60L * 1000
+            val recurrence = overrides.recurrence ?: parsed.recurrence
+            val dueDate = overrides.dueDate ?: parsed.dueDate
+                ?: if (recurrence != null) LocalDate.now().toEpochDay() else null
+
+            val reminderAt = if (dueDate != null && parsed.dueTimeMinutes != null) {
+                (dueDate * 24L * 60 * 60 * 1000) + parsed.dueTimeMinutes!! * 60L * 1000
             } else null
 
             repository.insert(
                 Task(
                     title = title,
-                    priority = parsed.priority,
-                    dueDate = parsed.dueDate,
+                    priority = overrides.priority ?: parsed.priority,
+                    dueDate = dueDate,
                     dueTimeMinutes = parsed.dueTimeMinutes,
                     durationMinutes = parsed.durationMinutes,
                     deadline = parsed.deadline,
-                    recurrence = parsed.recurrence,
+                    recurrence = recurrence,
                     reminderAt = reminderAt,
                     projectId = projectId,
                     labelIds = labelIds,

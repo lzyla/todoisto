@@ -85,6 +85,7 @@ import pl.media30.todoisto.data.Project
 import pl.media30.todoisto.data.QuickAddParser
 import pl.media30.todoisto.data.Task
 import pl.media30.todoisto.ui.AppView
+import pl.media30.todoisto.ui.QuickAddOverrides
 import pl.media30.todoisto.ui.SectionGroup
 import pl.media30.todoisto.ui.SortMode
 import pl.media30.todoisto.ui.TodoUiState
@@ -95,6 +96,7 @@ import pl.media30.todoisto.ui.components.glassFieldColors
 import pl.media30.todoisto.ui.theme.GlassAccent
 import pl.media30.todoisto.ui.theme.GlassPanelTint
 import pl.media30.todoisto.ui.theme.GlassSurface
+import pl.media30.todoisto.ui.theme.GlassTheme
 import pl.media30.todoisto.ui.theme.GlassTextPrimary
 import pl.media30.todoisto.ui.theme.GlassTextSecondary
 import java.time.LocalDate
@@ -113,7 +115,7 @@ fun TaskListScreen(
     onSelectView: (AppView) -> Unit,
     onToggle: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
-    onQuickAdd: (String) -> Unit,
+    onQuickAdd: (String, QuickAddOverrides) -> Unit,
     onAddProject: (String, Long) -> Unit,
     onDeleteProject: (Long) -> Unit,
     onDuplicateProject: (Long) -> Unit,
@@ -270,12 +272,13 @@ fun TaskListScreen(
         QuickAddSheet(
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             initialText = quickAddPrefill.orEmpty(),
+            projects = projects,
             onDismiss = {
                 showQuickAdd = false
                 onPrefillConsumed()
             },
-            onAdd = { text ->
-                onQuickAdd(text)
+            onAdd = { text, overrides ->
+                onQuickAdd(text, overrides)
                 showQuickAdd = false
                 onPrefillConsumed()
             }
@@ -564,61 +567,228 @@ private fun DrawerHint(text: String) {
 
 // ---- Quick Add -------------------------------------------------------------
 
-@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun QuickAddSheet(
     sheetState: androidx.compose.material3.SheetState,
     initialText: String,
+    projects: List<Project>,
     onDismiss: () -> Unit,
-    onAdd: (String) -> Unit
+    onAdd: (String, QuickAddOverrides) -> Unit
 ) {
-    var text by remember { mutableStateOf(initialText) }
-    val parsed = remember(text) { QuickAddParser().parse(text) }
-    val fmt = remember { DateTimeFormatter.ofPattern("d MMM", Locale.forLanguageTag("pl")) }
-
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = GlassSurface
     ) {
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                placeholder = { Text("np. Zadzwonić do Beaty jutro o 15:00 2h #fundacja p1") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = false,
-                shape = RoundedCornerShape(22.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { if (text.isNotBlank()) onAdd(text) }),
-                colors = glassFieldColors()
-            )
-            Spacer(Modifier.height(12.dp))
+        QuickAddContent(initialText = initialText, projects = projects, onAdd = onAdd)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+internal fun QuickAddContent(
+    initialText: String,
+    projects: List<Project>,
+    onAdd: (String, QuickAddOverrides) -> Unit
+) {
+    var text by remember { mutableStateOf(initialText) }
+    val parsed = remember(text) { QuickAddParser().parse(text) }
+    val fmt = remember { DateTimeFormatter.ofPattern("d MMM", Locale.forLanguageTag("pl")) }
+
+    var manualDue by remember { mutableStateOf<Long?>(null) }
+    var manualPriority by remember { mutableStateOf<pl.media30.todoisto.data.Priority?>(null) }
+    var manualProject by remember { mutableStateOf<Project?>(null) }
+    var manualRecurrence by remember { mutableStateOf<pl.media30.todoisto.data.Recurrence?>(null) }
+    var projectMenu by remember { mutableStateOf(false) }
+    var recurrenceMenu by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    val today = LocalDate.now().toEpochDay()
+    val effDue = manualDue ?: parsed.dueDate
+    val effPriority = manualPriority ?: parsed.priority
+    val effRecurrence = manualRecurrence ?: parsed.recurrence
+    val activeProjects = projects.filter { !it.isArchived }
+
+    fun overrides() = QuickAddOverrides(
+        dueDate = manualDue,
+        priority = manualPriority,
+        projectId = manualProject?.id,
+        recurrence = manualRecurrence
+    )
+
+    Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it },
+            placeholder = { Text("Co jest do zrobienia?") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = false,
+            shape = RoundedCornerShape(22.dp),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { if (text.isNotBlank()) onAdd(text, overrides()) }),
+            colors = glassFieldColors()
+        )
+
+        // Termin: Dzisiaj / Jutro / konkretna data
+        Spacer(Modifier.height(14.dp))
+        androidx.compose.foundation.layout.FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ChoiceChip("Dzisiaj", selected = effDue == today) {
+                manualDue = if (manualDue == today) null else today
+            }
+            ChoiceChip("Jutro", selected = effDue == today + 1) {
+                manualDue = if (manualDue == today + 1) null else today + 1
+            }
+            val customDate = effDue?.takeIf { it != today && it != today + 1 }
+            ChoiceChip(
+                text = customDate?.let { "📅 " + LocalDate.ofEpochDay(it).format(fmt) } ?: "📅 Data",
+                selected = customDate != null
+            ) { showDatePicker = true }
+        }
+
+        // Priorytet
+        Spacer(Modifier.height(10.dp))
+        androidx.compose.foundation.layout.FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            pl.media30.todoisto.data.Priority.entries.forEach { p ->
+                ChoiceChip(
+                    text = "P${p.ordinal + 1}",
+                    selected = effPriority == p,
+                    tint = p.color
+                ) { manualPriority = if (manualPriority == p) null else p }
+            }
+        }
+
+        // Projekt + cykliczność
+        Spacer(Modifier.height(10.dp))
+        androidx.compose.foundation.layout.FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box {
+                ChoiceChip(
+                    text = "# " + (manualProject?.name ?: parsed.projectName ?: "Skrzynka"),
+                    selected = manualProject != null || parsed.projectName != null
+                ) { projectMenu = true }
+                DropdownMenu(expanded = projectMenu, onDismissRequest = { projectMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Skrzynka") },
+                        onClick = { manualProject = null; projectMenu = false }
+                    )
+                    activeProjects.forEach { p ->
+                        DropdownMenuItem(
+                            text = { Text(p.name) },
+                            onClick = { manualProject = p; projectMenu = false }
+                        )
+                    }
+                }
+            }
+            Box {
+                ChoiceChip(
+                    text = "🔁 " + (effRecurrence?.label ?: "Powtarzaj"),
+                    selected = effRecurrence != null
+                ) { recurrenceMenu = true }
+                DropdownMenu(expanded = recurrenceMenu, onDismissRequest = { recurrenceMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Nie powtarzaj") },
+                        onClick = { manualRecurrence = null; recurrenceMenu = false }
+                    )
+                    pl.media30.todoisto.data.Recurrence.entries.forEach { r ->
+                        DropdownMenuItem(
+                            text = { Text(r.label) },
+                            onClick = { manualRecurrence = r; recurrenceMenu = false }
+                        )
+                    }
+                }
+            }
+        }
+
+        // Reszta rozpoznana z tekstu (godzina, czas trwania, etykiety, deadline)
+        val extras = parsed.dueTimeMinutes != null || parsed.durationMinutes != null ||
+            parsed.labelNames.isNotEmpty() || parsed.deadline != null
+        if (extras) {
+            Spacer(Modifier.height(10.dp))
             androidx.compose.foundation.layout.FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth().animateContentSize()
             ) {
-                parsed.dueDate?.let { PreviewChip("📅 " + dueText(it, fmt)) }
                 parsed.dueTimeMinutes?.let { PreviewChip("🕒 %02d:%02d".format(it / 60, it % 60)) }
                 parsed.durationMinutes?.let { PreviewChip("⏱ " + durationText(it)) }
-                if (parsed.recurrence != null) PreviewChip("🔁 " + parsed.recurrence!!.label)
-                if (parsed.priority.ordinal < 3) PreviewChip("🚩 P${parsed.priority.ordinal + 1}")
-                parsed.projectName?.let { PreviewChip("# $it") }
                 parsed.labelNames.forEach { PreviewChip("@ $it") }
                 parsed.deadline?.let { PreviewChip("⏳ do " + dueText(it, fmt)) }
             }
-            Spacer(Modifier.height(16.dp))
-            ExtendedFloatingActionButton(
-                onClick = { if (text.isNotBlank()) onAdd(text) },
-                shape = RoundedCornerShape(50),
-                containerColor = GlassAccent,
-                contentColor = Color.White,
-                modifier = Modifier.fillMaxWidth(),
-                icon = { Icon(Icons.Filled.Add, null) },
-                text = { Text("Dodaj", fontWeight = FontWeight.SemiBold) }
-            )
         }
+
+        Spacer(Modifier.height(16.dp))
+        ExtendedFloatingActionButton(
+            onClick = { if (text.isNotBlank()) onAdd(text, overrides()) },
+            shape = RoundedCornerShape(50),
+            containerColor = GlassAccent,
+            contentColor = Color.White,
+            modifier = Modifier.fillMaxWidth(),
+            icon = { Icon(Icons.Filled.Add, null) },
+            text = { Text("Dodaj", fontWeight = FontWeight.SemiBold) }
+        )
+    }
+
+    if (showDatePicker) {
+        val state = androidx.compose.material3.rememberDatePickerState(
+            initialSelectedDateMillis = effDue?.let { it * 24L * 60 * 60 * 1000 }
+        )
+        androidx.compose.material3.DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    state.selectedDateMillis?.let { millis ->
+                        manualDue = java.time.Instant.ofEpochMilli(millis)
+                            .atZone(java.time.ZoneOffset.UTC).toLocalDate().toEpochDay()
+                    }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Anuluj") } }
+        ) {
+            androidx.compose.material3.DatePicker(state = state)
+        }
+    }
+}
+
+@Composable
+private fun ChoiceChip(
+    text: String,
+    selected: Boolean,
+    tint: Color = GlassAccent,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(50)
+    val bg by animateColorAsState(
+        targetValue = when {
+            !selected -> GlassPanelTint.copy(alpha = 0.10f)
+            GlassTheme.dark -> Color.White
+            else -> tint.copy(alpha = 0.16f)
+        },
+        label = "choiceBg"
+    )
+    Row(
+        modifier = Modifier
+            .clip(shape)
+            .background(bg)
+            .border(1.dp, if (selected) tint else GlassPanelTint.copy(alpha = 0.30f), shape)
+            .bouncy(scaleDown = 0.9f, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = if (selected) tint else GlassTextSecondary
+        )
     }
 }
 

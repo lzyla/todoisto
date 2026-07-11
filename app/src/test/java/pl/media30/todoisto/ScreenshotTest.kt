@@ -1,6 +1,10 @@
 package pl.media30.todoisto
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.dp
 import app.cash.paparazzi.DeviceConfig
 import app.cash.paparazzi.Paparazzi
 import org.junit.Rule
@@ -79,7 +83,7 @@ class ScreenshotTest {
             onSelectView = {},
             onToggle = {},
             onTaskClick = {},
-            onQuickAdd = {},
+            onQuickAdd = { _, _ -> },
             onAddProject = { _, _ -> },
             onDeleteProject = {},
             onDuplicateProject = {},
@@ -119,6 +123,32 @@ class ScreenshotTest {
             TodoistoTheme { GlassBackground { listScreen() } }
         }
         GlassTheme.dark = false
+    }
+
+    @Test
+    fun quickAddSheet() {
+        GlassTheme.dark = false
+        paparazzi.snapshot {
+            TodoistoTheme {
+                GlassBackground {
+                    androidx.compose.foundation.layout.Box(
+                        modifier = androidx.compose.ui.Modifier
+                            .fillMaxWidth()
+                            .background(
+                                pl.media30.todoisto.ui.theme.GlassSurface,
+                                androidx.compose.foundation.shape.RoundedCornerShape(28.dp)
+                            )
+                            .padding(top = 20.dp)
+                    ) {
+                        pl.media30.todoisto.ui.screens.QuickAddContent(
+                            initialText = "Spotkanie z Beatą o 15:00 2h @fundacja",
+                            projects = projects,
+                            onAdd = { _, _ -> }
+                        )
+                    }
+                }
+            }
+        }
     }
 
     @Test

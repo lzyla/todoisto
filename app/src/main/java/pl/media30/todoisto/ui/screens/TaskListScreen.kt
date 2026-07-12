@@ -41,10 +41,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -656,12 +656,19 @@ private fun ZenContent(
 ) {
     val today = LocalDate.now()
     val collapsed = remember { mutableStateMapOf<String, Boolean>() }
-    // Zapas u góry = status bar + pasek; treść zaczyna się pod paskiem, a przy
-    // przewijaniu wjeżdża POD pigułki (widać rozmytą treść — liquid glass).
-    val topInset = androidx.compose.foundation.layout.WindowInsets.statusBars
-        .asPaddingValues().calculateTopPadding()
 
-    LazyColumn(contentPadding = PaddingValues(start = 18.dp, top = topInset + 66.dp, end = 18.dp, bottom = 170.dp)) {
+    LazyColumn(contentPadding = PaddingValues(start = 18.dp, top = 0.dp, end = 18.dp, bottom = 170.dp)) {
+        // Odstęp u góry o WYSOKOŚCI status bara + paska pigułek — liczony tym
+        // samym źródłem insetów co pasek (statusBars), więc nagłówek zawsze ląduje
+        // pod paskiem. Treść dalej przewija się POD pigułki (liquid glass).
+        item(key = "topbar-space") {
+            Spacer(
+                Modifier
+                    .fillMaxWidth()
+                    .windowInsetsTopHeight(androidx.compose.foundation.layout.WindowInsets.statusBars)
+            )
+            Spacer(Modifier.height(62.dp))
+        }
         when (uiState.view) {
             AppView.Today -> {
                 item(key = "hdr") {

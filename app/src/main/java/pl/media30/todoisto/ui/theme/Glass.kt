@@ -233,7 +233,7 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
                 )
             )
         } else {
-            val meshA = if (dark) 0.60f else 0.72f
+            val meshA = if (dark) 0.60f else 0.50f
             // Baza — neutralna, niskokontrastowa (żaden kolor nie „siedzi" na stałe na górze).
             val baseTop = if (dark) Color(0xFF241E3C) else Color(0xFFF3F1FA)
             val baseBot = if (dark) Color(0xFF1B1630) else Color(0xFFF6F2FB)
@@ -255,6 +255,8 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
             blob(pal.meshR, 1.7f, 0.66f, 0.52f, 0.32f, 0.42f, meshA)
             blob(pal.meshTop, 3.3f, 0.50f, 0.44f, 0.40f, 0.46f, meshA * 0.95f)
             blob(pal.meshAccent, 4.9f, 0.48f, 0.55f, 0.36f, 0.44f, meshA * (0.75f + 0.25f * p))
+            // Mleczna zasłona — rozjaśnia i „ściszą" kolory (jaśniejsze, spokojniejsze tło).
+            if (!dark) drawRect(Color.White.copy(alpha = 0.26f))
         }
     }
 }

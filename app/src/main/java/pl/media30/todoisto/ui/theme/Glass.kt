@@ -243,17 +243,19 @@ fun Modifier.taskTile(onClick: () -> Unit): Modifier = composed {
     val shape = RoundedCornerShape(20.dp)
     val fill by animateColorAsState(
         targetValue = if (pressed) {
-            if (dark) Color.White.copy(alpha = 0.13f) else Color.White.copy(alpha = 0.34f)
+            // szkło po dotknięciu — bardzo przezroczyste, tło mocno prześwituje
+            if (dark) Color.White.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.12f)
         } else {
-            if (dark) Color.White.copy(alpha = 0.03f) else Color.White.copy(alpha = 0.05f)
+            // spoczynek — praktycznie niewidoczny
+            if (dark) Color.White.copy(alpha = 0.015f) else Color.White.copy(alpha = 0.02f)
         },
         animationSpec = tween(280), label = "tileFill"
     )
     val rim by animateColorAsState(
         targetValue = if (pressed) {
-            if (dark) Color.White.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.85f)
+            if (dark) Color.White.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.40f)
         } else {
-            if (dark) Color.White.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.12f)
+            if (dark) Color.White.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.07f)
         },
         animationSpec = tween(280), label = "tileRim"
     )

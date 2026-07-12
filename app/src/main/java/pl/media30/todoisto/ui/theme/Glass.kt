@@ -94,56 +94,65 @@ val GlassRoutinePill: Color get() = if (d) Color.White.copy(alpha = 0.10f) else 
 // Priorytety (PC z prototypu)
 val PrioColors = listOf(Color(0xFFD1453B), Color(0xFFEB8909), Color(0xFF246FE0), Color(0xFF9E9E9E))
 
-// Tło strony: gradient + „szkło 3D", z paletą zależną od pory dnia.
+// Wielokolorowy gradient „mesh" zależny od pory dnia (bez kształtów):
+// [base] — 4 pionowe przystanki; [meshL]/[meshR] — poprzeczna warstwa,
+// dająca różnicę koloru między lewą a prawą krawędzią (efekt aurory).
 private class BgPalette(
-    val top: Color, val mid: Color, val bottom: Color,
-    val lobe1: Color, val lobe2: Color, val lobe3: Color,
-    val streakAlpha: Float, val glow: Color
+    val base: List<Color>,
+    val meshL: Color, val meshR: Color, val meshTop: Color
 )
 
 private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
-    // Rano — ciepły świt: brzoskwinia, róż, delikatny błękit
+    // Rano — ciepły świt: brzoskwinia → róż → liliowy → błękit
     DayPhase.MORNING -> if (d) BgPalette(
-        Color(0xFF4A3A6E), Color(0xFF3E2E5E), Color(0xFF2A1B45),
-        Color(0xFFFFC79E), Color(0xFFFF9FB8), Color(0xFFA9C8FF), 0.20f, Color(0xFFFFE0A8)
+        listOf(Color(0xFF5A3E6E), Color(0xFF46305E), Color(0xFF3A2A55), Color(0xFF2A2148)),
+        Color(0xFFCC7A5E), Color(0xFF5E6FB0), Color(0xFFCC6E86)
     ) else BgPalette(
-        Color(0xFFFFF7F1), Color(0xFFFDF1EC), Color(0xFFF6EFFB),
-        Color(0xFFFFD9B0), Color(0xFFFFC2D2), Color(0xFFCFE4FF), 0.48f, Color(0xFFFFEABF)
+        listOf(Color(0xFFFFE6D2), Color(0xFFFFD3E0), Color(0xFFEAD9FF), Color(0xFFCFE4FF)),
+        Color(0xFFFFC79E), Color(0xFF9FC0FF), Color(0xFFFFB4C6)
     )
-    // Południe — jasny, powietrzny dzień: błękit nieba, cyjan, liliowy
+    // Południe — powietrzny dzień: błękit → cyjan → liliowy → mięta
     DayPhase.NOON -> if (d) BgPalette(
-        Color(0xFF34407E), Color(0xFF2C3A6E), Color(0xFF212C58),
-        Color(0xFF8FC4FF), Color(0xFFB9A6FF), Color(0xFF9EE9FF), 0.20f, Color(0xFFB4FFEB)
+        listOf(Color(0xFF33487E), Color(0xFF34406E), Color(0xFF2C3A66), Color(0xFF232E58)),
+        Color(0xFF4E80C8), Color(0xFF7E6FC8), Color(0xFF4EA0C0)
     ) else BgPalette(
-        Color(0xFFFDFCFF), Color(0xFFF1F8FF), Color(0xFFEBF3FF),
-        Color(0xFFBFE0FF), Color(0xFFD6C2FF), Color(0xFFC7F5FF), 0.50f, Color(0xFFB4FFEB)
+        listOf(Color(0xFFD6ECFF), Color(0xFFDCE4FF), Color(0xFFE6DBFF), Color(0xFFD4F3FF)),
+        Color(0xFF8FC4FF), Color(0xFFC0A6FF), Color(0xFF9EE9FF)
     )
-    // Wieczór — fioletowy zmierzch (bazowy klimat prototypu)
+    // Wieczór — zmierzch: magenta → fiolet → indygo → róż
     DayPhase.EVENING -> if (d) BgPalette(
-        Color(0xFF6E45D9), Color(0xFF5B35C4), Color(0xFF3B1D8C),
-        Color(0xFFE0C4FF), Color(0xFFA875FF), Color(0xFF9696FF), 0.22f, Color(0xFFFFC4E8)
+        listOf(Color(0xFF7A3FB0), Color(0xFF5B35C4), Color(0xFF44239E), Color(0xFF361C7E)),
+        Color(0xFFB44DD8), Color(0xFF6A5CD8), Color(0xFFD86EB8)
     ) else BgPalette(
-        Color(0xFFFDFBFF), Color(0xFFFAF6FE), Color(0xFFF6F0FE),
-        Color(0xFFE7B6FF), Color(0xFFC9A6FF), Color(0xFFB3B0FF), 0.50f, Color(0xFFFFC4E8)
+        listOf(Color(0xFFF3D6FF), Color(0xFFE6D3FF), Color(0xFFD9D6FF), Color(0xFFEFD6F0)),
+        Color(0xFFE7A6F0), Color(0xFFA6A6F0), Color(0xFFF0A6D8)
     )
 }
 
 /**
- * Pełnoekranowe tło: sam czysty gradient zależny od pory dnia — bez kształtów
- * (wg prototypu: body{background:linear-gradient(...)}). Diagonalny kierunek
- * 165° jak w źródle.
+ * Pełnoekranowe tło: wielokolorowy gradient „mesh" zależny od pory dnia —
+ * bez żadnych kształtów. Baza to pionowy gradient 4 barw, na to skrzyżowana
+ * warstwa pozioma + górna poświata, co daje aurorę (lewa≠prawa≠góra) bez
+ * widocznych brył. Kierunek lekko ukośny (165° jak w prototypie).
  */
 @Composable
 fun GlassBackground(content: @Composable () -> Unit) {
     val pal = bgPalette()
+    val meshA = if (d) 0.55f else 0.60f
     Box(
         Modifier
             .fillMaxSize()
+            .background(Brush.verticalGradient(pal.base))
+            .background(
+                Brush.horizontalGradient(
+                    listOf(pal.meshL.copy(alpha = meshA), Color.Transparent, pal.meshR.copy(alpha = meshA))
+                )
+            )
             .background(
                 Brush.linearGradient(
-                    colors = listOf(pal.top, pal.mid, pal.bottom),
+                    colors = listOf(pal.meshTop.copy(alpha = meshA), Color.Transparent),
                     start = Offset(0f, 0f),
-                    end = Offset(220f, 1000f)
+                    end = Offset(600f, 1400f)
                 )
             )
     ) {

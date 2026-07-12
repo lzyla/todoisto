@@ -704,7 +704,7 @@ private fun QuickAddMorph(
     BoxWithConstraintsFix(modifier.navigationBarsPadding().imePadding()) { maxW ->
         val width by animateDpAsState(if (open) maxW - 28.dp else 58.dp, tween(500, easing = EASE), label = "qaW")
         val height by animateDpAsState(if (open) 360.dp else 58.dp, tween(500, easing = EASE), label = "qaH")
-        val bottomPad by animateDpAsState(if (open) 16.dp else 106.dp, tween(500, easing = EASE), label = "qaB")
+        val bottomPad by animateDpAsState(if (open) 16.dp else 84.dp, tween(500, easing = EASE), label = "qaB")
         val bg by animateColorAsState(if (open) GlassSurface else GlassAccent, tween(400), label = "qaBg")
         val rot by animateFloatAsState(if (open) 45f else 0f, tween(500, easing = EASE), label = "qaRot")
         val parsed = remember(text) { QuickAddParser().parse(text) }

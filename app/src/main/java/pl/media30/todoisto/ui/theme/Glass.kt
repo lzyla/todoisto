@@ -348,8 +348,8 @@ fun Modifier.glassBlur(shape: Shape = RoundedCornerShape(24.dp)): Modifier = com
         .shadow(16.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.5f))
         .clip(shape)
         .hazeChild(state = haze, style = hazeStyle)
-        // lekki „mleczny" nalot na rozmyciu — czytelność tekstu przy zachowaniu przezroczystości
-        .background(if (dark) Color.White.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.16f))
+        // lekki „mleczny" nalot na rozmyciu — bardziej przezroczysty (szklany)
+        .background(if (dark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.10f))
         .drawWithContent {
             drawContent()
             specular(if (dark) 0.20f else 0.42f)
@@ -421,8 +421,8 @@ fun Modifier.controlCenterGlass(shape: Shape = RoundedCornerShape(50)): Modifier
     this
         .shadow(18.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.6f))
         .clip(shape)
-        // szklana tafla: półprzezroczysta (tło prześwituje), ale wciąż czytelna
-        .background(if (dark) Color(0x99473C63) else Color(0xC2FFFFFF))
+        // szklana tafla: mocno półprzezroczysta (tło wyraźnie prześwituje jak szkło)
+        .background(if (dark) Color(0x80473C63) else Color(0x73FFFFFF))
         .drawWithContent {
             drawContent()
             // refleksy: górna poświata + pasek światła + dryfujący połysk

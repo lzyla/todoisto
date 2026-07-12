@@ -1,11 +1,8 @@
 package pl.media30.todoisto.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -16,145 +13,147 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.Autorenew
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import pl.media30.todoisto.data.Task
-import pl.media30.todoisto.ui.theme.GlassRoutine
+import pl.media30.todoisto.ui.theme.GlassAccent
+import pl.media30.todoisto.ui.theme.GlassDockBg
+import pl.media30.todoisto.ui.theme.GlassRoutinePill
+import pl.media30.todoisto.ui.theme.GlassShadow
 import pl.media30.todoisto.ui.theme.GlassTextPrimary
 import pl.media30.todoisto.ui.theme.GlassTextSecondary
-import pl.media30.todoisto.ui.theme.GlassTheme
-
-private val pillBg: Color get() = if (GlassTheme.dark) Color(0xCC574D75) else Color(0xE6F8F6FB)
-private val pillBorder: Color get() = if (GlassTheme.dark) Color(0xFF6A5F8A) else Color(0xFFD6D0E2)
+import pl.media30.todoisto.ui.theme.GlassTint
 
 /**
- * Zawartość arkusza Rutyn (otwieranego kółkiem przy docku). Nawyki jako
- * pigułki na przydymionej tafli [GlassRoutine] — celowo inny tryb niż zadania.
+ * Tafla Rutyn dokowana nad dolnym dockiem (wg prototypu): przydymione tło,
+ * nagłówek ⟳ Rutyny + licznik + strzałka zwijania, pigułki nawyków.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun RoutinesSheetContent(
+fun RoutinesPanel(
     routines: List<Task>,
     doneCount: Int,
     onComplete: (Task) -> Unit,
-    onAllDone: () -> Unit = {},
+    onCollapse: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val total = routines.size + doneCount
     val allDone = routines.isEmpty()
-    LaunchedEffect(allDone) { if (allDone && total > 0) { delay(900); onAllDone() } }
+    LaunchedEffect(allDone) { if (allDone && total > 0) { delay(600); onCollapse() } }
 
-    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp)
+            .clip(RoundedCornerShape(26.dp))
+            .background(GlassDockBg)
+            .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(26.dp))
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 10.dp, top = 13.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Outlined.Autorenew, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(9.dp))
+            Text("Rutyny", fontSize = 13.5.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+            Spacer(Modifier.width(9.dp))
             Text(
-                text = if (allDone) "✅ Rutyny zrobione" else "🔁 Rutyny",
-                style = MaterialTheme.typography.titleLarge,
-                color = GlassTextPrimary,
+                if (allDone) "wszystkie zrobione" else "$doneCount z $total zrobione",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.W700,
+                color = GlassTextSecondary,
+                modifier = Modifier.weight(1f)
             )
-            Spacer(Modifier.width(12.dp))
-            if (!allDone) {
-                Text(
-                    "$doneCount z $total zrobione",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = GlassTextSecondary,
-                )
+            Box(
+                Modifier.size(28.dp).clip(CircleShape).background(GlassTint.copy(alpha = 0.0f))
+                    .bouncy(0.85f, onClick = onCollapse),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.KeyboardArrowDown, "Zwiń", tint = GlassTextSecondary, modifier = Modifier.size(15.dp))
             }
         }
-        Spacer(Modifier.height(14.dp))
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
-                .background(GlassRoutine)
-                .padding(14.dp)
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 14.dp)
         ) {
-            if (allDone) {
-                Text(
-                    "Wszystkie nawyki na dziś odhaczone 💜",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = GlassTextSecondary,
-                )
-            } else {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    routines.forEach { task ->
-                        androidx.compose.runtime.key(task.id) {
-                            RoutinePill(task = task, onComplete = { onComplete(task) })
-                        }
-                    }
+            routines.forEach { task ->
+                androidx.compose.runtime.key(task.id) {
+                    RoutinePill(task) { onComplete(task) }
                 }
+            }
+            if (allDone) {
+                Text("Nawyki na dziś odhaczone 💜", fontSize = 12.5.sp, color = GlassTextSecondary)
             }
         }
     }
 }
 
 /**
- * Pigułka nawyku: ring + nazwa. Odhaczenie gra własną animację (sprężysty
- * „pop" ringu i skurczenie pigułki) — subtelnie inną niż checkbox zadań.
+ * Pigułka rutyny — dwufazowa animacja z prototypu: dotknięcie wypełnia ring
+ * akcentem (pop ×1.25, 340ms), potem cała pigułka kurczy się i znika (760ms).
  */
 @Composable
 private fun RoutinePill(task: Task, onComplete: () -> Unit) {
-    var leaving by remember { mutableStateOf(false) }
-    LaunchedEffect(leaving) {
-        if (leaving) {
-            delay(320)
-            onComplete()
+    var phase by remember { mutableIntStateOf(0) }
+    LaunchedEffect(phase) {
+        when (phase) {
+            1 -> { delay(340); phase = 2 }
+            2 -> { delay(420); onComplete() }
         }
     }
     val ringScale by animateFloatAsState(
-        targetValue = if (leaving) 1.25f else 1f,
-        animationSpec = spring(dampingRatio = 0.35f, stiffness = Spring.StiffnessMedium),
-        label = "ringPop",
+        if (phase == 1) 1.25f else 1f,
+        spring(dampingRatio = 0.34f, stiffness = Spring.StiffnessMedium),
+        label = "ringPop"
     )
+    val pillScale by animateFloatAsState(if (phase == 2) 0.6f else 1f, label = "pillSc")
+    val pillAlpha by animateFloatAsState(if (phase == 2) 0f else 1f, label = "pillOp")
 
-    AnimatedVisibility(
-        visible = !leaving,
-        exit = scaleOut(targetScale = 0.6f) + fadeOut(),
+    Row(
+        modifier = Modifier
+            .graphicsLayer { scaleX = pillScale; scaleY = pillScale; alpha = pillAlpha }
+            .clip(RoundedCornerShape(50))
+            .background(GlassRoutinePill)
+            .bouncy(0.9f) { if (phase == 0) phase = 1 }
+            .padding(start = 9.dp, end = 15.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(50))
-                .background(pillBg)
-                .border(1.dp, pillBorder, RoundedCornerShape(50))
-                .bouncy(scaleDown = 0.88f) { leaving = true }
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size((16 * ringScale).dp)
-                    .clip(CircleShape)
-                    .then(
-                        if (leaving) Modifier.background(GlassTextSecondary)
-                        else Modifier.border(2.dp, GlassTextSecondary, CircleShape)
-                    )
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text = task.title,
-                style = MaterialTheme.typography.labelMedium,
-                color = GlassTextPrimary,
-            )
-        }
+        Box(
+            Modifier
+                .size(18.dp)
+                .scale(ringScale)
+                .clip(CircleShape)
+                .then(
+                    if (phase > 0) Modifier.background(GlassAccent)
+                    else Modifier.border(2.5.dp, GlassAccent, CircleShape)
+                )
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(task.title, fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = GlassTextPrimary)
     }
 }

@@ -14,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import pl.media30.todoisto.ui.TodoViewModel
 import pl.media30.todoisto.ui.screens.TaskDetailSheet
@@ -109,6 +110,7 @@ fun TodoistoApp(
         onSort = viewModel::setSort,
         onSetGoals = viewModel::setGoals,
         onToggleTheme = { viewModel.setDarkTheme(!darkTheme) },
+        onMoveOverdueToToday = viewModel::moveOverdueToToday,
         weekTasks = allTasks
     )
 
@@ -117,7 +119,8 @@ fun TodoistoApp(
         ModalBottomSheet(
             onDismissRequest = { detailTaskId = null },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = GlassSurface
+            containerColor = GlassSurface,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
         ) {
             TaskDetailSheet(
                 task = detailTask,

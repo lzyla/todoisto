@@ -10,27 +10,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-/**
- * Liquid-glass scheme. Reads [GlassTheme.dark], so recomposes when the theme
- * toggles. Surfaces are transparent — real fills come from [Modifier.glass]
- * layered over [GlassBackground]; menus/dialogs use the surfaceContainer set.
- */
 @Composable
 private fun glassColorScheme() = darkColorScheme(
     primary = GlassAccent,
     onPrimary = Color.White,
-    primaryContainer = GlassPanelTint.copy(alpha = 0.14f),
+    primaryContainer = GlassTint,
     onPrimaryContainer = GlassTextPrimary,
-    secondary = Color(0xFFE96BFF),
+    secondary = Color(0xFFC24DFF),
     onSecondary = Color.White,
-    tertiary = Color(0xFF7C9EFF),
-    background = GlassBgMid,
+    tertiary = Color(0xFF4D6BFF),
+    background = Color.Transparent,
     onBackground = GlassTextPrimary,
     surface = Color.Transparent,
     onSurface = GlassTextPrimary,
-    surfaceVariant = GlassPanelTint.copy(alpha = 0.12f),
+    surfaceVariant = GlassTint,
     onSurfaceVariant = GlassTextSecondary,
-    outline = GlassPanelTint.copy(alpha = 0.35f),
+    outline = GlassHair,
     surfaceContainer = GlassSurface,
     surfaceContainerHigh = GlassSurface,
     surfaceContainerHighest = GlassSurface,
@@ -39,9 +34,7 @@ private fun glassColorScheme() = darkColorScheme(
 )
 
 @Composable
-fun TodoistoTheme(
-    content: @Composable () -> Unit
-) {
+fun TodoistoTheme(content: @Composable () -> Unit) {
     val view = LocalView.current
     val activity = view.context as? Activity
     val dark = GlassTheme.dark

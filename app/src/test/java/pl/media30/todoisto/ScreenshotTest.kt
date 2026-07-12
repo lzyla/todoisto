@@ -18,8 +18,10 @@ import pl.media30.todoisto.ui.AppView
 import pl.media30.todoisto.ui.SectionGroup
 import pl.media30.todoisto.ui.TaskNode
 import pl.media30.todoisto.ui.TodoUiState
+import pl.media30.todoisto.ui.screens.TaskDetailSheet
 import pl.media30.todoisto.ui.screens.TaskListScreen
 import pl.media30.todoisto.ui.theme.GlassBackground
+import pl.media30.todoisto.ui.theme.GlassSurface
 import pl.media30.todoisto.ui.theme.GlassTheme
 import pl.media30.todoisto.ui.theme.TodoistoTheme
 import java.time.LocalDate
@@ -35,38 +37,40 @@ class ScreenshotTest {
     private val today = LocalDate.now().toEpochDay()
 
     private val projects = listOf(
-        Project(1, "Fundacja", 0xFFC24DFF, isFavorite = true),
-        Project(2, "Dom", 0xFF34D399)
+        Project(1, "Praca", 0xFF4D6BFF, isFavorite = true),
+        Project(2, "Dom", 0xFF2DD4BF),
+        Project(3, "Zdrowie", 0xFFFB7185)
     )
     private val labels = listOf(
-        Label(1, "pilne", 0xFFF87171),
-        Label(2, "email", 0xFF4D6BFF)
+        Label(1, "pilne", 0xFFC24DFF),
+        Label(2, "zakupy", 0xFFEB8909)
     )
 
     private val tasks = listOf(
-        Task(1, "Zadzwonić do Beaty", "Ustalić budżet", false, Priority.P1, today, durationMinutes = 30, projectId = 1, labelIds = listOf(1)),
-        Task(2, "Wysłać raport kwartalny", "", false, Priority.P2, today + 1, deadline = today + 3, projectId = 1),
-        Task(4, "Kupić mleko", "", false, Priority.P4, null, labelIds = listOf(2)),
-        Task(5, "Przygotować prezentację", "", false, Priority.P3, today - 1, durationMinutes = 120)
+        Task(1, "Przygotować raport miesięczny", "Wysłać do Anny przed spotkaniem zarządu", false, Priority.P1, today, dueTimeMinutes = 600, projectId = 1, labelIds = listOf(1)),
+        Task(2, "Stand-up zespołu", "", false, Priority.P4, today, dueTimeMinutes = 570, recurrence = Recurrence.DAILY, projectId = 1),
+        Task(3, "Nadać paczkę na poczcie", "", false, Priority.P4, today, projectId = 2),
+        Task(4, "Przegląd pull requestów", "", false, Priority.P3, today, dueTimeMinutes = 14 * 60, durationMinutes = 45, projectId = 1),
+        Task(5, "Kupić prezent dla Zosi", "", false, Priority.P2, today, dueTimeMinutes = 15 * 60, deadline = today + 3, projectId = 2, labelIds = listOf(2), attachments = listOf("https://images.app/tort-jednorozec.jpg")),
+        Task(6, "Trening — siłownia", "", false, Priority.P4, today, dueTimeMinutes = 18 * 60 + 30, recurrence = Recurrence.WEEKLY, projectId = 3)
     )
 
     private val routines = listOf(
-        Task(3, "Podlać kwiaty", "", false, Priority.P4, today, recurrence = Recurrence.WEEKLY),
-        Task(6, "Medytacja", "", false, Priority.P4, today, recurrence = Recurrence.DAILY),
-        Task(7, "Czytanie 20 stron", "", false, Priority.P4, today, recurrence = Recurrence.DAILY)
+        Task(7, "Nauka japońskiego — 15 min", "", false, Priority.P4, today, recurrence = Recurrence.DAILY),
+        Task(8, "Podlać kwiaty", "", false, Priority.P4, today, recurrence = Recurrence.DAILY)
     )
 
     private fun uiState() = TodoUiState(
         view = AppView.Today,
         title = "Dzisiaj",
-        groups = listOf(SectionGroup(null, null, tasks.map { TaskNode(it, emptyList()) })),
+        groups = listOf(SectionGroup(null, null, tasks.map { TaskNode(it, if (it.id == 1L) listOf(Task(20, "Zebrać dane", isCompleted = true, parentId = 1), Task(21, "Wykres sprzedaży", parentId = 1)) else emptyList()) })),
         isEmpty = false,
-        todayCount = 3,
-        inboxCount = 1,
-        doneToday = 3,
-        doneWeek = 12,
+        todayCount = 6,
+        inboxCount = 2,
+        doneToday = 2,
+        doneWeek = 14,
         routines = routines,
-        routinesDone = 2
+        routinesDone = 1
     )
 
     @Composable
@@ -95,59 +99,28 @@ class ScreenshotTest {
             onClearCompleted = {},
             onSort = {},
             onSetGoals = { _, _ -> },
-            onToggleTheme = {}
+            onToggleTheme = {},
+            weekTasks = tasks
         )
     }
 
     @Test
     fun taskListLight() {
         GlassTheme.dark = false
-        paparazzi.snapshot {
-            TodoistoTheme { GlassBackground { listScreen() } }
-        }
+        paparazzi.snapshot { TodoistoTheme { GlassBackground { listScreen() } } }
     }
 
     @Test
-    fun taskListRoutinesExpanded() {
+    fun taskListRoutinesOpen() {
         GlassTheme.dark = false
-        paparazzi.snapshot {
-            TodoistoTheme { GlassBackground { listScreen(routinesExpanded = true) } }
-        }
+        paparazzi.snapshot { TodoistoTheme { GlassBackground { listScreen(routinesExpanded = true) } } }
     }
 
     @Test
     fun taskListDark() {
         GlassTheme.dark = true
-        paparazzi.snapshot {
-            TodoistoTheme { GlassBackground { listScreen() } }
-        }
+        paparazzi.snapshot { TodoistoTheme { GlassBackground { listScreen() } } }
         GlassTheme.dark = false
-    }
-
-    @Test
-    fun quickAddSheet() {
-        GlassTheme.dark = false
-        paparazzi.snapshot {
-            TodoistoTheme {
-                GlassBackground {
-                    androidx.compose.foundation.layout.Box(
-                        modifier = androidx.compose.ui.Modifier
-                            .fillMaxWidth()
-                            .background(
-                                pl.media30.todoisto.ui.theme.GlassSurface,
-                                androidx.compose.foundation.shape.RoundedCornerShape(28.dp)
-                            )
-                            .padding(top = 20.dp)
-                    ) {
-                        pl.media30.todoisto.ui.screens.QuickAddContent(
-                            initialText = "Spotkanie z Beatą o 15:00 2h @fundacja",
-                            projects = projects,
-                            onAdd = { _, _ -> }
-                        )
-                    }
-                }
-            }
-        }
     }
 
     @Test
@@ -159,23 +132,19 @@ class ScreenshotTest {
                     androidx.compose.foundation.layout.Box(
                         modifier = androidx.compose.ui.Modifier
                             .fillMaxWidth()
-                            .background(
-                                pl.media30.todoisto.ui.theme.GlassSurface,
-                                androidx.compose.foundation.shape.RoundedCornerShape(28.dp)
-                            )
-                            .padding(top = 16.dp)
+                            .background(GlassSurface, androidx.compose.foundation.shape.RoundedCornerShape(34.dp))
+                            .padding(top = 14.dp)
                     ) {
-                        pl.media30.todoisto.ui.screens.TaskDetailSheet(
+                        TaskDetailSheet(
                             task = Task(
-                                id = 1, title = "Zadzwonić do Beaty", notes = "Ustalić budżet",
-                                priority = Priority.P1, dueDate = today, deadline = today + 3,
-                                recurrence = Recurrence.WEEKLY, durationMinutes = 30,
-                                projectId = 1, labelIds = listOf(1),
-                                attachments = listOf("https://fundacja.org/dokumenty/budzet-2026")
+                                id = 5, title = "Kupić prezent dla Zosi", notes = "Inspiracja z internetu",
+                                priority = Priority.P2, dueDate = today, deadline = today + 3,
+                                durationMinutes = 30, projectId = 2, labelIds = listOf(2),
+                                attachments = listOf("https://allegro.pl/oferta/tort-jednorozec")
                             ),
                             projects = projects,
                             labels = labels,
-                            subtasks = listOf(Task(10, "Przygotować pytania", parentId = 1)),
+                            subtasks = listOf(Task(10, "Zapytać Kasię o rozmiar", parentId = 5, isCompleted = true), Task(11, "Zamówić do czwartku", parentId = 5)),
                             onPatch = {},
                             onToggleSubtask = {},
                             onAddSubtask = {},

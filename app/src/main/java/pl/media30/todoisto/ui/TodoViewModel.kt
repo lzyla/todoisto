@@ -286,6 +286,14 @@ class TodoViewModel(
     }
 
     fun toggleCompleted(task: Task) = viewModelScope.launch { repository.toggleCompleted(task) }
+
+    /** Akcja Asystenta tygodnia: przenosi wszystkie zaległe zadania na dziś. */
+    fun moveOverdueToToday() = viewModelScope.launch {
+        val today = LocalDate.now().toEpochDay()
+        allTasks.value
+            .filter { !it.isCompleted && it.dueDate != null && it.dueDate < today }
+            .forEach { repository.update(it.copy(dueDate = today)) }
+    }
     fun deleteTask(task: Task) = viewModelScope.launch { repository.deleteWithSubtasks(task.id) }
     fun deleteCompleted() = viewModelScope.launch { repository.deleteCompleted() }
     fun duplicateTask(id: Long) = viewModelScope.launch { repository.duplicateTask(id) }

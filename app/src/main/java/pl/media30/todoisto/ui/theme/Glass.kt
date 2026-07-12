@@ -112,32 +112,32 @@ private class BgPalette(
     val meshL: Color, val meshR: Color, val meshTop: Color, val meshAccent: Color
 )
 
-// Kolory dobrane komplementarnie do fioletu: turkus/mięta, magenta/róż, błękit,
-// koral/brzoskwinia — cztery żywe „bloby" nad jasną bazą (light) / głęboką (dark).
+// Wyraźnie różne barwy (żeby nie zlewały się z fioletem UI): turkus, róż/magenta,
+// błękit, żółty, koral. Cztery żywe „bloby" nad jasną bazą (light) / głęboką (dark).
 private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
-    // Rano — świt: koral + fiolet + róż + turkus
+    // Rano — świt: koral + róż + żółty + turkus
     DayPhase.MORNING -> if (d) BgPalette(
-        listOf(Color(0xFF553A66), Color(0xFF41305A), Color(0xFF342750), Color(0xFF261E44)),
-        Color(0xFFCC7A5E), Color(0xFF7E5CC0), Color(0xFFC65C86), Color(0xFF3E9C8C)
+        listOf(Color(0xFF4A3A5E), Color(0xFF3E2F54), Color(0xFF32284C), Color(0xFF261E42)),
+        Color(0xFFD46E4E), Color(0xFFC85C90), Color(0xFFC0982E), Color(0xFF2EA68C)
     ) else BgPalette(
-        listOf(Color(0xFFFFF1E6), Color(0xFFFCE6F0), Color(0xFFF1E8FF), Color(0xFFE4F5FF)),
-        Color(0xFFFFB38A), Color(0xFFC0A6FF), Color(0xFFFFA6C4), Color(0xFF7FE0CC)
+        listOf(Color(0xFFFFF3E6), Color(0xFFFFE8F0), Color(0xFFEAF0FF), Color(0xFFE6FBFF)),
+        Color(0xFFFF8A5C), Color(0xFFFF80B4), Color(0xFFFFD24D), Color(0xFF3FD9C8)
     )
-    // Południe — dzień: turkus + fiolet + błękit + magenta
+    // Południe — dzień: turkus + róż + błękit + żółty
     DayPhase.NOON -> if (d) BgPalette(
-        listOf(Color(0xFF2E3E70), Color(0xFF313A66), Color(0xFF2A3560), Color(0xFF222C54)),
-        Color(0xFF35A0A0), Color(0xFF7E6FC8), Color(0xFF4E80C8), Color(0xFFB05CA8)
+        listOf(Color(0xFF2A3A66), Color(0xFF2E3A60), Color(0xFF283458), Color(0xFF20294E)),
+        Color(0xFF2EA69C), Color(0xFFC85CA8), Color(0xFF4E80C8), Color(0xFFC0A02E)
     ) else BgPalette(
-        listOf(Color(0xFFE7F6FF), Color(0xFFECF0FF), Color(0xFFF1EAFF), Color(0xFFE9FBFF)),
-        Color(0xFF6FE0D8), Color(0xFFB79CFF), Color(0xFF8FB8FF), Color(0xFFF0A6D8)
+        listOf(Color(0xFFEAF6FF), Color(0xFFF0ECFF), Color(0xFFFCEAFF), Color(0xFFEAFBFF)),
+        Color(0xFF3FD9C8), Color(0xFFFF7FD0), Color(0xFF5FA8FF), Color(0xFFFFD24D)
     )
-    // Wieczór — zmierzch: magenta + fiolet + indygo + koral
+    // Wieczór — zmierzch: magenta/róż + błękit + koral + złoty
     DayPhase.EVENING -> if (d) BgPalette(
-        listOf(Color(0xFF6E3AA0), Color(0xFF54329E), Color(0xFF3F2384), Color(0xFF301C6E)),
-        Color(0xFFC24DD8), Color(0xFF6A5CD8), Color(0xFF8C4DE0), Color(0xFFC0664E)
+        listOf(Color(0xFF5A3A88), Color(0xFF48307E), Color(0xFF382470), Color(0xFF2C1C60)),
+        Color(0xFFC24DA0), Color(0xFF5C6CD0), Color(0xFFC0664E), Color(0xFFC09A2E)
     ) else BgPalette(
-        listOf(Color(0xFFF9E7FF), Color(0xFFEEE2FF), Color(0xFFE6E4FF), Color(0xFFFDE9E2)),
-        Color(0xFFE68CE0), Color(0xFF9C8CF0), Color(0xFFB0A6FF), Color(0xFFFF9E86)
+        listOf(Color(0xFFFDEAF4), Color(0xFFEFE6FF), Color(0xFFE6ECFF), Color(0xFFFFEFE2)),
+        Color(0xFFF06FB0), Color(0xFF7E86F0), Color(0xFFFF8A6E), Color(0xFFFFC24D)
     )
 }
 
@@ -229,7 +229,7 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
                 )
             )
         } else {
-            val meshA = if (dark) 0.5f else 0.55f
+            val meshA = if (dark) 0.52f else 0.62f
             // Baza — pionowy gradient 4 barw
             drawRect(Brush.verticalGradient(pal.base))
             // Wielokolorowe „bloby" orbitujące po lekkich elipsach (liquid mesh morph).

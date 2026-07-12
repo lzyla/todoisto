@@ -90,6 +90,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -507,25 +508,69 @@ private fun AreaSwitcher(
             Text(active?.name ?: "Wszystko", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary, maxLines = 1, softWrap = false)
             Icon(Icons.Filled.KeyboardArrowDown, null, tint = GlassTextSecondary, modifier = Modifier.size(15.dp).padding(start = 2.dp))
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(
-                text = { Text((if (activeAreaId == null) "✓  " else "     ") + "Wszystko") },
-                onClick = { open = false; onSelect(null) }
-            )
-            areas.forEach { a ->
-                DropdownMenuItem(
-                    leadingIcon = { Box(Modifier.size(10.dp).clip(CircleShape).background(Color(a.colorArgb))) },
-                    text = { Text((if (activeAreaId == a.id) "✓  " else "     ") + a.name) },
-                    onClick = { open = false; onSelect(a.id) }
-                )
+        if (open) {
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            androidx.compose.ui.window.Popup(
+                alignment = Alignment.TopStart,
+                offset = androidx.compose.ui.unit.IntOffset(0, with(density) { 48.dp.roundToPx() }),
+                onDismissRequest = { open = false },
+                properties = androidx.compose.ui.window.PopupProperties(focusable = true)
+            ) {
+                val visible = remember { androidx.compose.animation.core.MutableTransitionState(false) }
+                visible.targetState = true
+                AnimatedVisibility(
+                    visibleState = visible,
+                    enter = fadeIn(tween(160)) + androidx.compose.animation.scaleIn(
+                        tween(240, easing = EASE), initialScale = 0.82f,
+                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.2f, 0f)
+                    ) + expandVertically(tween(240, easing = EASE)),
+                    exit = fadeOut(tween(120))
+                ) {
+                    Column(
+                        Modifier.width(232.dp)
+                            .shadow(26.dp, RoundedCornerShape(24.dp))
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(GlassDockBg)
+                            .border(1.dp, GlassRim.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
+                            .padding(vertical = 8.dp)
+                    ) {
+                        AreaMenuItem("Wszystko", null, activeAreaId == null) { open = false; onSelect(null) }
+                        areas.forEach { a ->
+                            AreaMenuItem(a.name, Color(a.colorArgb), activeAreaId == a.id) { open = false; onSelect(a.id) }
+                        }
+                        Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp).height(1.dp).background(GlassHair))
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                                .bouncy(0.97f) { open = false; onAdd() }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Filled.Add, null, tint = GlassAccent, modifier = Modifier.size(17.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Text("Nowy obszar", fontSize = 14.sp, fontWeight = FontWeight.W700, color = GlassAccent)
+                        }
+                    }
+                }
             }
-            HorizontalDivider()
-            DropdownMenuItem(
-                leadingIcon = { Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp)) },
-                text = { Text("Nowy obszar") },
-                onClick = { open = false; onAdd() }
-            )
         }
+    }
+}
+
+@Composable
+private fun AreaMenuItem(name: String, dot: Color?, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+            .background(if (selected) GlassAccent.copy(alpha = 0.14f) else Color.Transparent)
+            .bouncy(0.97f, onClick).padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.size(11.dp).clip(CircleShape).background(dot ?: GlassTextSecondary.copy(alpha = 0.4f)),
+            contentAlignment = Alignment.Center
+        ) {}
+        Spacer(Modifier.width(12.dp))
+        Text(name, fontSize = 14.sp, fontWeight = if (selected) FontWeight.W800 else FontWeight.W600, color = GlassTextPrimary, modifier = Modifier.weight(1f))
+        if (selected) Icon(Icons.Filled.Check, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
     }
 }
 

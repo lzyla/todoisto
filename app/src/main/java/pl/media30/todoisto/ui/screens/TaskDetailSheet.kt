@@ -477,69 +477,91 @@ private fun AutomationCard(title: String, notes: String, onAskAi: (String) -> Un
     val tip = remember(title, notes) { pl.media30.todoisto.data.AutomationAdvisor.advise(title, notes) }
     var expanded by remember { mutableStateOf(false) }
 
+    // Biała „chmurka" — ciemny atrament czytelny w obu motywach.
+    val ink = Color(0xFF1B0A3E)
+    val inkSub = Color(0xFF6B5B8E)
+    val cloud = Color(0xFFFFFFFF)
+    val chipBg = GlassAccent.copy(alpha = 0.12f)
+
     Column(Modifier.fillMaxWidth()) {
-        // Chmurka po prawej — zawsze widać „AI"
+        // Duża biała chmurka po prawej — zawsze widać „AI"
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             Row(
-                Modifier.glass(RoundedCornerShape(50)).bouncy(0.93f) { expanded = !expanded }
-                    .padding(start = 12.dp, end = 13.dp, top = 8.dp, bottom = 8.dp),
+                Modifier
+                    .shadow(12.dp, RoundedCornerShape(50), spotColor = GlassAccent.copy(alpha = 0.4f))
+                    .clip(RoundedCornerShape(50)).background(cloud)
+                    .bouncy(0.93f) { expanded = !expanded }
+                    .padding(start = 16.dp, end = 18.dp, top = 12.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(15.dp))
-                Spacer(Modifier.width(7.dp))
+                Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(21.dp))
+                Spacer(Modifier.width(9.dp))
                 Text(
                     if (expanded) "AI · zwiń" else "AI · jak przyspieszyć",
-                    fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassAccent
+                    fontSize = 15.sp, fontWeight = FontWeight.W800, color = ink
                 )
             }
         }
         androidx.compose.animation.AnimatedVisibility(
             visible = expanded,
-            enter = androidx.compose.animation.expandVertically(spring(dampingRatio = 0.75f)) + androidx.compose.animation.fadeIn(tween(180)),
-            exit = androidx.compose.animation.shrinkVertically(tween(220)) + androidx.compose.animation.fadeOut(tween(140))
+            // „Bąbel" się powiększa: skala od rogu chmurki + rozwinięcie
+            enter = androidx.compose.animation.fadeIn(tween(140)) +
+                androidx.compose.animation.scaleIn(
+                    spring(dampingRatio = 0.62f, stiffness = androidx.compose.animation.core.Spring.StiffnessLow),
+                    initialScale = 0.5f,
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.92f, 0f)
+                ) + androidx.compose.animation.expandVertically(spring(dampingRatio = 0.75f)),
+            exit = androidx.compose.animation.fadeOut(tween(120)) +
+                androidx.compose.animation.scaleOut(
+                    tween(200), targetScale = 0.6f,
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.92f, 0f)
+                ) + androidx.compose.animation.shrinkVertically(tween(200))
         ) {
             Column(
-                Modifier.fillMaxWidth().padding(top = 10.dp)
-                    .glass(RoundedCornerShape(20.dp)).padding(16.dp)
+                Modifier.fillMaxWidth().padding(top = 12.dp)
+                    .shadow(20.dp, RoundedCornerShape(26.dp), spotColor = GlassAccent.copy(alpha = 0.45f))
+                    .clip(RoundedCornerShape(26.dp)).background(cloud).padding(18.dp)
             ) {
-                Text(tip.headline, fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
-                Spacer(Modifier.height(12.dp))
-                run {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        tip.tools.forEach { t ->
-                            Text(
-                                t, fontSize = 11.sp, fontWeight = FontWeight.W800, color = GlassAccent,
-                                modifier = Modifier.clip(RoundedCornerShape(50)).background(GlassTint).padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(tip.headline, fontSize = 16.sp, fontWeight = FontWeight.W800, color = ink)
                 }
+                Spacer(Modifier.height(14.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    tip.tools.forEach { t ->
+                        Text(
+                            t, fontSize = 11.5.sp, fontWeight = FontWeight.W800, color = GlassAccent,
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(chipBg).padding(horizontal = 11.dp, vertical = 5.dp)
+                        )
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
                 tip.steps.forEachIndexed { i, step ->
-                    Row(Modifier.padding(bottom = 9.dp)) {
+                    Row(Modifier.padding(bottom = 10.dp)) {
                         Box(
-                            Modifier.size(20.dp).clip(CircleShape).background(GlassAccent),
+                            Modifier.size(22.dp).clip(CircleShape).background(GlassAccent),
                             contentAlignment = Alignment.Center
-                        ) { Text("${i + 1}", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.W800) }
-                        Spacer(Modifier.width(10.dp))
-                        Text(step, fontSize = 13.sp, lineHeight = 18.sp, color = GlassTextPrimary, modifier = Modifier.weight(1f))
+                        ) { Text("${i + 1}", color = Color.White, fontSize = 11.5.sp, fontWeight = FontWeight.W800) }
+                        Spacer(Modifier.width(11.dp))
+                        Text(step, fontSize = 13.5.sp, lineHeight = 19.sp, color = ink, modifier = Modifier.weight(1f))
                     }
                 }
                 Spacer(Modifier.height(4.dp))
                 Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(GlassAccent)
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent)
                         .bouncy(0.97f) { onAskAi(tip.aiPrompt) }
-                        .padding(vertical = 12.dp),
+                        .padding(vertical = 13.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Zapytaj AI (na żywo)", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W800)
+                    Text("Zapytaj AI (na żywo)", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
                 }
                 Text(
-                    "Zapyta OpenAI Twoim kluczem i pokaże odpowiedź tutaj. Klucz ustawisz w menu.",
-                    fontSize = 10.5.sp, color = GlassTextSecondary, modifier = Modifier.padding(top = 8.dp)
+                    "Zapyta AI Twoim kluczem i pokaże odpowiedź tutaj. Klucz ustawisz w menu.",
+                    fontSize = 10.5.sp, color = inkSub, modifier = Modifier.padding(top = 8.dp)
                 )
             }
         }

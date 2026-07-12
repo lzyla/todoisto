@@ -71,8 +71,8 @@ val GlassTextPrimary: Color get() = if (d) Color(0xFFFFFFFF) else Color(0xFF1B0A
 val GlassTextSecondary: Color get() = if (d) Color(0xFFDCD0F8) else Color(0xFF3F2A78)
 val GlassAccent: Color get() = if (d) Color(0xFFB99CFF) else Color(0xFF6B3FE0)
 
-/** --fill: wypełnienie tafli glass. */
-val GlassFill: Color get() = if (d) Color.White.copy(alpha = 0.11f) else Color.White.copy(alpha = 0.20f)
+/** --fill: wypełnienie tafli glass (bardziej przezroczyste — więcej „szkła"). */
+val GlassFill: Color get() = if (d) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.14f)
 
 /** --rim: obwódka szkła. */
 val GlassRim: Color get() = if (d) Color.White.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.95f)
@@ -201,7 +201,7 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
     // Wolny obrót fazy (0..1 → 2π) — orbitujące „bloby" koloru dają morfizm.
     val ang = tr.animateFloat(
         initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(34000, easing = LinearEasing), RepeatMode.Restart),
+        animationSpec = infiniteRepeatable(tween(20000, easing = LinearEasing), RepeatMode.Restart),
         label = "bgAng"
     )
     drawBehind {
@@ -229,10 +229,12 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
                 )
             )
         } else {
-            val meshA = if (dark) 0.52f else 0.62f
-            // Baza — pionowy gradient 4 barw
-            drawRect(Brush.verticalGradient(pal.base))
-            // Wielokolorowe „bloby" orbitujące po lekkich elipsach (liquid mesh morph).
+            val meshA = if (dark) 0.60f else 0.72f
+            // Baza — neutralna, niskokontrastowa (żaden kolor nie „siedzi" na stałe na górze).
+            val baseTop = if (dark) Color(0xFF241E3C) else Color(0xFFF3F1FA)
+            val baseBot = if (dark) Color(0xFF1B1630) else Color(0xFFF6F2FB)
+            drawRect(Brush.verticalGradient(listOf(baseTop, baseBot)))
+            // Wielokolorowe „bloby" krążące po SZEROKICH elipsach — cała plansza się mieni.
             val big = maxOf(w, h)
             fun blob(color: Color, phase: Float, cx: Float, cy: Float, rx: Float, ry: Float, alpha: Float) {
                 val x = (cx + rx * kotlin.math.cos(a + phase)) * w
@@ -241,15 +243,14 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
                     Brush.radialGradient(
                         colors = listOf(color.copy(alpha = alpha), Color.Transparent),
                         center = Offset(x, y),
-                        radius = big * 0.72f
+                        radius = big * (0.62f + 0.08f * kotlin.math.sin(a + phase))  // pulsujący promień
                     )
                 )
             }
-            blob(pal.meshL, 0f, 0.28f, 0.32f, 0.15f, 0.11f, meshA)
-            blob(pal.meshR, 2.1f, 0.74f, 0.54f, 0.15f, 0.12f, meshA)
-            blob(pal.meshTop, 4.2f, 0.52f, 0.18f, 0.13f, 0.10f, meshA * 0.95f)
-            // czwarty, komplementarny kolor „oddychający" z pingpongiem t
-            blob(pal.meshAccent, 1.0f, 0.40f, 0.82f, 0.16f, 0.10f, meshA * (0.7f + 0.3f * p))
+            blob(pal.meshL, 0f, 0.32f, 0.40f, 0.34f, 0.40f, meshA)
+            blob(pal.meshR, 1.7f, 0.66f, 0.52f, 0.32f, 0.42f, meshA)
+            blob(pal.meshTop, 3.3f, 0.50f, 0.44f, 0.40f, 0.46f, meshA * 0.95f)
+            blob(pal.meshAccent, 4.9f, 0.48f, 0.55f, 0.36f, 0.44f, meshA * (0.75f + 0.25f * p))
         }
     }
 }
@@ -309,10 +310,18 @@ fun Modifier.glass(shape: Shape = RoundedCornerShape(24.dp), sheenOn: Boolean = 
         .background(GlassFill)
         .drawWithContent {
             drawContent()
-            // subtelny górny połysk zamiast twardej, tłoczonej krawędzi
-            if (sheenOn) sheen(prog, if (dark) 0.08f else 0.12f)
+            // refleks: górny pasek światła + delikatna górna poświata (jak w szkle)
+            drawRect(
+                Brush.verticalGradient(
+                    0f to Color.White.copy(alpha = if (dark) 0.10f else 0.22f),
+                    0.5f to Color.Transparent
+                ),
+                size = Size(size.width, size.height * 0.6f)
+            )
+            specular(if (dark) 0.22f else 0.5f)
+            if (sheenOn) sheen(prog, if (dark) 0.09f else 0.14f)
         }
-        .border(1.dp, if (dark) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.22f), shape)
+        .border(1.dp, if (dark) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.28f), shape)
 }
 
 /**
@@ -379,12 +388,20 @@ fun Modifier.controlCenterGlass(shape: Shape = RoundedCornerShape(50)): Modifier
     this
         .shadow(18.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.6f))
         .clip(shape)
-        // bardziej kryjąca „mleczna" tafla — czytelny tekst nad zdjęciem/gradientem
-        .background(if (dark) Color(0xE0473C63) else Color(0xF0FFFFFF))
+        // szklana tafla: półprzezroczysta (tło prześwituje), ale wciąż czytelna
+        .background(if (dark) Color(0x99473C63) else Color(0xC2FFFFFF))
         .drawWithContent {
             drawContent()
-            // delikatny przesuwający się połysk — bez twardej, tłoczonej obwódki
-            sheen(prog, if (dark) 0.08f else 0.13f)
+            // refleksy: górna poświata + pasek światła + dryfujący połysk
+            drawRect(
+                Brush.verticalGradient(
+                    0f to Color.White.copy(alpha = if (dark) 0.12f else 0.30f),
+                    0.55f to Color.Transparent
+                ),
+                size = Size(size.width, size.height * 0.7f)
+            )
+            specular(if (dark) 0.25f else 0.55f)
+            sheen(prog, if (dark) 0.09f else 0.15f)
         }
-        .border(1.dp, if (dark) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.55f), shape)
+        .border(1.dp, if (dark) Color.White.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.5f), shape)
 }

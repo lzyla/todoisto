@@ -14,6 +14,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.Modifier
@@ -263,21 +266,28 @@ fun TodoistoApp(
         }
     }
 
-    // Odpowiedź AI (na żywo z OpenAI)
+    // Odpowiedź AI — „chmurka" zjeżdżająca z góry
     val aiAsk by viewModel.aiAsk.collectAsState()
     aiAsk?.let { st ->
-        ModalBottomSheet(
-            onDismissRequest = { viewModel.dismissAi() },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = GlassSurface,
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
-        ) {
-            pl.media30.todoisto.ui.screens.AiAnswerSheet(
-                loading = st.loading,
-                answer = st.answer,
-                error = st.error,
-                needsKey = st.needsKey
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+            androidx.compose.foundation.layout.Box(
+                Modifier.fillMaxSize()
+                    .background(androidx.compose.ui.graphics.Color(0x33140A2E))
+                    .clickable(remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, null) { viewModel.dismissAi() }
             )
+            val vis = remember { androidx.compose.animation.core.MutableTransitionState(false) }
+            vis.targetState = true
+            androidx.compose.animation.AnimatedVisibility(
+                visibleState = vis,
+                modifier = Modifier.align(androidx.compose.ui.Alignment.TopCenter),
+                enter = androidx.compose.animation.slideInVertically(androidx.compose.animation.core.tween(420)) { -it } + androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.slideOutVertically(androidx.compose.animation.core.tween(260)) { -it } + androidx.compose.animation.fadeOut()
+            ) {
+                pl.media30.todoisto.ui.screens.AiBubble(
+                    loading = st.loading, answer = st.answer, error = st.error, needsKey = st.needsKey,
+                    onClose = { viewModel.dismissAi() }
+                )
+            }
         }
     }
 }

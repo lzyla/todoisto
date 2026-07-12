@@ -1,5 +1,7 @@
 package pl.media30.todoisto.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,10 +12,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -21,14 +26,44 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import pl.media30.todoisto.ui.components.bouncy
 import pl.media30.todoisto.ui.theme.GlassAccent
+import pl.media30.todoisto.ui.theme.GlassDockBg
+import pl.media30.todoisto.ui.theme.GlassRim
 import pl.media30.todoisto.ui.theme.GlassTextPrimary
 import pl.media30.todoisto.ui.theme.GlassTextSecondary
 
-/** Arkusz z odpowiedzią „Zapytaj AI" (OpenAI). */
+/** „Chmurka" z odpowiedzią AI — zjeżdża z góry ekranu (jak asystent tygodnia). */
+@Composable
+fun AiBubble(loading: Boolean, answer: String?, error: String?, needsKey: Boolean, onClose: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+            .shadow(28.dp, RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp))
+            .clip(RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp))
+            .background(GlassDockBg)
+            .border(1.dp, GlassRim.copy(alpha = 0.5f), RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp))
+            .statusBarsPadding()
+            .padding(start = 20.dp, end = 14.dp, top = 14.dp, bottom = 20.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Asystent AI", fontSize = 17.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary, modifier = Modifier.weight(1f))
+            Box(Modifier.size(32.dp).clip(androidx.compose.foundation.shape.CircleShape).bouncy(0.9f, onClose), contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.Close, "Zamknij", tint = GlassTextSecondary, modifier = Modifier.size(18.dp))
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        AiContent(loading, answer, error, needsKey)
+    }
+}
+
+/** Arkusz z odpowiedzią „Zapytaj AI" (OpenAI) — wariant dolny (zapasowy). */
 @Composable
 fun AiAnswerSheet(loading: Boolean, answer: String?, error: String?, needsKey: Boolean) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
@@ -38,6 +73,13 @@ fun AiAnswerSheet(loading: Boolean, answer: String?, error: String?, needsKey: B
             Text("Asystent AI", fontSize = 19.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
         }
         Spacer(Modifier.height(16.dp))
+        AiContent(loading, answer, error, needsKey)
+    }
+}
+
+@Composable
+private fun AiContent(loading: Boolean, answer: String?, error: String?, needsKey: Boolean) {
+    Column {
         when {
             loading -> Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(color = GlassAccent, strokeWidth = 2.5.dp, modifier = Modifier.size(20.dp))

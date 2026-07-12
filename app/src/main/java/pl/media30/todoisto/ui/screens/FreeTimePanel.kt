@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,13 +46,15 @@ private fun freeSummary(minutes: Int): String {
     }
 }
 
-/** Panel „Czas wolny" — propozycje z puli w wolne okna dnia (rodzina panelu „Tydzień"). */
+/**
+ * Panel „Czas wolny" — jedna najlepiej dopasowana propozycja na to popołudnie.
+ * Minimalistycznie: karta + „Dodaj do dziś" + wordless ikonka odświeżenia (przelosuj).
+ */
 @Composable
 fun FreeTimePanel(
     state: FreeTimeState,
     onAccept: (Suggestion) -> Unit,
-    onSwap: (Suggestion) -> Unit,
-    onDismiss: (Suggestion) -> Unit,
+    onReroll: () -> Unit,
     onAddFirst: () -> Unit
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 26.dp)) {
@@ -58,62 +62,64 @@ fun FreeTimePanel(
             Icon(Icons.Outlined.Bolt, null, tint = GlassAccent, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
             Text("Czas wolny", fontSize = 20.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.weight(1f))
             if (!state.noWindows && !state.poolEmpty)
                 Text(freeSummary(state.freeMinutes), fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = GlassTextSecondary)
         }
         Spacer(Modifier.height(16.dp))
 
+        val hero = state.suggestions.firstOrNull()
         when {
             state.poolEmpty -> EmptyHint(
                 "Pula jest pusta.",
-                "Dodaj pierwszą aktywność, a appka zaproponuje ją w wolnym oknie.",
+                "Dodaj pierwszą aktywność, a appka wylosuje ją w wolnym oknie.",
                 "Dodaj aktywność", onAddFirst
             )
             state.noWindows -> EmptyHint("Dziś brak wolnego czasu.", "Wszystkie okna zajęte zaplanowanymi zadaniami.", null, null)
-            state.suggestions.isEmpty() -> EmptyHint("Na teraz nic nie pasuje.", "Skróć aktywności lub dodaj krótszy wariant do puli.", null, null)
-            else -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                state.suggestions.forEach { s -> SuggestionCard(s, onAccept, onSwap, onDismiss) }
-            }
+            hero == null -> EmptyHint("Na teraz nic nie pasuje.", "Skróć aktywności lub dodaj krótszy wariant do puli.", null, null)
+            else -> HeroCard(hero, onAccept, onReroll)
         }
     }
 }
 
 @Composable
-private fun SuggestionCard(
+private fun HeroCard(
     s: Suggestion,
     onAccept: (Suggestion) -> Unit,
-    onSwap: (Suggestion) -> Unit,
-    onDismiss: (Suggestion) -> Unit
+    onReroll: () -> Unit
 ) {
-    Column(Modifier.fillMaxWidth().glass(RoundedCornerShape(22.dp)).padding(16.dp)) {
+    Column(Modifier.fillMaxWidth().glass(RoundedCornerShape(26.dp)).padding(20.dp)) {
+        Text("PROPOZYCJA NA TERAZ", fontSize = 10.sp, fontWeight = FontWeight.W800, letterSpacing = 1.4.sp, color = GlassTextSecondary)
+        Spacer(Modifier.height(14.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(s.activity.effortType.emoji, fontSize = 24.sp, modifier = Modifier.padding(end = 12.dp))
+            Text(s.activity.effortType.emoji, fontSize = 34.sp, modifier = Modifier.padding(end = 14.dp))
             Column(Modifier.weight(1f)) {
-                Text(s.activity.name, fontSize = 16.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                Text(s.activity.name, fontSize = 19.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                Spacer(Modifier.height(2.dp))
                 Text(
                     "${hm(s.startMin)} · ${s.activity.durationMinutes} min · ${s.activity.place.label.lowercase()}",
-                    fontSize = 12.5.sp, color = GlassTextSecondary
+                    fontSize = 13.sp, color = GlassTextSecondary
                 )
             }
         }
-        Spacer(Modifier.height(14.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Action("Dodaj do dziś", accent = true, modifier = Modifier.weight(1.4f)) { onAccept(s) }
-            Action("Zamień", accent = false, modifier = Modifier.weight(1f)) { onSwap(s) }
-            Action("Nie dziś", accent = false, modifier = Modifier.weight(1f)) { onDismiss(s) }
+        Spacer(Modifier.height(18.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(
+                Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(GlassAccent)
+                    .bouncy(0.96f) { onAccept(s) }.padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Dodaj do dziś", fontSize = 13.5.sp, fontWeight = FontWeight.W800, color = Color.White)
+            }
+            // Wordless „przelosuj" — tylko ikonka odświeżenia
+            Box(
+                Modifier.size(52.dp).clip(CircleShape).background(GlassTint)
+                    .bouncy(0.9f, onReroll),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Outlined.Refresh, "Wylosuj ponownie", tint = GlassTextPrimary, modifier = Modifier.size(21.dp))
+            }
         }
-    }
-}
-
-@Composable
-private fun Action(label: String, accent: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Box(
-        modifier.clip(RoundedCornerShape(14.dp)).background(if (accent) GlassAccent else GlassTint)
-            .bouncy(0.95f, onClick).padding(vertical = 11.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(label, fontSize = 12.5.sp, fontWeight = FontWeight.W800, color = if (accent) Color.White else GlassTextPrimary)
     }
 }
 

@@ -133,8 +133,7 @@ fun TodoistoApp(
             pl.media30.todoisto.ui.screens.FreeTimePanel(
                 state = ft,
                 onAccept = viewModel::acceptSuggestion,
-                onSwap = viewModel::swapSuggestion,
-                onDismiss = viewModel::dismissSuggestion,
+                onReroll = viewModel::rerollSuggestion,
                 onAddFirst = { viewModel.dismissFreeTime(); editingActivity = null; showForm = true }
             )
         }

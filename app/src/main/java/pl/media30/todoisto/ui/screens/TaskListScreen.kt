@@ -65,7 +65,6 @@ import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Inbox
-import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -254,11 +253,8 @@ fun TaskListScreen(
                         Text("Tydzień", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
                     }
                     Spacer(Modifier.weight(1f))
-                    CircleGlassButton(onToggleTheme) {
-                        Icon(
-                            if (isDarkTheme) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
-                            "Motyw", tint = GlassTextPrimary, modifier = Modifier.size(17.dp)
-                        )
+                    CircleGlassButton(onFreeTime) {
+                        Icon(Icons.Outlined.Bolt, "Czas wolny", tint = GlassAccent, modifier = Modifier.size(19.dp))
                     }
                 }
 
@@ -344,12 +340,6 @@ fun TaskListScreen(
                                 Text("${uiState.routines.size}", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.W800)
                             }
                         }
-                    }
-                    Box(
-                        Modifier.size(54.dp).controlCenterGlass(CircleShape).bouncy(0.9f, onFreeTime),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Outlined.Bolt, "Czas wolny", tint = GlassAccent, modifier = Modifier.size(20.dp))
                     }
                 }
                 Row(Modifier.controlCenterGlass(RoundedCornerShape(30.dp)).padding(6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -451,7 +441,7 @@ private fun DockTab(icon: ImageVector, label: String, selected: Boolean, onClick
     ) {
         Icon(icon, null, tint = fg, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(8.dp))
-        Text(label, fontSize = 12.5.sp, fontWeight = FontWeight.W800, color = fg)
+        Text(label, fontSize = 12.5.sp, fontWeight = FontWeight.W800, color = fg, maxLines = 1, softWrap = false)
     }
 }
 

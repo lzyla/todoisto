@@ -372,31 +372,21 @@ class TodoViewModel(
 
     fun dismissFreeTime() { _freeTime.value = null }
 
+    /** Zaakceptowana propozycja → zadanie na dziś; panel się zamyka (potwierdzeniem jest wpis na liście). */
     fun acceptSuggestion(s: pl.media30.todoisto.data.Suggestion) = viewModelScope.launch {
         repository.materializeActivity(s.activity, s.startMin, LocalDate.now().toEpochDay())
-        val remaining = _freeTime.value?.suggestions?.filter { it.activity.id != s.activity.id }.orEmpty()
-        _freeTime.value = _freeTime.value?.copy(suggestions = remaining)
+        _freeTime.value = null
     }
 
-    fun dismissSuggestion(s: pl.media30.todoisto.data.Suggestion) {
-        dismissedActivityIds += s.activity.id
-        val remaining = _freeTime.value?.suggestions?.filter { it.activity.id != s.activity.id }.orEmpty()
-        _freeTime.value = _freeTime.value?.copy(suggestions = remaining)
-    }
-
-    fun swapSuggestion(s: pl.media30.todoisto.data.Suggestion) = viewModelScope.launch {
-        dismissedActivityIds += s.activity.id
-        val shownIds = _freeTime.value?.suggestions?.map { it.activity.id }.orEmpty().toSet()
-        val exclude = dismissedActivityIds + shownIds
-        val acts = activities.value.filter { it.isActive && it.id !in exclude }
-        val ctx = currentDayContext()
-        val replacement = pl.media30.todoisto.data.ActivityPlanner
-            .plan(acts, ctx, listOf(s.slot), count = 1).firstOrNull()
-        val list = _freeTime.value?.suggestions.orEmpty().toMutableList()
-        val idx = list.indexOfFirst { it.activity.id == s.activity.id }
-        if (idx >= 0) {
-            if (replacement != null) list[idx] = replacement else list.removeAt(idx)
-            _freeTime.value = _freeTime.value?.copy(suggestions = list)
+    /** Wygeneruj ponownie inną propozycję (ikonka „odśwież", bez słów). Po wyczerpaniu puli zawija się. */
+    fun rerollSuggestion() = viewModelScope.launch {
+        dismissedActivityIds += _freeTime.value?.suggestions?.map { it.activity.id }.orEmpty()
+        val fresh = computeFreeTime(dismissedActivityIds.toList())
+        if (fresh.suggestions.isEmpty() && !fresh.poolEmpty && !fresh.noWindows) {
+            dismissedActivityIds.clear()
+            _freeTime.value = computeFreeTime(emptyList())
+        } else {
+            _freeTime.value = fresh
         }
     }
 
@@ -423,7 +413,7 @@ class TodoViewModel(
         val nowMin = now.hour * 60 + now.minute
         val acts = activities.value.filter { it.isActive && it.id !in exclude }
         val slots = repository.freeWindows(allTasks.value, today.toEpochDay(), nowMin)
-        val suggestions = pl.media30.todoisto.data.ActivityPlanner.plan(acts, currentDayContext(), slots, count = 2)
+        val suggestions = pl.media30.todoisto.data.ActivityPlanner.plan(acts, currentDayContext(), slots, count = 1)
         return FreeTimeState(
             freeMinutes = slots.sumOf { it.length },
             suggestions = suggestions,

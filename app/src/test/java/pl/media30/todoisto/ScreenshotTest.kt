@@ -209,15 +209,14 @@ class ScreenshotTest {
         GlassTheme.dark = false
         GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.NOON
         val suggestions = listOf(
-            Suggestion(poolActivities[0], FreeSlot(15 * 60, 16 * 60 + 30), 15 * 60),
-            Suggestion(poolActivities[2], FreeSlot(15 * 60, 16 * 60 + 30), 15 * 60 + 30)
+            Suggestion(poolActivities[0], FreeSlot(15 * 60, 16 * 60 + 30), 15 * 60)
         )
         paparazzi.snapshot {
             TodoistoTheme {
                 sheet {
                     FreeTimePanel(
                         state = FreeTimeState(freeMinutes = 90, suggestions = suggestions, poolEmpty = false, noWindows = false),
-                        onAccept = {}, onSwap = {}, onDismiss = {}, onAddFirst = {}
+                        onAccept = {}, onReroll = {}, onAddFirst = {}
                     )
                 }
             }

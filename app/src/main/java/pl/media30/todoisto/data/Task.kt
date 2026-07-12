@@ -29,6 +29,8 @@ data class Task(
     val sectionId: Long? = null,
     val parentId: Long? = null,
     val labelIds: List<Long> = emptyList(),
+    /** Attachment URLs — image links render as thumbnails, the rest as link rows. */
+    val attachments: List<String> = emptyList(),
     val position: Int = 0,
     val createdAt: Long = 0L
 )

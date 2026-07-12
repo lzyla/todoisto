@@ -18,7 +18,6 @@ import pl.media30.todoisto.ui.AppView
 import pl.media30.todoisto.ui.SectionGroup
 import pl.media30.todoisto.ui.TaskNode
 import pl.media30.todoisto.ui.TodoUiState
-import pl.media30.todoisto.ui.screens.AddEditTaskScreen
 import pl.media30.todoisto.ui.screens.TaskListScreen
 import pl.media30.todoisto.ui.theme.GlassBackground
 import pl.media30.todoisto.ui.theme.GlassTheme
@@ -152,28 +151,39 @@ class ScreenshotTest {
     }
 
     @Test
-    fun editTask() {
+    fun taskDetailSheet() {
         GlassTheme.dark = false
         paparazzi.snapshot {
             TodoistoTheme {
                 GlassBackground {
-                    AddEditTaskScreen(
-                        existing = Task(
-                            id = 1, title = "Zadzwonić do Beaty", notes = "Ustalić budżet",
-                            priority = Priority.P1, dueDate = today, deadline = today + 3,
-                            recurrence = Recurrence.WEEKLY, durationMinutes = 30,
-                            projectId = 1, labelIds = listOf(1)
-                        ),
-                        projects = projects,
-                        labels = labels,
-                        subtasks = listOf(Task(10, "Przygotować pytania", parentId = 1)),
-                        onSave = {},
-                        onAddSubtask = {},
-                        onToggleSubtask = {},
-                        onDuplicate = {},
-                        onDelete = {},
-                        onClose = {}
-                    )
+                    androidx.compose.foundation.layout.Box(
+                        modifier = androidx.compose.ui.Modifier
+                            .fillMaxWidth()
+                            .background(
+                                pl.media30.todoisto.ui.theme.GlassSurface,
+                                androidx.compose.foundation.shape.RoundedCornerShape(28.dp)
+                            )
+                            .padding(top = 16.dp)
+                    ) {
+                        pl.media30.todoisto.ui.screens.TaskDetailSheet(
+                            task = Task(
+                                id = 1, title = "Zadzwonić do Beaty", notes = "Ustalić budżet",
+                                priority = Priority.P1, dueDate = today, deadline = today + 3,
+                                recurrence = Recurrence.WEEKLY, durationMinutes = 30,
+                                projectId = 1, labelIds = listOf(1),
+                                attachments = listOf("https://fundacja.org/dokumenty/budzet-2026")
+                            ),
+                            projects = projects,
+                            labels = labels,
+                            subtasks = listOf(Task(10, "Przygotować pytania", parentId = 1)),
+                            onPatch = {},
+                            onToggleSubtask = {},
+                            onAddSubtask = {},
+                            onDuplicate = {},
+                            onDelete = {},
+                            onClose = {}
+                        )
+                    }
                 }
             }
         }

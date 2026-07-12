@@ -691,6 +691,41 @@ private fun WeekSheetContent(uiState: TodoUiState, weekTasks: List<Task>) {
         GoalRow("Dzisiaj", uiState.doneToday, uiState.goalDaily)
         Spacer(Modifier.height(6.dp))
         GoalRow("Tydzień", uiState.doneWeek, uiState.goalWeekly)
+
+        // Wnioski asystenta (heurystyki liczone lokalnie)
+        val active = weekTasks.filter { it.parentId == null && !it.isCompleted }
+        val overdue = active.count { it.dueDate != null && it.dueDate < today.toEpochDay() }
+        val counts = (0..6).map { off -> active.count { it.dueDate == today.plusDays(off.toLong()).toEpochDay() } }
+        val busiest = counts.withIndex().maxByOrNull { it.value }
+        val freeDays = counts.count { it == 0 }
+        val insights = buildList {
+            if (overdue > 0) add("Masz $overdue zaległych — zacznij dzień od ich przejrzenia.")
+            if (busiest != null && busiest.value >= 3) {
+                val name = if (busiest.index == 0) "dzisiaj" else if (busiest.index == 1) "jutro"
+                else today.plusDays(busiest.index.toLong()).format(dayFmt)
+                add("Najbardziej obciążony dzień: $name (${busiest.value} zadań).")
+            }
+            if (freeDays > 0) add("W tym tygodniu masz $freeDays ${if (freeDays == 1) "wolny dzień" else "wolne dni"}.")
+            if (uiState.doneWeek >= uiState.goalWeekly) add("Cel tygodniowy osiągnięty 🎉")
+            else add("Do celu tygodniowego brakuje ${uiState.goalWeekly - uiState.doneWeek} zadań.")
+        }
+        if (insights.isNotEmpty()) {
+            Spacer(Modifier.height(14.dp))
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(GlassRoutine, RoundedCornerShape(20.dp))
+                    .padding(14.dp)
+            ) {
+                insights.forEach { line ->
+                    Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(vertical = 3.dp)) {
+                        Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(13.dp).padding(top = 1.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(line, style = MaterialTheme.typography.labelMedium, color = GlassTextPrimary)
+                    }
+                }
+            }
+        }
         Spacer(Modifier.height(16.dp))
 
         Column(

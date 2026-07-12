@@ -21,4 +21,12 @@ class Converters {
     @TypeConverter
     fun stringToLongs(value: String): List<Long> =
         if (value.isBlank()) emptyList() else value.split(",").mapNotNull { it.toLongOrNull() }
+
+    // Newline-separated — URLs never contain raw newlines.
+    @TypeConverter
+    fun stringsToString(value: List<String>): String = value.joinToString("\n")
+
+    @TypeConverter
+    fun stringToStrings(value: String): List<String> =
+        if (value.isBlank()) emptyList() else value.split("\n").filter { it.isNotBlank() }
 }

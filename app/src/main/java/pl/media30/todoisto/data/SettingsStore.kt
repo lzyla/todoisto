@@ -100,8 +100,30 @@ class SettingsStore(context: Context) {
         _swipeRightCompletes.value = value
     }
 
+    // --- Zużycie AI (skumulowane tokeny do liczenia kosztu) ---
+    private val _aiPromptTokens = MutableStateFlow(prefs.getLong(KEY_AI_IN, 0L))
+    val aiPromptTokens: StateFlow<Long> = _aiPromptTokens.asStateFlow()
+    private val _aiCompletionTokens = MutableStateFlow(prefs.getLong(KEY_AI_OUT, 0L))
+    val aiCompletionTokens: StateFlow<Long> = _aiCompletionTokens.asStateFlow()
+
+    fun addAiUsage(promptTokens: Int, completionTokens: Int) {
+        val newIn = _aiPromptTokens.value + promptTokens
+        val newOut = _aiCompletionTokens.value + completionTokens
+        prefs.edit().putLong(KEY_AI_IN, newIn).putLong(KEY_AI_OUT, newOut).apply()
+        _aiPromptTokens.value = newIn
+        _aiCompletionTokens.value = newOut
+    }
+
+    fun resetAiUsage() {
+        prefs.edit().putLong(KEY_AI_IN, 0L).putLong(KEY_AI_OUT, 0L).apply()
+        _aiPromptTokens.value = 0L
+        _aiCompletionTokens.value = 0L
+    }
+
     private companion object {
         const val KEY_DARK = "dark_theme"
+        const val KEY_AI_IN = "ai_prompt_tokens"
+        const val KEY_AI_OUT = "ai_completion_tokens"
         const val KEY_DAILY = "daily_goal"
         const val KEY_WEEKLY = "weekly_goal"
         const val KEY_PHOTO_BG = "photo_background"

@@ -225,6 +225,12 @@ fun TaskListScreen(
     var dialog by remember { mutableStateOf<DialogKind?>(null) }
     val hazeState = remember { dev.chrisbanes.haze.HazeState() }
 
+    // Wstecz (systemowe) zamyka kolejno otwarte nakładki — intuicyjna nawigacja.
+    androidx.activity.compose.BackHandler(enabled = qaOpen) { qaOpen = false }
+    androidx.activity.compose.BackHandler(enabled = briefOpen) { briefOpen = false }
+    androidx.activity.compose.BackHandler(enabled = routOpen) { routOpen = false }
+    androidx.activity.compose.BackHandler(enabled = drawerState.isOpen) { scope.launch { drawerState.close() } }
+
     LaunchedEffect(quickAddPrefill) {
         if (!quickAddPrefill.isNullOrBlank()) {
             qaText = quickAddPrefill
@@ -950,13 +956,13 @@ private fun ZenRowWithSubs(
                         {
                             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Row(
-                                    Modifier.clip(RoundedCornerShape(50)).background(GlassAccent.copy(alpha = 0.14f))
+                                    Modifier.clip(RoundedCornerShape(50)).background(Color(0xFFFFC94D))
                                         .bouncy(0.9f) { onOpenAutomation(task) }.padding(horizontal = 9.dp, vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Outlined.AutoAwesome, null, tint = Color(0xFFF4B740), modifier = Modifier.size(12.dp))
+                                    Icon(Icons.Outlined.AutoAwesome, null, tint = Color(0xFF5B3D00), modifier = Modifier.size(12.dp))
                                     Spacer(Modifier.width(4.dp))
-                                    Text("AI", fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = GlassAccent)
+                                    Text("AI", fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = Color(0xFF5B3D00))
                                 }
                                 if (timeStr != null) Text(timeStr, fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassAccent)
                             }

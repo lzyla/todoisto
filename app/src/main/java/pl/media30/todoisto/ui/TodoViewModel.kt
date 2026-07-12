@@ -163,12 +163,19 @@ class TodoViewModel(
         _aiAsk.value = AiAskState(loading = true)
         viewModelScope.launch {
             _aiAsk.value = try {
-                AiAskState(loading = false, answer = pl.media30.todoisto.data.AiClient.ask(key, prompt))
+                val result = pl.media30.todoisto.data.AiClient.ask(key, prompt)
+                settings.addAiUsage(result.promptTokens, result.completionTokens)
+                AiAskState(loading = false, answer = result.text)
             } catch (e: Exception) {
                 AiAskState(loading = false, error = e.message ?: "Błąd połączenia")
             }
         }
     }
+
+    // --- Zużycie AI (tokeny + koszt) ---
+    val aiPromptTokens: StateFlow<Long> = settings.aiPromptTokens
+    val aiCompletionTokens: StateFlow<Long> = settings.aiCompletionTokens
+    fun resetAiUsage() = settings.resetAiUsage()
 
     /** Tekstowy plan dnia — do wysłania/wklejenia np. do Claude (share sheet). */
     fun buildDayPlanText(): String {

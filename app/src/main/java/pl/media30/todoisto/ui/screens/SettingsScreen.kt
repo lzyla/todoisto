@@ -31,6 +31,9 @@ import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.CalendarViewWeek
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.DataUsage
+import androidx.compose.material.icons.outlined.Paid
+import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
@@ -87,6 +90,9 @@ fun SettingsScreen(
     weekStartMonday: Boolean,
     completionSound: Boolean,
     swipeRightCompletes: Boolean,
+    aiPromptTokens: Long,
+    aiCompletionTokens: Long,
+    onResetAiUsage: () -> Unit,
     onBack: () -> Unit,
     onToggleDark: () -> Unit,
     onTogglePhoto: () -> Unit,
@@ -117,6 +123,7 @@ fun SettingsScreen(
             ) {
                 if (route == 0) MainSettings(
                     dark, photo, hasApiKey, dailyGoal, weeklyGoal,
+                    aiPromptTokens, aiCompletionTokens, onResetAiUsage,
                     onOpenGeneral = { route = 1 },
                     onToggleDark, onTogglePhoto,
                     onOpenKey = { showKey = true }, onOpenGoals = { showGoals = true },
@@ -137,6 +144,7 @@ fun SettingsScreen(
 @Composable
 private fun MainSettings(
     dark: Boolean, photo: Boolean, hasApiKey: Boolean, dailyGoal: Int, weeklyGoal: Int,
+    aiPromptTokens: Long, aiCompletionTokens: Long, onResetAiUsage: () -> Unit,
     onOpenGeneral: () -> Unit,
     onToggleDark: () -> Unit, onTogglePhoto: () -> Unit,
     onOpenKey: () -> Unit, onOpenGoals: () -> Unit,
@@ -168,6 +176,8 @@ private fun MainSettings(
         fontSize = 11.5.sp, color = GlassTextSecondary.copy(alpha = 0.85f),
         modifier = Modifier.padding(start = 6.dp, top = 8.dp, end = 6.dp)
     )
+    Spacer(Modifier.height(12.dp))
+    AiUsageCard(aiPromptTokens, aiCompletionTokens, onResetAiUsage)
     Spacer(Modifier.height(22.dp))
 
     SettingsSection("Produktywność")
@@ -193,6 +203,40 @@ private fun MainSettings(
         modifier = Modifier.fillMaxWidth().padding(top = 2.dp)
     )
 }
+
+@Composable
+private fun AiUsageCard(promptTokens: Long, completionTokens: Long, onReset: () -> Unit) {
+    val total = promptTokens + completionTokens
+    val costUsd = promptTokens / 1_000_000.0 * 0.15 + completionTokens / 1_000_000.0 * 0.60
+    val costPln = costUsd * 4.0
+    SettingsSection("Zużycie AI")
+    SettingsCard {
+        SettingRowScaffold(
+            Icons.Outlined.DataUsage, Color(0xFF6B8AFF), "Tokeny łącznie",
+            "wejście ${fmt(promptTokens)} · wyjście ${fmt(completionTokens)}",
+            trailing = { Text(fmt(total), fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary) },
+            onClick = null
+        )
+        RowDivider()
+        SettingRowScaffold(
+            Icons.Outlined.Paid, Color(0xFFF4B740), "Szacowany koszt",
+            "≈ %.2f zł · model gpt-4o-mini".format(costPln),
+            trailing = { Text("$" + "%.4f".format(costUsd), fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary) },
+            onClick = null
+        )
+        if (total > 0L) {
+            RowDivider()
+            NavRow(Icons.Outlined.RestartAlt, Color(0xFFFB7185), "Wyzeruj licznik", "Zeruje zużycie i koszt", trailing = {}, onClick = onReset)
+        }
+    }
+    Text(
+        "Koszt liczony lokalnie z tokenów zwróconych przez OpenAI (ceny gpt-4o-mini: wejście 0,15 $ / wyjście 0,60 $ za mln). Orientacyjnie — wiążące jest rozliczenie na koncie OpenAI.",
+        fontSize = 11.5.sp, color = GlassTextSecondary.copy(alpha = 0.85f),
+        modifier = Modifier.padding(start = 6.dp, top = 8.dp, end = 6.dp)
+    )
+}
+
+private fun fmt(n: Long): String = "%,d".format(n).replace(',', ' ')
 
 @Composable
 private fun GeneralSettings(

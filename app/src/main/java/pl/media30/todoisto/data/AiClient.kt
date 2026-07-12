@@ -12,16 +12,22 @@ import java.net.URL
  * Klucz podaje użytkownik w ustawieniach; żądania idą wprost z urządzenia do
  * api.openai.com. Zwraca gotową odpowiedź tekstową albo rzuca wyjątek z opisem.
  */
+/** Odpowiedź AI wraz z liczbą zużytych tokenów (do liczenia kosztu). */
+data class AiResult(val text: String, val promptTokens: Int, val completionTokens: Int)
+
 object AiClient {
 
     private const val ENDPOINT = "https://api.openai.com/v1/chat/completions"
     private const val MODEL = "gpt-4o-mini"
+    // Cennik gpt-4o-mini (USD za 1 mln tokenów): wejście 0.15, wyjście 0.60.
+    const val PRICE_IN_PER_1M = 0.15
+    const val PRICE_OUT_PER_1M = 0.60
     private const val SYSTEM =
         "Jesteś asystentem produktywności. Odpowiadaj po polsku, zwięźle i konkretnie, " +
         "krok po kroku. Skup się na tym, które narzędzie wybrać i jak zautomatyzować zadanie. " +
         "Na końcu podaj jeden gotowy prompt do skopiowania."
 
-    suspend fun ask(apiKey: String, prompt: String): String = withContext(Dispatchers.IO) {
+    suspend fun ask(apiKey: String, prompt: String): AiResult = withContext(Dispatchers.IO) {
         require(apiKey.isNotBlank()) { "Brak klucza API" }
         val body = JSONObject().apply {
             put("model", MODEL)
@@ -51,8 +57,14 @@ object AiClient {
                 .getOrDefault("Błąd $code")
             throw RuntimeException(msg)
         }
-        JSONObject(text)
-            .getJSONArray("choices").getJSONObject(0)
+        val obj = JSONObject(text)
+        val content = obj.getJSONArray("choices").getJSONObject(0)
             .getJSONObject("message").getString("content").trim()
+        val usage = obj.optJSONObject("usage")
+        AiResult(
+            text = content,
+            promptTokens = usage?.optInt("prompt_tokens", 0) ?: 0,
+            completionTokens = usage?.optInt("completion_tokens", 0) ?: 0
+        )
     }
 }

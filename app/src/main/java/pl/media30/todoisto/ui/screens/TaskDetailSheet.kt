@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -127,7 +128,8 @@ fun TaskDetailSheet(
     onDelete: () -> Unit,
     onClose: () -> Unit,
     onAskAi: (String) -> Unit = {},
-    aiExpanded: Boolean = false
+    aiExpanded: Boolean = false,
+    aiState: pl.media30.todoisto.ui.AiAskState? = null
 ) {
     var newSubtask by remember { mutableStateOf("") }
     var newLink by remember { mutableStateOf("") }
@@ -146,7 +148,7 @@ fun TaskDetailSheet(
     ) {
         // Chmurka AI — dymek asystenta (troszkę niżej, z zapasem miejsca)
         Spacer(Modifier.height(20.dp))
-        AutomationCard(task.title, task.notes, onAskAi, aiExpanded)
+        AutomationCard(task.title, task.notes, onAskAi, aiExpanded, aiState)
         Spacer(Modifier.height(22.dp))
 
         // Nagłówek
@@ -476,7 +478,10 @@ private fun HairLine() {
 /** #4b — mała chmurka „AI" u góry ustawień; po kliknięciu rozwija samouczek automatyzacji. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AutomationCard(title: String, notes: String, onAskAi: (String) -> Unit, initiallyExpanded: Boolean = false) {
+private fun AutomationCard(
+    title: String, notes: String, onAskAi: (String) -> Unit,
+    initiallyExpanded: Boolean = false, aiState: pl.media30.todoisto.ui.AiAskState? = null
+) {
     val tip = remember(title, notes) { pl.media30.todoisto.data.AutomationAdvisor.advise(title, notes) }
     var expanded by remember(title, initiallyExpanded) { mutableStateOf(initiallyExpanded) }
 
@@ -567,6 +572,27 @@ private fun AutomationCard(title: String, notes: String, onAskAi: (String) -> Un
                             "Zapyta AI Twoim kluczem i pokaże odpowiedź tutaj. Klucz ustawisz w menu.",
                             fontSize = 10.5.sp, color = GlassTextSecondary, modifier = Modifier.padding(top = 8.dp)
                         )
+                        // Odpowiedź AI — rozwija się TUTAJ (nie na ekranie głównym)
+                        if (aiState != null) {
+                            Spacer(Modifier.height(12.dp))
+                            Box(Modifier.fillMaxWidth().height(1.dp).background(GlassHair))
+                            Spacer(Modifier.height(12.dp))
+                            when {
+                                aiState.loading -> Row(verticalAlignment = Alignment.CenterVertically) {
+                                    androidx.compose.material3.CircularProgressIndicator(color = GlassAccent, strokeWidth = 2.5.dp, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(10.dp))
+                                    Text("Myślę nad najlepszym sposobem…", fontSize = 12.5.sp, color = GlassTextSecondary)
+                                }
+                                aiState.needsKey -> Text(
+                                    "Dodaj klucz w menu (☰ → Klucz AI), żeby zapytać AI na żywo.",
+                                    fontSize = 12.5.sp, lineHeight = 18.sp, color = GlassTextSecondary
+                                )
+                                aiState.error != null -> Text(aiState.error, fontSize = 12.5.sp, lineHeight = 18.sp, color = GlassTextSecondary)
+                                aiState.answer != null -> Box(
+                                    Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())
+                                ) { Text(aiState.answer, fontSize = 13.sp, lineHeight = 19.sp, color = GlassTextPrimary) }
+                            }
+                        }
                     }
                 }
             }

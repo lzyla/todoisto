@@ -100,6 +100,7 @@ fun TodoistoApp(
     val activeAreaId by viewModel.activeArea.collectAsState()
     val todayOpen by viewModel.todayOpen.collectAsState()
     val openAiKey by viewModel.openAiKey.collectAsState()
+    val aiAsk by viewModel.aiAsk.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     var detailTaskId by remember { mutableStateOf<Long?>(null) }
@@ -127,7 +128,7 @@ fun TodoistoApp(
         onPrefillConsumed = onPrefillConsumed,
         onSelectView = viewModel::setView,
         onToggle = viewModel::toggleCompleted,
-        onTaskClick = { detailTaskId = it.id; detailAiExpanded = false },
+        onTaskClick = { detailTaskId = it.id; detailAiExpanded = false; viewModel.dismissAi() },
         onQuickAdd = viewModel::quickAdd,
         onAddProject = viewModel::addProject,
         onDeleteProject = viewModel::deleteProject,
@@ -158,7 +159,7 @@ fun TodoistoApp(
             context.startActivity(android.content.Intent.createChooser(send, "Wyślij plan dnia"))
         },
         onDeferToTomorrow = viewModel::deferToTomorrow,
-        onOpenAutomation = { detailTaskId = it.id; detailAiExpanded = true },
+        onOpenAutomation = { detailTaskId = it.id; detailAiExpanded = true; viewModel.dismissAi() },
         areas = areas,
         activeAreaId = activeAreaId,
         onSelectArea = viewModel::setActiveArea,
@@ -262,37 +263,14 @@ fun TodoistoApp(
                     viewModel.deleteTask(detailTask)
                     detailTaskId = null
                 },
-                onClose = { detailTaskId = null },
-                onAskAi = { prompt -> detailTaskId = null; viewModel.askAi(prompt) },
-                aiExpanded = detailAiExpanded
+                onClose = { detailTaskId = null; viewModel.dismissAi() },
+                onAskAi = viewModel::askAi,
+                aiExpanded = detailAiExpanded,
+                aiState = aiAsk
             )
         }
     }
 
-    // Odpowiedź AI — „chmurka" zjeżdżająca z góry
-    val aiAsk by viewModel.aiAsk.collectAsState()
-    aiAsk?.let { st ->
-        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
-            androidx.compose.foundation.layout.Box(
-                Modifier.fillMaxSize()
-                    .background(androidx.compose.ui.graphics.Color(0x33140A2E))
-                    .clickable(remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, null) { viewModel.dismissAi() }
-            )
-            val vis = remember { androidx.compose.animation.core.MutableTransitionState(false) }
-            vis.targetState = true
-            androidx.compose.animation.AnimatedVisibility(
-                visibleState = vis,
-                modifier = Modifier.align(androidx.compose.ui.Alignment.TopCenter),
-                enter = androidx.compose.animation.slideInVertically(androidx.compose.animation.core.tween(420)) { -it } + androidx.compose.animation.fadeIn(),
-                exit = androidx.compose.animation.slideOutVertically(androidx.compose.animation.core.tween(260)) { -it } + androidx.compose.animation.fadeOut()
-            ) {
-                pl.media30.todoisto.ui.screens.AiBubble(
-                    loading = st.loading, answer = st.answer, error = st.error, needsKey = st.needsKey,
-                    onClose = { viewModel.dismissAi() }
-                )
-            }
-        }
-    }
 }
 
 /** Dialog importu aktywności z opublikowanego arkusza Google (link CSV). */

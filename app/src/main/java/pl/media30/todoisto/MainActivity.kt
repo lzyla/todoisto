@@ -263,7 +263,7 @@ fun TodoistoApp(
                     detailTaskId = null
                 },
                 onClose = { detailTaskId = null },
-                onAskAi = viewModel::askAi,
+                onAskAi = { prompt -> detailTaskId = null; viewModel.askAi(prompt) },
                 aiExpanded = detailAiExpanded
             )
         }

@@ -144,8 +144,8 @@ fun TaskDetailSheet(
         Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp).padding(bottom = 24.dp)
     ) {
-        // Chmurka AI — dymek asystenta na samej górze (z zapasem miejsca)
-        Spacer(Modifier.height(6.dp))
+        // Chmurka AI — dymek asystenta (troszkę niżej, z zapasem miejsca)
+        Spacer(Modifier.height(20.dp))
         AutomationCard(task.title, task.notes, onAskAi, aiExpanded)
         Spacer(Modifier.height(22.dp))
 
@@ -480,9 +480,9 @@ private fun AutomationCard(title: String, notes: String, onAskAi: (String) -> Un
     val tip = remember(title, notes) { pl.media30.todoisto.data.AutomationAdvisor.advise(title, notes) }
     var expanded by remember(title, initiallyExpanded) { mutableStateOf(initiallyExpanded) }
 
-    // Dymek jak w Messengerze: awatar + chmurka „glass" z ogonkiem przy awatarze.
-    val bubbleShape = RoundedCornerShape(topStart = 6.dp, topEnd = 22.dp, bottomEnd = 22.dp, bottomStart = 22.dp)
-    val cardShape = RoundedCornerShape(topStart = 8.dp, topEnd = 26.dp, bottomEnd = 26.dp, bottomStart = 26.dp)
+    // Miękka chmurka „glass" (mocno zaokrąglona, nie kwadrat) z delikatnym ogonkiem u góry przy awatarze.
+    val bubbleShape = RoundedCornerShape(topStart = 14.dp, topEnd = 26.dp, bottomEnd = 26.dp, bottomStart = 26.dp)
+    val cardShape = RoundedCornerShape(28.dp)
 
     Column(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.Top) {

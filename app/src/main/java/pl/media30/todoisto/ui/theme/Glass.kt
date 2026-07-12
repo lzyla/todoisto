@@ -109,33 +109,35 @@ val PrioColors = listOf(Color(0xFFD1453B), Color(0xFFEB8909), Color(0xFF246FE0),
 // dająca różnicę koloru między lewą a prawą krawędzią (efekt aurory).
 private class BgPalette(
     val base: List<Color>,
-    val meshL: Color, val meshR: Color, val meshTop: Color
+    val meshL: Color, val meshR: Color, val meshTop: Color, val meshAccent: Color
 )
 
+// Kolory dobrane komplementarnie do fioletu: turkus/mięta, magenta/róż, błękit,
+// koral/brzoskwinia — cztery żywe „bloby" nad jasną bazą (light) / głęboką (dark).
 private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
-    // Rano — ciepły świt: brzoskwinia → róż → liliowy → błękit (jaśniej)
+    // Rano — świt: koral + fiolet + róż + turkus
     DayPhase.MORNING -> if (d) BgPalette(
-        listOf(Color(0xFF5A3E6E), Color(0xFF46305E), Color(0xFF3A2A55), Color(0xFF2A2148)),
-        Color(0xFFCC7A5E), Color(0xFF5E6FB0), Color(0xFFCC6E86)
+        listOf(Color(0xFF553A66), Color(0xFF41305A), Color(0xFF342750), Color(0xFF261E44)),
+        Color(0xFFCC7A5E), Color(0xFF7E5CC0), Color(0xFFC65C86), Color(0xFF3E9C8C)
     ) else BgPalette(
-        listOf(Color(0xFFFFF0E4), Color(0xFFFFE2EC), Color(0xFFF2E6FF), Color(0xFFE1EFFF)),
-        Color(0xFFFFD5B6), Color(0xFFB7D2FF), Color(0xFFFFC9D6)
+        listOf(Color(0xFFFFF1E6), Color(0xFFFCE6F0), Color(0xFFF1E8FF), Color(0xFFE4F5FF)),
+        Color(0xFFFFB38A), Color(0xFFC0A6FF), Color(0xFFFFA6C4), Color(0xFF7FE0CC)
     )
-    // Południe — powietrzny dzień: błękit → cyjan → liliowy → mięta (jaśniej)
+    // Południe — dzień: turkus + fiolet + błękit + magenta
     DayPhase.NOON -> if (d) BgPalette(
-        listOf(Color(0xFF33487E), Color(0xFF34406E), Color(0xFF2C3A66), Color(0xFF232E58)),
-        Color(0xFF4E80C8), Color(0xFF7E6FC8), Color(0xFF4EA0C0)
+        listOf(Color(0xFF2E3E70), Color(0xFF313A66), Color(0xFF2A3560), Color(0xFF222C54)),
+        Color(0xFF35A0A0), Color(0xFF7E6FC8), Color(0xFF4E80C8), Color(0xFFB05CA8)
     ) else BgPalette(
-        listOf(Color(0xFFE7F4FF), Color(0xFFECF1FF), Color(0xFFF1EAFF), Color(0xFFE7FAFF)),
-        Color(0xFFAED6FF), Color(0xFFD2BEFF), Color(0xFFBEF1FF)
+        listOf(Color(0xFFE7F6FF), Color(0xFFECF0FF), Color(0xFFF1EAFF), Color(0xFFE9FBFF)),
+        Color(0xFF6FE0D8), Color(0xFFB79CFF), Color(0xFF8FB8FF), Color(0xFFF0A6D8)
     )
-    // Wieczór — zmierzch: magenta → fiolet → indygo → róż (jaśniej)
+    // Wieczór — zmierzch: magenta + fiolet + indygo + koral
     DayPhase.EVENING -> if (d) BgPalette(
-        listOf(Color(0xFF7A3FB0), Color(0xFF5B35C4), Color(0xFF44239E), Color(0xFF361C7E)),
-        Color(0xFFB44DD8), Color(0xFF6A5CD8), Color(0xFFD86EB8)
+        listOf(Color(0xFF6E3AA0), Color(0xFF54329E), Color(0xFF3F2384), Color(0xFF301C6E)),
+        Color(0xFFC24DD8), Color(0xFF6A5CD8), Color(0xFF8C4DE0), Color(0xFFC0664E)
     ) else BgPalette(
-        listOf(Color(0xFFF8E6FF), Color(0xFFEEE1FF), Color(0xFFE6E3FF), Color(0xFFF7E6F6)),
-        Color(0xFFF0BEF6), Color(0xFFBEBEF6), Color(0xFFF6BEE4)
+        listOf(Color(0xFFF9E7FF), Color(0xFFEEE2FF), Color(0xFFE6E4FF), Color(0xFFFDE9E2)),
+        Color(0xFFE68CE0), Color(0xFF9C8CF0), Color(0xFFB0A6FF), Color(0xFFFF9E86)
     )
 }
 
@@ -243,11 +245,11 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
                     )
                 )
             }
-            blob(pal.meshL, 0f, 0.30f, 0.34f, 0.14f, 0.10f, meshA)
-            blob(pal.meshR, 2.1f, 0.72f, 0.56f, 0.14f, 0.12f, meshA)
-            blob(pal.meshTop, 4.2f, 0.52f, 0.20f, 0.12f, 0.09f, meshA * 0.95f)
-            // subtelny akcent, który „oddycha" z pingpongiem t
-            blob(GlassAccent, 1.0f, 0.5f, 0.8f, 0.10f, 0.08f, (if (dark) 0.16f else 0.12f) * (0.6f + 0.4f * p))
+            blob(pal.meshL, 0f, 0.28f, 0.32f, 0.15f, 0.11f, meshA)
+            blob(pal.meshR, 2.1f, 0.74f, 0.54f, 0.15f, 0.12f, meshA)
+            blob(pal.meshTop, 4.2f, 0.52f, 0.18f, 0.13f, 0.10f, meshA * 0.95f)
+            // czwarty, komplementarny kolor „oddychający" z pingpongiem t
+            blob(pal.meshAccent, 1.0f, 0.40f, 0.82f, 0.16f, 0.10f, meshA * (0.7f + 0.3f * p))
         }
     }
 }

@@ -40,6 +40,9 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -256,73 +259,70 @@ fun TaskListScreen(
         }
     ) {
         Box(Modifier.fillMaxSize()) {
-            Column(Modifier.fillMaxSize().statusBarsPadding()) {
-                // ── Pasek górny: ☰ (lewo) · ✦ Tydzień (środek) · motyw (prawo) ─
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            // ── Treść na pełnym ekranie — przewija się POD paskiem górnym (widać szkło) ─
+            ZenContent(uiState, projects, labels, onToggle, onTaskClick, onDeferToTomorrow, onOpenAutomation)
+
+            // ── ⋮ akcje widoku — nakładka pod paskiem, prawy górny róg ─────
+            Box(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 54.dp, end = 8.dp)) {
+                Box(
+                    Modifier.size(34.dp).clip(CircleShape).bouncy(0.9f) { menuOpen = true },
+                    contentAlignment = Alignment.Center
                 ) {
-                    CircleGlassButton({ scope.launch { drawerState.open() } }) {
-                        Icon(Icons.Filled.Menu, "Menu", tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.MoreVert, "Więcej", tint = GlassTextSecondary, modifier = Modifier.size(18.dp))
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem({ Text("Sortowanie: ${uiState.sortMode.label}") }, onClick = { menuOpen = false; sortMenuOpen = true })
+                    uiState.currentProject?.let { project ->
+                        DropdownMenuItem({ Text(if (project.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") }, onClick = { menuOpen = false; onToggleProjectFavorite(project.id) })
+                        DropdownMenuItem({ Text("Dodaj sekcję") }, onClick = { menuOpen = false; dialog = DialogKind.NewSection })
+                        DropdownMenuItem({ Text("Duplikuj projekt") }, onClick = { menuOpen = false; onDuplicateProject(project.id) })
+                        DropdownMenuItem({ Text(if (project.isArchived) "Przywróć z archiwum" else "Archiwizuj projekt") }, onClick = { menuOpen = false; onArchiveProject(project.id, !project.isArchived) })
+                        DropdownMenuItem({ Text("Usuń projekt") }, onClick = { menuOpen = false; onDeleteProject(project.id) })
                     }
-                    Spacer(Modifier.weight(1f))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        AreaSwitcher(areas, activeAreaId, onSelectArea) { dialog = DialogKind.NewArea }
-                        Row(
-                            Modifier
-                                .height(42.dp)
-                                .controlCenterGlass(RoundedCornerShape(21.dp))
-                                .bouncy(0.94f) { briefOpen = !briefOpen }
-                                .padding(horizontal = 15.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(15.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Tydzień", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
-                        }
+                    uiState.currentLabel?.let { label ->
+                        DropdownMenuItem({ Text(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") }, onClick = { menuOpen = false; onToggleLabelFavorite(label.id) })
+                        DropdownMenuItem({ Text("Usuń etykietę") }, onClick = { menuOpen = false; onDeleteLabel(label.id) })
                     }
-                    Spacer(Modifier.weight(1f))
-                    CircleGlassButton(onFreeTime) {
-                        Icon(Icons.Outlined.Bolt, "Czas wolny", tint = GlassAccent, modifier = Modifier.size(19.dp))
+                    DropdownMenuItem({ Text("Wyślij plan dnia") }, onClick = { menuOpen = false; onSharePlan() })
+                    DropdownMenuItem({ Text("Usuń ukończone") }, onClick = { menuOpen = false; onClearCompleted() })
+                }
+                DropdownMenu(expanded = sortMenuOpen, onDismissRequest = { sortMenuOpen = false }) {
+                    SortMode.entries.forEach { mode ->
+                        DropdownMenuItem(
+                            { Text((if (mode == uiState.sortMode) "✓ " else "") + mode.label) },
+                            onClick = { sortMenuOpen = false; onSort(mode) }
+                        )
                     }
                 }
+            }
 
-                // ── Treść bezpośrednio na gradiencie (bez matowej tafli) ─────
-                Box(Modifier.weight(1f)) {
-                    ZenContent(uiState, projects, labels, onToggle, onTaskClick, onDeferToTomorrow, onOpenAutomation)
-                    // ⋮ akcje widoku — dyskretna nakładka w prawym górnym rogu
-                    Box(Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = 8.dp)) {
-                        Box(
-                            Modifier.size(34.dp).clip(CircleShape).bouncy(0.9f) { menuOpen = true },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Filled.MoreVert, "Więcej", tint = GlassTextSecondary, modifier = Modifier.size(18.dp))
-                        }
-                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            DropdownMenuItem({ Text("Sortowanie: ${uiState.sortMode.label}") }, onClick = { menuOpen = false; sortMenuOpen = true })
-                            uiState.currentProject?.let { project ->
-                                DropdownMenuItem({ Text(if (project.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") }, onClick = { menuOpen = false; onToggleProjectFavorite(project.id) })
-                                DropdownMenuItem({ Text("Dodaj sekcję") }, onClick = { menuOpen = false; dialog = DialogKind.NewSection })
-                                DropdownMenuItem({ Text("Duplikuj projekt") }, onClick = { menuOpen = false; onDuplicateProject(project.id) })
-                                DropdownMenuItem({ Text(if (project.isArchived) "Przywróć z archiwum" else "Archiwizuj projekt") }, onClick = { menuOpen = false; onArchiveProject(project.id, !project.isArchived) })
-                                DropdownMenuItem({ Text("Usuń projekt") }, onClick = { menuOpen = false; onDeleteProject(project.id) })
-                            }
-                            uiState.currentLabel?.let { label ->
-                                DropdownMenuItem({ Text(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") }, onClick = { menuOpen = false; onToggleLabelFavorite(label.id) })
-                                DropdownMenuItem({ Text("Usuń etykietę") }, onClick = { menuOpen = false; onDeleteLabel(label.id) })
-                            }
-                            DropdownMenuItem({ Text("Wyślij plan dnia") }, onClick = { menuOpen = false; onSharePlan() })
-                            DropdownMenuItem({ Text("Usuń ukończone") }, onClick = { menuOpen = false; onClearCompleted() })
-                        }
-                        DropdownMenu(expanded = sortMenuOpen, onDismissRequest = { sortMenuOpen = false }) {
-                            SortMode.entries.forEach { mode ->
-                                DropdownMenuItem(
-                                    { Text((if (mode == uiState.sortMode) "✓ " else "") + mode.label) },
-                                    onClick = { sortMenuOpen = false; onSort(mode) }
-                                )
-                            }
-                        }
+            // ── Pasek górny — nakładka glass (treść widoczna przez szkło pod nim) ─
+            Row(
+                Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircleGlassButton({ scope.launch { drawerState.open() } }) {
+                    Icon(Icons.Filled.Menu, "Menu", tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.weight(1f))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    AreaSwitcher(areas, activeAreaId, onSelectArea) { dialog = DialogKind.NewArea }
+                    Row(
+                        Modifier
+                            .height(42.dp)
+                            .glass(RoundedCornerShape(21.dp))
+                            .bouncy(0.94f) { briefOpen = !briefOpen }
+                            .padding(horizontal = 15.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(15.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Tydzień", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
                     }
+                }
+                Spacer(Modifier.weight(1f))
+                CircleGlassButton(onFreeTime) {
+                    Icon(Icons.Outlined.Bolt, "Czas wolny", tint = GlassAccent, modifier = Modifier.size(19.dp))
                 }
             }
 
@@ -499,7 +499,7 @@ private fun AreaSwitcher(
         Row(
             Modifier
                 .height(42.dp)
-                .controlCenterGlass(RoundedCornerShape(21.dp))
+                .glass(RoundedCornerShape(21.dp))
                 .bouncy(0.94f) { open = true }
                 .padding(start = 13.dp, end = 11.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -613,8 +613,12 @@ private fun ZenContent(
 ) {
     val today = LocalDate.now()
     val collapsed = remember { mutableStateMapOf<String, Boolean>() }
+    // Zapas u góry = status bar + wysokość paska; treść zaczyna się pod paskiem,
+    // ale przy przewijaniu wjeżdża POD niego (widać przezroczyste szkło).
+    val topInset = androidx.compose.foundation.layout.WindowInsets.statusBars
+        .asPaddingValues().calculateTopPadding()
 
-    LazyColumn(contentPadding = PaddingValues(18.dp, 2.dp, 18.dp, 170.dp)) {
+    LazyColumn(contentPadding = PaddingValues(start = 18.dp, top = topInset + 64.dp, end = 18.dp, bottom = 170.dp)) {
         when (uiState.view) {
             AppView.Today -> {
                 item(key = "hdr") {

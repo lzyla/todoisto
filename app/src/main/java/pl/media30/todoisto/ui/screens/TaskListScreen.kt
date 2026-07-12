@@ -864,8 +864,7 @@ private fun ZenRowWithSubs(
             Column(Modifier.fillMaxWidth().taskTile { onTaskClick(task) }) {
                 if (deadlineWarn || automatable) {
                     Row(
-                        Modifier.padding(start = 14.dp, top = 10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        Modifier.fillMaxWidth().padding(start = 14.dp, end = 12.dp, top = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (deadlineWarn) Text(
@@ -873,12 +872,17 @@ private fun ZenRowWithSubs(
                             fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = Color(0xFFB45309),
                             modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0x33F59E0B)).padding(horizontal = 9.dp, vertical = 3.dp)
                         )
-                        if (automatable) Text(
-                            "⚡ AI",
-                            fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = GlassAccent,
-                            modifier = Modifier.clip(RoundedCornerShape(50)).background(GlassAccent.copy(alpha = 0.14f))
-                                .bouncy(0.9f) { onOpenAutomation(task) }.padding(horizontal = 9.dp, vertical = 3.dp)
-                        )
+                        Spacer(Modifier.weight(1f))
+                        // Ikonka AI — zawsze po prawej stronie wiersza
+                        if (automatable) Row(
+                            Modifier.clip(RoundedCornerShape(50)).background(GlassAccent.copy(alpha = 0.14f))
+                                .bouncy(0.9f) { onOpenAutomation(task) }.padding(horizontal = 9.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(12.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("AI", fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = GlassAccent)
+                        }
                     }
                 }
                 TaskRowZen(task, meta, { onToggle(task) }, { onTaskClick(task) })

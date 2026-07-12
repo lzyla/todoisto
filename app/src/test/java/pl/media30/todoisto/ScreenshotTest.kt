@@ -179,8 +179,12 @@ class ScreenshotTest {
                 pl.media30.todoisto.ui.screens.SettingsScreen(
                     dark = false, photo = false, hasApiKey = true,
                     dailyGoal = 5, weeklyGoal = 25,
+                    startViewToday = true, dateRecognition = true, weekStartMonday = true,
+                    completionSound = false, swipeRightCompletes = true,
                     onBack = {}, onToggleDark = {}, onTogglePhoto = {},
                     onSetApiKey = {}, onSetGoals = { _, _ -> },
+                    onSetStartView = {}, onSetDateRecognition = {}, onSetWeekStartMonday = {},
+                    onSetCompletionSound = {}, onSetSwipeRightCompletes = {},
                     onOpenPool = {}, onOpenImport = {}
                 )
             }

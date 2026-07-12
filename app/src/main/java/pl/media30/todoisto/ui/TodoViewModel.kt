@@ -122,11 +122,25 @@ class TodoViewModel(
     private val settings: SettingsStore
 ) : ViewModel() {
 
-    private val _view = MutableStateFlow<AppView>(AppView.Today)
+    private val _view = MutableStateFlow<AppView>(
+        if (settings.startView.value == "upcoming") AppView.Upcoming else AppView.Today
+    )
     private val _sort = MutableStateFlow(SortMode.SMART)
 
     val darkTheme: StateFlow<Boolean> = settings.darkTheme
     fun setDarkTheme(value: Boolean) = settings.setDarkTheme(value)
+
+    // --- Ustawienia „Ogólne" ---
+    val startView: StateFlow<String> = settings.startView
+    fun setStartView(value: String) = settings.setStartView(value)
+    val dateRecognition: StateFlow<Boolean> = settings.dateRecognition
+    fun setDateRecognition(value: Boolean) = settings.setDateRecognition(value)
+    val weekStartMonday: StateFlow<Boolean> = settings.weekStartMonday
+    fun setWeekStartMonday(value: Boolean) = settings.setWeekStartMonday(value)
+    val completionSound: StateFlow<Boolean> = settings.completionSound
+    fun setCompletionSound(value: Boolean) = settings.setCompletionSound(value)
+    val swipeRightCompletes: StateFlow<Boolean> = settings.swipeRightCompletes
+    fun setSwipeRightCompletes(value: Boolean) = settings.setSwipeRightCompletes(value)
 
     val photoBackground: StateFlow<Boolean> = settings.photoBackground
     fun setPhotoBackground(value: Boolean) = settings.setPhotoBackground(value)
@@ -308,7 +322,11 @@ class TodoViewModel(
         // Goal counters from completedAt timestamps
         val zone = ZoneId.systemDefault()
         val todayDate = LocalDate.now()
-        val monday = todayDate.with(DayOfWeek.MONDAY)
+        val monday = todayDate.with(
+            java.time.temporal.TemporalAdjusters.previousOrSame(
+                if (settings.weekStartMonday.value) DayOfWeek.MONDAY else DayOfWeek.SUNDAY
+            )
+        )
         var doneToday = 0
         var doneWeek = 0
         var routinesDone = 0
@@ -354,34 +372,37 @@ class TodoViewModel(
     fun quickAdd(raw: String, overrides: QuickAddOverrides = QuickAddOverrides()) {
         if (raw.isBlank()) return
         viewModelScope.launch {
-            val parsed = QuickAddParser().parse(raw)
-            val title = parsed.title.ifBlank { raw.trim() }
+            // Rozpoznawanie dat/terminów wg ustawień: gdy wyłączone, tekst trafia
+            // dosłownie jako tytuł (bez auto-wykrywania daty, godziny, projektu itd.).
+            val parsed = if (settings.dateRecognition.value) QuickAddParser().parse(raw) else null
+            val title = parsed?.title?.ifBlank { raw.trim() } ?: raw.trim()
 
             val currentView = _view.value
             val projectId = when {
                 overrides.projectId != null -> overrides.projectId
-                parsed.projectName != null -> repository.ensureProject(parsed.projectName!!)
+                parsed?.projectName != null -> repository.ensureProject(parsed.projectName!!)
                 currentView is AppView.ProjectView -> currentView.id
                 else -> null
             }
-            val labelIds = parsed.labelNames.map { repository.ensureLabel(it) }.filter { it != 0L }
+            val labelIds = parsed?.labelNames?.map { repository.ensureLabel(it) }?.filter { it != 0L } ?: emptyList()
 
-            val recurrence = overrides.recurrence ?: parsed.recurrence
-            val dueDate = overrides.dueDate ?: parsed.dueDate
+            val recurrence = overrides.recurrence ?: parsed?.recurrence
+            val dueDate = overrides.dueDate ?: parsed?.dueDate
                 ?: if (recurrence != null) LocalDate.now().toEpochDay() else null
 
-            val reminderAt = if (dueDate != null && parsed.dueTimeMinutes != null) {
-                (dueDate * 24L * 60 * 60 * 1000) + parsed.dueTimeMinutes!! * 60L * 1000
+            val dueTimeMinutes = parsed?.dueTimeMinutes
+            val reminderAt = if (dueDate != null && dueTimeMinutes != null) {
+                (dueDate * 24L * 60 * 60 * 1000) + dueTimeMinutes * 60L * 1000
             } else null
 
             repository.insert(
                 Task(
                     title = title,
-                    priority = overrides.priority ?: parsed.priority,
+                    priority = overrides.priority ?: parsed?.priority ?: Priority.P4,
                     dueDate = dueDate,
-                    dueTimeMinutes = parsed.dueTimeMinutes,
-                    durationMinutes = parsed.durationMinutes,
-                    deadline = parsed.deadline,
+                    dueTimeMinutes = dueTimeMinutes,
+                    durationMinutes = parsed?.durationMinutes,
+                    deadline = parsed?.deadline,
                     recurrence = recurrence,
                     reminderAt = reminderAt,
                     projectId = projectId,
@@ -531,7 +552,11 @@ class TodoViewModel(
         val today = LocalDate.now()
         val zone = ZoneId.systemDefault()
         val todayStart = today.atStartOfDay(zone).toInstant().toEpochMilli()
-        val weekStart = today.with(DayOfWeek.MONDAY).atStartOfDay(zone).toInstant().toEpochMilli()
+        val weekStart = today.with(
+            java.time.temporal.TemporalAdjusters.previousOrSame(
+                if (settings.weekStartMonday.value) DayOfWeek.MONDAY else DayOfWeek.SUNDAY
+            )
+        ).atStartOfDay(zone).toInstant().toEpochMilli()
         return repository.buildDayContext(
             tasks = allTasks.value,
             projects = projects.value,

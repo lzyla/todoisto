@@ -207,6 +207,7 @@ fun TaskListScreen(
     hasApiKey: Boolean = false,
     onSetApiKey: (String) -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    swipeRightCompletes: Boolean = true,
     routinesExpandedInitially: Boolean = false,
     weekTasks: List<Task> = emptyList()
 ) {
@@ -265,7 +266,10 @@ fun TaskListScreen(
             )
         }
     ) {
-        androidx.compose.runtime.CompositionLocalProvider(LocalHazeState provides hazeState) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalHazeState provides hazeState,
+            LocalSwipeRightCompletes provides swipeRightCompletes
+        ) {
         Box(Modifier.fillMaxSize()) {
             // Inset status bara liczony TU (obok paska pigułek), a nie w ZenContent —
             // wewnątrz Boxa z haze() kontekst insetów się zeruje i nagłówek wjeżdżał
@@ -907,14 +911,17 @@ private fun ZenRowWithSubs(
     // key(task.id) — stabilny stan swipe'u mimo zmian listy (bez pomyłki wierszy).
     androidx.compose.runtime.key(task.id) {
         val view = LocalView.current
+        // Konfigurowalne przesunięcia: prawe = ukończ lub odłóż (ustawienia).
+        val rightCompletes = LocalSwipeRightCompletes.current
         val dismiss = androidx.compose.material3.rememberSwipeToDismissBoxState(
             confirmValueChange = { value ->
-                when (value) {
-                    androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd ->
-                        view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM).also { onToggle(task) }
-                    androidx.compose.material3.SwipeToDismissBoxValue.EndToStart ->
-                        view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK).also { onDefer(task) }
-                    else -> {}
+                val toEnd = value == androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd
+                val toStart = value == androidx.compose.material3.SwipeToDismissBoxValue.EndToStart
+                val complete = (toEnd && rightCompletes) || (toStart && !rightCompletes)
+                val defer = (toStart && rightCompletes) || (toEnd && !rightCompletes)
+                when {
+                    complete -> view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM).also { onToggle(task) }
+                    defer -> view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK).also { onDefer(task) }
                 }
                 false // akcja odpalona — kafelek wraca na miejsce
             },
@@ -923,7 +930,7 @@ private fun ZenRowWithSubs(
         androidx.compose.material3.SwipeToDismissBox(
             state = dismiss,
             modifier = Modifier.clip(RoundedCornerShape(20.dp)),
-            backgroundContent = { SwipeBg(dismiss.dismissDirection) }
+            backgroundContent = { SwipeBg(dismiss.dismissDirection, rightCompletes) }
         ) {
             Column(Modifier.fillMaxWidth().taskTile { onTaskClick(task) }) {
                 if (deadlineWarn) {
@@ -967,13 +974,15 @@ private fun ZenRowWithSubs(
 /** Tło ujawniane podczas swipe: zielony „ukończ" (→) / bursztynowy „jutro" (←). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SwipeBg(dir: androidx.compose.material3.SwipeToDismissBoxValue) {
+private fun SwipeBg(dir: androidx.compose.material3.SwipeToDismissBoxValue, rightCompletes: Boolean = true) {
     // W spoczynku NIE rysujemy nic (przezroczyste tło pod kafelkiem).
     if (dir == androidx.compose.material3.SwipeToDismissBoxValue.Settled) {
         Box(Modifier.fillMaxSize()); return
     }
     val toEnd = dir == androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd
-    val color = if (toEnd) Color(0xFF1F8A5B) else Color(0xFFEB8909)
+    // Ta strona ukańcza, jeśli (prawo i prawe=ukończ) lub (lewo i prawe=odłóż).
+    val isComplete = toEnd == rightCompletes
+    val color = if (isComplete) Color(0xFF1F8A5B) else Color(0xFFEB8909)
     Row(
         Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).background(color)
             .padding(horizontal = 22.dp),
@@ -981,13 +990,16 @@ private fun SwipeBg(dir: androidx.compose.material3.SwipeToDismissBoxValue) {
         horizontalArrangement = if (toEnd) Arrangement.Start else Arrangement.End
     ) {
         Icon(
-            if (toEnd) Icons.Filled.Check else Icons.Outlined.DateRange,
+            if (isComplete) Icons.Filled.Check else Icons.Outlined.DateRange,
             null, tint = Color.White, modifier = Modifier.size(22.dp)
         )
         Spacer(Modifier.width(8.dp))
-        Text(if (toEnd) "Ukończ" else "Na jutro", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W800)
+        Text(if (isComplete) "Ukończ" else "Na jutro", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W800)
     }
 }
+
+/** Preferencja: przesunięcie w prawo ukańcza (true) lub odkłada (false). */
+val LocalSwipeRightCompletes = androidx.compose.runtime.staticCompositionLocalOf { true }
 
 @Composable
 private fun EmptyState(head: String, sub: String) {

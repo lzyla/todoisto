@@ -101,6 +101,11 @@ fun TodoistoApp(
     val todayOpen by viewModel.todayOpen.collectAsState()
     val openAiKey by viewModel.openAiKey.collectAsState()
     val aiAsk by viewModel.aiAsk.collectAsState()
+    val startView by viewModel.startView.collectAsState()
+    val dateRecognition by viewModel.dateRecognition.collectAsState()
+    val weekStartMonday by viewModel.weekStartMonday.collectAsState()
+    val completionSound by viewModel.completionSound.collectAsState()
+    val swipeRightCompletes by viewModel.swipeRightCompletes.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     var detailTaskId by remember { mutableStateOf<Long?>(null) }
@@ -128,7 +133,15 @@ fun TodoistoApp(
         quickAddPrefill = quickAddPrefill,
         onPrefillConsumed = onPrefillConsumed,
         onSelectView = viewModel::setView,
-        onToggle = viewModel::toggleCompleted,
+        onToggle = { t ->
+            if (!t.isCompleted && completionSound) {
+                runCatching {
+                    android.media.ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 80)
+                        .startTone(android.media.ToneGenerator.TONE_PROP_ACK, 150)
+                }
+            }
+            viewModel.toggleCompleted(t)
+        },
         onTaskClick = { detailTaskId = it.id; detailAiExpanded = false; viewModel.dismissAi() },
         onQuickAdd = viewModel::quickAdd,
         onAddProject = viewModel::addProject,
@@ -175,6 +188,7 @@ fun TodoistoApp(
         hasApiKey = openAiKey.isNotBlank(),
         onSetApiKey = viewModel::setOpenAiKey,
         onOpenSettings = { showSettings = true },
+        swipeRightCompletes = swipeRightCompletes,
         weekTasks = allTasks
     )
 
@@ -186,11 +200,21 @@ fun TodoistoApp(
             hasApiKey = openAiKey.isNotBlank(),
             dailyGoal = uiState.goalDaily,
             weeklyGoal = uiState.goalWeekly,
+            startViewToday = startView != "upcoming",
+            dateRecognition = dateRecognition,
+            weekStartMonday = weekStartMonday,
+            completionSound = completionSound,
+            swipeRightCompletes = swipeRightCompletes,
             onBack = { showSettings = false },
             onToggleDark = { viewModel.setDarkTheme(!darkTheme) },
             onTogglePhoto = { viewModel.setPhotoBackground(!photoBg) },
             onSetApiKey = viewModel::setOpenAiKey,
             onSetGoals = viewModel::setGoals,
+            onSetStartView = { today -> viewModel.setStartView(if (today) "today" else "upcoming") },
+            onSetDateRecognition = viewModel::setDateRecognition,
+            onSetWeekStartMonday = viewModel::setWeekStartMonday,
+            onSetCompletionSound = viewModel::setCompletionSound,
+            onSetSwipeRightCompletes = viewModel::setSwipeRightCompletes,
             onOpenPool = { showSettings = false; showPool = true },
             onOpenImport = { showSettings = false; showImport = true }
         )

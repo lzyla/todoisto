@@ -58,11 +58,58 @@ class SettingsStore(context: Context) {
         _weeklyGoal.value = weekly
     }
 
+    // --- Ustawienia „Ogólne" ---
+
+    /** Widok główny na starcie: "today" lub "upcoming". */
+    private val _startView = MutableStateFlow(prefs.getString(KEY_START_VIEW, "today").orEmpty().ifBlank { "today" })
+    val startView: StateFlow<String> = _startView.asStateFlow()
+    fun setStartView(value: String) {
+        prefs.edit().putString(KEY_START_VIEW, value).apply()
+        _startView.value = value
+    }
+
+    /** Rozpoznawanie dat w szybkim dodawaniu. */
+    private val _dateRecognition = MutableStateFlow(prefs.getBoolean(KEY_DATE_REC, true))
+    val dateRecognition: StateFlow<Boolean> = _dateRecognition.asStateFlow()
+    fun setDateRecognition(value: Boolean) {
+        prefs.edit().putBoolean(KEY_DATE_REC, value).apply()
+        _dateRecognition.value = value
+    }
+
+    /** Początek tygodnia: true = poniedziałek, false = niedziela. */
+    private val _weekStartMonday = MutableStateFlow(prefs.getBoolean(KEY_WEEK_MON, true))
+    val weekStartMonday: StateFlow<Boolean> = _weekStartMonday.asStateFlow()
+    fun setWeekStartMonday(value: Boolean) {
+        prefs.edit().putBoolean(KEY_WEEK_MON, value).apply()
+        _weekStartMonday.value = value
+    }
+
+    /** Dźwięk przy ukończeniu zadania. */
+    private val _completionSound = MutableStateFlow(prefs.getBoolean(KEY_DONE_SOUND, false))
+    val completionSound: StateFlow<Boolean> = _completionSound.asStateFlow()
+    fun setCompletionSound(value: Boolean) {
+        prefs.edit().putBoolean(KEY_DONE_SOUND, value).apply()
+        _completionSound.value = value
+    }
+
+    /** Przesunięcie w prawo = ukończ (true) lub odłóż (false); lewe robi to drugie. */
+    private val _swipeRightCompletes = MutableStateFlow(prefs.getBoolean(KEY_SWIPE_RIGHT, true))
+    val swipeRightCompletes: StateFlow<Boolean> = _swipeRightCompletes.asStateFlow()
+    fun setSwipeRightCompletes(value: Boolean) {
+        prefs.edit().putBoolean(KEY_SWIPE_RIGHT, value).apply()
+        _swipeRightCompletes.value = value
+    }
+
     private companion object {
         const val KEY_DARK = "dark_theme"
         const val KEY_DAILY = "daily_goal"
         const val KEY_WEEKLY = "weekly_goal"
         const val KEY_PHOTO_BG = "photo_background"
+        const val KEY_START_VIEW = "start_view"
+        const val KEY_DATE_REC = "date_recognition"
+        const val KEY_WEEK_MON = "week_start_monday"
+        const val KEY_DONE_SOUND = "completion_sound"
+        const val KEY_SWIPE_RIGHT = "swipe_right_completes"
         // Wersjonowany klucz — bump wymusza jednorazowe ponowne zasianie u wszystkich
         // (v4: po dodaniu Obszarów baza jest przebudowywana, więc dosiewamy z obszarami).
         const val KEY_SEEDED = "demo_seeded_v4"

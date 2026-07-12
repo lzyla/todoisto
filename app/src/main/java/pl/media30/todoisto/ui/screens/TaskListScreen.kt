@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -700,10 +701,10 @@ private fun QuickAddMorph(
     onSubmit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    BoxWithConstraintsFix(modifier.navigationBarsPadding()) { maxW ->
+    BoxWithConstraintsFix(modifier.navigationBarsPadding().imePadding()) { maxW ->
         val width by animateDpAsState(if (open) maxW - 28.dp else 58.dp, tween(500, easing = EASE), label = "qaW")
-        val height by animateDpAsState(if (open) 322.dp else 58.dp, tween(500, easing = EASE), label = "qaH")
-        val bottomPad by animateDpAsState(if (open) 46.dp else 106.dp, tween(500, easing = EASE), label = "qaB")
+        val height by animateDpAsState(if (open) 360.dp else 58.dp, tween(500, easing = EASE), label = "qaH")
+        val bottomPad by animateDpAsState(if (open) 16.dp else 106.dp, tween(500, easing = EASE), label = "qaB")
         val bg by animateColorAsState(if (open) GlassSurface else GlassAccent, tween(400), label = "qaBg")
         val rot by animateFloatAsState(if (open) 45f else 0f, tween(500, easing = EASE), label = "qaRot")
         val parsed = remember(text) { QuickAddParser().parse(text) }
@@ -714,7 +715,7 @@ private fun QuickAddMorph(
                 .size(width, height)
                 .clip(RoundedCornerShape(29.dp))
                 .background(bg)
-                .border(1.dp, GlassRim.copy(alpha = if (open) 1f else 0.4f), RoundedCornerShape(29.dp))
+                .border(1.dp, Color.White.copy(alpha = if (open) 0.20f else 0f), RoundedCornerShape(29.dp))
         ) {
             // Plus / X
             Box(
@@ -729,7 +730,7 @@ private fun QuickAddMorph(
                 )
             }
             if (open) {
-                Column(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 15.dp, bottom = 12.dp)) {
+                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 15.dp, bottom = 12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 46.dp)) {
                         Text("Nowe zadanie", fontSize = 13.5.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
                         Spacer(Modifier.width(8.dp))

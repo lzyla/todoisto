@@ -217,21 +217,15 @@ fun Modifier.glass(shape: Shape = RoundedCornerShape(24.dp), sheenOn: Boolean = 
         ).value
     } else -2f
     this
-        .shadow(20.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.5f))
+        .shadow(18.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.5f))
         .clip(shape)
         .background(GlassFill)
         .drawWithContent {
             drawContent()
-            specular(if (dark) 0.55f else 0.85f)
-            if (sheenOn) sheen(prog, if (dark) 0.10f else 0.16f)
+            // subtelny górny połysk zamiast twardej, tłoczonej krawędzi
+            if (sheenOn) sheen(prog, if (dark) 0.08f else 0.12f)
         }
-        .border(
-            1.dp,
-            Brush.linearGradient(
-                listOf(GlassRim, GlassRim.copy(alpha = 0.10f), GlassRim.copy(alpha = 0.30f))
-            ),
-            shape
-        )
+        .border(1.dp, if (dark) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.22f), shape)
 }
 
 /**
@@ -294,20 +288,13 @@ fun Modifier.controlCenterGlass(shape: Shape = RoundedCornerShape(50)): Modifier
         label = "ccx"
     )
     this
-        .shadow(16.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.5f))
+        .shadow(14.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.5f))
         .clip(shape)
-        .background(
-            Brush.linearGradient(
-                listOf(
-                    Color.White.copy(alpha = if (dark) 0.16f else 0.32f),
-                    Color(0xFFD2E6FA).copy(alpha = if (dark) 0.05f else 0.10f)
-                )
-            )
-        )
+        .background(Color.White.copy(alpha = if (dark) 0.12f else 0.24f))
         .drawWithContent {
             drawContent()
-            specular(if (dark) 0.6f else 0.95f)
-            sheen(prog, if (dark) 0.10f else 0.18f)
+            // delikatny przesuwający się połysk — bez twardej, tłoczonej obwódki
+            sheen(prog, if (dark) 0.08f else 0.13f)
         }
-        .border(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = 0.6f), Color.White.copy(alpha = 0.12f))), shape)
+        .border(1.dp, if (dark) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.20f), shape)
 }

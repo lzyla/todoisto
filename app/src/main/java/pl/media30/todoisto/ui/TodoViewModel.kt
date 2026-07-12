@@ -61,6 +61,13 @@ data class AiAskState(
     val needsKey: Boolean = false
 )
 
+/** Realny koszt z OpenAI Costs API (klucz Admin). */
+data class AiCostState(
+    val loading: Boolean = false,
+    val amountUsd: Double? = null,
+    val error: String? = null
+)
+
 enum class SortMode(val label: String) {
     SMART("Sprytne"),
     PRIORITY("Priorytet"),
@@ -176,6 +183,32 @@ class TodoViewModel(
     val aiPromptTokens: StateFlow<Long> = settings.aiPromptTokens
     val aiCompletionTokens: StateFlow<Long> = settings.aiCompletionTokens
     fun resetAiUsage() = settings.resetAiUsage()
+
+    // --- Realny koszt z OpenAI (klucz Admin) ---
+    val openAiAdminKey: StateFlow<String> = settings.openAiAdminKey
+    fun setOpenAiAdminKey(value: String) {
+        settings.setOpenAiAdminKey(value)
+        if (value.isBlank()) _aiCost.value = null else refreshAiCost()
+    }
+
+    private val _aiCost = MutableStateFlow<AiCostState?>(null)
+    val aiCost: StateFlow<AiCostState?> = _aiCost.asStateFlow()
+
+    /** Pobiera realny koszt tego miesiąca z Costs API (kubełki dzienne od 1. dnia). */
+    fun refreshAiCost() {
+        val adminKey = settings.openAiAdminKey.value
+        if (adminKey.isBlank()) { _aiCost.value = null; return }
+        val startOfMonth = LocalDate.now().withDayOfMonth(1)
+            .atStartOfDay(java.time.ZoneOffset.UTC).toEpochSecond()
+        _aiCost.value = AiCostState(loading = true)
+        viewModelScope.launch {
+            _aiCost.value = try {
+                AiCostState(loading = false, amountUsd = pl.media30.todoisto.data.AiClient.fetchCostsUsd(adminKey, startOfMonth))
+            } catch (e: Exception) {
+                AiCostState(loading = false, error = e.message ?: "Błąd połączenia")
+            }
+        }
+    }
 
     /** Tekstowy plan dnia — do wysłania/wklejenia np. do Claude (share sheet). */
     fun buildDayPlanText(): String {

@@ -52,6 +52,15 @@ class SettingsStore(context: Context) {
         _openAiKey.value = v
     }
 
+    // Klucz ADMIN (sk-admin-…) — do realnego kosztu z Costs API. Tylko lokalnie.
+    private val _openAiAdminKey = MutableStateFlow(prefs.getString(KEY_OPENAI_ADMIN, "").orEmpty())
+    val openAiAdminKey: StateFlow<String> = _openAiAdminKey.asStateFlow()
+    fun setOpenAiAdminKey(value: String) {
+        val v = value.trim()
+        prefs.edit().putString(KEY_OPENAI_ADMIN, v).apply()
+        _openAiAdminKey.value = v
+    }
+
     fun setGoals(daily: Int, weekly: Int) {
         prefs.edit().putInt(KEY_DAILY, daily).putInt(KEY_WEEKLY, weekly).apply()
         _dailyGoal.value = daily
@@ -137,5 +146,6 @@ class SettingsStore(context: Context) {
         const val KEY_SEEDED = "demo_seeded_v4"
         const val KEY_AREA = "active_area"
         const val KEY_OPENAI = "openai_key"
+        const val KEY_OPENAI_ADMIN = "openai_admin_key"
     }
 }

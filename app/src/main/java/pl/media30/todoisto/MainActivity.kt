@@ -108,6 +108,8 @@ fun TodoistoApp(
     val swipeRightCompletes by viewModel.swipeRightCompletes.collectAsState()
     val aiPromptTokens by viewModel.aiPromptTokens.collectAsState()
     val aiCompletionTokens by viewModel.aiCompletionTokens.collectAsState()
+    val adminKey by viewModel.openAiAdminKey.collectAsState()
+    val aiCost by viewModel.aiCost.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     var detailTaskId by remember { mutableStateOf<Long?>(null) }
@@ -210,6 +212,10 @@ fun TodoistoApp(
             aiPromptTokens = aiPromptTokens,
             aiCompletionTokens = aiCompletionTokens,
             onResetAiUsage = viewModel::resetAiUsage,
+            adminKeySet = adminKey.isNotBlank(),
+            aiCost = aiCost,
+            onSetAdminKey = viewModel::setOpenAiAdminKey,
+            onRefreshCost = viewModel::refreshAiCost,
             onBack = { showSettings = false },
             onToggleDark = { viewModel.setDarkTheme(!darkTheme) },
             onTogglePhoto = { viewModel.setPhotoBackground(!photoBg) },

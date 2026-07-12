@@ -67,4 +67,37 @@ object AiClient {
             completionTokens = usage?.optInt("completion_tokens", 0) ?: 0
         )
     }
+
+    /**
+     * Realny koszt z panelu OpenAI (Costs API) — wymaga klucza ADMIN (sk-admin-…),
+     * bo zwykły klucz nie ma dostępu do rozliczeń. Sumuje dzienne kubełki od
+     * [startTimeUnix] (sekundy) do teraz. Zwraca kwotę w USD.
+     */
+    suspend fun fetchCostsUsd(adminKey: String, startTimeUnix: Long): Double = withContext(Dispatchers.IO) {
+        require(adminKey.isNotBlank()) { "Brak klucza Admin" }
+        val url = URL("https://api.openai.com/v1/organization/costs?start_time=$startTimeUnix&bucket_width=1d&limit=31")
+        val conn = (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 20000
+            readTimeout = 40000
+            setRequestProperty("Authorization", "Bearer $adminKey")
+        }
+        val code = conn.responseCode
+        val text = (if (code in 200..299) conn.inputStream else conn.errorStream)
+            ?.bufferedReader()?.use { it.readText() }.orEmpty()
+        if (code !in 200..299) {
+            val msg = runCatching { JSONObject(text).getJSONObject("error").getString("message") }
+                .getOrDefault("Błąd $code — czy to klucz Admin?")
+            throw RuntimeException(msg)
+        }
+        val data = JSONObject(text).optJSONArray("data") ?: JSONArray()
+        var total = 0.0
+        for (i in 0 until data.length()) {
+            val results = data.getJSONObject(i).optJSONArray("results") ?: continue
+            for (j in 0 until results.length()) {
+                total += results.getJSONObject(j).optJSONObject("amount")?.optDouble("value", 0.0) ?: 0.0
+            }
+        }
+        total
+    }
 }

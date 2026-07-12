@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.CalendarViewWeek
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.DarkMode
@@ -93,6 +94,10 @@ fun SettingsScreen(
     aiPromptTokens: Long,
     aiCompletionTokens: Long,
     onResetAiUsage: () -> Unit,
+    adminKeySet: Boolean,
+    aiCost: pl.media30.todoisto.ui.AiCostState?,
+    onSetAdminKey: (String) -> Unit,
+    onRefreshCost: () -> Unit,
     onBack: () -> Unit,
     onToggleDark: () -> Unit,
     onTogglePhoto: () -> Unit,
@@ -109,6 +114,10 @@ fun SettingsScreen(
     var route by remember { mutableStateOf(0) } // 0 = główny, 1 = Ogólne
     var showKey by remember { mutableStateOf(false) }
     var showGoals by remember { mutableStateOf(false) }
+    var showAdminKey by remember { mutableStateOf(false) }
+
+    // Auto-odświeżenie realnego kosztu przy wejściu, gdy klucz Admin jest ustawiony.
+    androidx.compose.runtime.LaunchedEffect(adminKeySet) { if (adminKeySet && aiCost == null) onRefreshCost() }
 
     BackHandler { if (route != 0) route = 0 else onBack() }
 
@@ -124,6 +133,7 @@ fun SettingsScreen(
                 if (route == 0) MainSettings(
                     dark, photo, hasApiKey, dailyGoal, weeklyGoal,
                     aiPromptTokens, aiCompletionTokens, onResetAiUsage,
+                    adminKeySet, aiCost, onRefreshCost, onOpenAdminKey = { showAdminKey = true },
                     onOpenGeneral = { route = 1 },
                     onToggleDark, onTogglePhoto,
                     onOpenKey = { showKey = true }, onOpenGoals = { showGoals = true },
@@ -139,12 +149,14 @@ fun SettingsScreen(
 
     if (showKey) KeyDialog(hasApiKey, { showKey = false }) { k -> onSetApiKey(k); showKey = false }
     if (showGoals) GoalsEditDialog(dailyGoal, weeklyGoal, { showGoals = false }) { d, w -> onSetGoals(d, w); showGoals = false }
+    if (showAdminKey) AdminKeyDialog(adminKeySet, { showAdminKey = false }) { k -> onSetAdminKey(k); showAdminKey = false }
 }
 
 @Composable
 private fun MainSettings(
     dark: Boolean, photo: Boolean, hasApiKey: Boolean, dailyGoal: Int, weeklyGoal: Int,
     aiPromptTokens: Long, aiCompletionTokens: Long, onResetAiUsage: () -> Unit,
+    adminKeySet: Boolean, aiCost: pl.media30.todoisto.ui.AiCostState?, onRefreshCost: () -> Unit, onOpenAdminKey: () -> Unit,
     onOpenGeneral: () -> Unit,
     onToggleDark: () -> Unit, onTogglePhoto: () -> Unit,
     onOpenKey: () -> Unit, onOpenGoals: () -> Unit,
@@ -177,7 +189,7 @@ private fun MainSettings(
         modifier = Modifier.padding(start = 6.dp, top = 8.dp, end = 6.dp)
     )
     Spacer(Modifier.height(12.dp))
-    AiUsageCard(aiPromptTokens, aiCompletionTokens, onResetAiUsage)
+    AiUsageCard(aiPromptTokens, aiCompletionTokens, onResetAiUsage, adminKeySet, aiCost, onRefreshCost, onOpenAdminKey)
     Spacer(Modifier.height(22.dp))
 
     SettingsSection("Produktywność")
@@ -205,12 +217,36 @@ private fun MainSettings(
 }
 
 @Composable
-private fun AiUsageCard(promptTokens: Long, completionTokens: Long, onReset: () -> Unit) {
+private fun AiUsageCard(
+    promptTokens: Long, completionTokens: Long, onReset: () -> Unit,
+    adminKeySet: Boolean, aiCost: pl.media30.todoisto.ui.AiCostState?, onRefreshCost: () -> Unit, onOpenAdminKey: () -> Unit
+) {
     val total = promptTokens + completionTokens
     val costUsd = promptTokens / 1_000_000.0 * 0.15 + completionTokens / 1_000_000.0 * 0.60
     val costPln = costUsd * 4.0
     SettingsSection("Zużycie AI")
     SettingsCard {
+        // Realny koszt z OpenAI (Costs API) — jeśli podano klucz Admin.
+        val costSub = when {
+            !adminKeySet -> "Dodaj klucz Admin OpenAI, aby zobaczyć realny koszt"
+            aiCost?.loading == true -> "Pobieram z OpenAI…"
+            aiCost?.error != null -> aiCost.error
+            aiCost?.amountUsd != null -> "Ten miesiąc · odśwież dotknięciem"
+            else -> "Dotknij, aby pobrać"
+        }
+        val costVal: @Composable () -> Unit = {
+            when {
+                !adminKeySet -> Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = GlassTextSecondary.copy(alpha = 0.6f), modifier = Modifier.size(20.dp))
+                aiCost?.amountUsd != null -> Text("$" + "%.2f".format(aiCost.amountUsd), fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                else -> Text("—", fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextSecondary)
+            }
+        }
+        SettingRowScaffold(
+            Icons.Outlined.Paid, Color(0xFF34D399), "Realny koszt (OpenAI)", costSub,
+            trailing = costVal,
+            onClick = if (adminKeySet) onRefreshCost else onOpenAdminKey
+        )
+        RowDivider()
         SettingRowScaffold(
             Icons.Outlined.DataUsage, Color(0xFF6B8AFF), "Tokeny łącznie",
             "wejście ${fmt(promptTokens)} · wyjście ${fmt(completionTokens)}",
@@ -219,20 +255,52 @@ private fun AiUsageCard(promptTokens: Long, completionTokens: Long, onReset: () 
         )
         RowDivider()
         SettingRowScaffold(
-            Icons.Outlined.Paid, Color(0xFFF4B740), "Szacowany koszt",
-            "≈ %.2f zł · model gpt-4o-mini".format(costPln),
+            Icons.Outlined.Calculate, Color(0xFFF4B740), "Szacowany koszt (lokalnie)",
+            "≈ %.2f zł · z tokenów gpt-4o-mini".format(costPln),
             trailing = { Text("$" + "%.4f".format(costUsd), fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary) },
             onClick = null
         )
+        if (adminKeySet) {
+            RowDivider()
+            NavRow(Icons.Outlined.Key, Color(0xFFB99CFF), "Klucz Admin", "Ustawiony — dotknij, aby zmienić/usunąć", trailing = { StatusDot(true) }, onClick = onOpenAdminKey)
+        }
         if (total > 0L) {
             RowDivider()
-            NavRow(Icons.Outlined.RestartAlt, Color(0xFFFB7185), "Wyzeruj licznik", "Zeruje zużycie i koszt", trailing = {}, onClick = onReset)
+            NavRow(Icons.Outlined.RestartAlt, Color(0xFFFB7185), "Wyzeruj licznik tokenów", "Zeruje lokalny szacunek", trailing = {}, onClick = onReset)
         }
     }
     Text(
-        "Koszt liczony lokalnie z tokenów zwróconych przez OpenAI (ceny gpt-4o-mini: wejście 0,15 $ / wyjście 0,60 $ za mln). Orientacyjnie — wiążące jest rozliczenie na koncie OpenAI.",
+        "Realny koszt pochodzi z Costs API OpenAI (wymaga klucza Admin, trzymanego tylko na tym urządzeniu). Szacunek lokalny liczony z tokenów gpt-4o-mini — orientacyjnie.",
         fontSize = 11.5.sp, color = GlassTextSecondary.copy(alpha = 0.85f),
         modifier = Modifier.padding(start = 6.dp, top = 8.dp, end = 6.dp)
+    )
+}
+
+@Composable
+private fun AdminKeyDialog(hasKey: Boolean, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var key by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = { onSave(key) }, enabled = key.isNotBlank()) { Text("Zapisz") } },
+        dismissButton = {
+            Row {
+                if (hasKey) TextButton(onClick = { onSave("") }) { Text("Usuń") }
+                TextButton(onClick = onDismiss) { Text("Anuluj") }
+            }
+        },
+        title = { Text("Klucz Admin (koszty)") },
+        text = {
+            Column {
+                Text(
+                    (if (hasKey) "Klucz Admin jest ustawiony. Wklej nowy, aby zmienić.\n\n" else "") +
+                        "Utwórz na platform.openai.com → Settings → Organization → Admin keys. " +
+                        "Ma szersze uprawnienia niż zwykły klucz — zostaje tylko na tym urządzeniu.",
+                    fontSize = 12.5.sp
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(value = key, onValueChange = { key = it }, singleLine = true, placeholder = { Text("sk-admin-…") }, modifier = Modifier.fillMaxWidth())
+            }
+        }
     )
 }
 

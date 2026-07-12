@@ -200,6 +200,8 @@ class ScreenshotTest {
                     startViewToday = true, dateRecognition = true, weekStartMonday = true,
                     completionSound = false, swipeRightCompletes = true,
                     aiPromptTokens = 18420, aiCompletionTokens = 7360, onResetAiUsage = {},
+                    adminKeySet = true, aiCost = pl.media30.todoisto.ui.AiCostState(amountUsd = 0.42),
+                    onSetAdminKey = {}, onRefreshCost = {},
                     onBack = {}, onToggleDark = {}, onTogglePhoto = {},
                     onSetApiKey = {}, onSetGoals = { _, _ -> },
                     onSetStartView = {}, onSetDateRecognition = {}, onSetWeekStartMonday = {},

@@ -22,6 +22,14 @@ class SettingsStore(context: Context) {
     private val _photoBackground = MutableStateFlow(prefs.getBoolean(KEY_PHOTO_BG, false))
     val photoBackground: StateFlow<Boolean> = _photoBackground.asStateFlow()
 
+    // Aktywny obszar: -1 = „Wszystko".
+    private val _activeArea = MutableStateFlow(prefs.getLong(KEY_AREA, -1L))
+    val activeArea: StateFlow<Long> = _activeArea.asStateFlow()
+    fun setActiveArea(id: Long) {
+        prefs.edit().putLong(KEY_AREA, id).apply()
+        _activeArea.value = id
+    }
+
     fun setDarkTheme(value: Boolean) {
         prefs.edit().putBoolean(KEY_DARK, value).apply()
         _darkTheme.value = value
@@ -46,7 +54,9 @@ class SettingsStore(context: Context) {
         const val KEY_DAILY = "daily_goal"
         const val KEY_WEEKLY = "weekly_goal"
         const val KEY_PHOTO_BG = "photo_background"
-        // Wersjonowany klucz — bump wymusza jednorazowe ponowne zasianie u wszystkich.
-        const val KEY_SEEDED = "demo_seeded_v3"
+        // Wersjonowany klucz — bump wymusza jednorazowe ponowne zasianie u wszystkich
+        // (v4: po dodaniu Obszarów baza jest przebudowywana, więc dosiewamy z obszarami).
+        const val KEY_SEEDED = "demo_seeded_v4"
+        const val KEY_AREA = "active_area"
     }
 }

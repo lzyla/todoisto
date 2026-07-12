@@ -93,12 +93,16 @@ fun TodoistoApp(
     val photoBg by viewModel.photoBackground.collectAsState()
     val activities by viewModel.activities.collectAsState()
     val freeTime by viewModel.freeTime.collectAsState()
+    val areas by viewModel.areas.collectAsState()
+    val activeAreaId by viewModel.activeArea.collectAsState()
+    val todayOpen by viewModel.todayOpen.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     var detailTaskId by remember { mutableStateOf<Long?>(null) }
     var showPool by remember { mutableStateOf(false) }
     var showForm by remember { mutableStateOf(false) }
     var showImport by remember { mutableStateOf(false) }
+    var showEstimate by remember { mutableStateOf(false) }
     var editingActivity by remember { mutableStateOf<pl.media30.todoisto.data.Activity?>(null) }
 
     val importResult by viewModel.importResult.collectAsState()
@@ -149,6 +153,11 @@ fun TodoistoApp(
             context.startActivity(android.content.Intent.createChooser(send, "Wyślij plan dnia"))
         },
         onDeferToTomorrow = viewModel::deferToTomorrow,
+        areas = areas,
+        activeAreaId = activeAreaId,
+        onSelectArea = viewModel::setActiveArea,
+        onAddArea = viewModel::addArea,
+        onOpenEstimate = { showEstimate = true },
         weekTasks = allTasks
     )
 
@@ -200,6 +209,17 @@ fun TodoistoApp(
                 onDelete = editingActivity?.let { a -> { viewModel.deleteActivity(a.id); showForm = false } },
                 onClose = { showForm = false }
             )
+        }
+    }
+
+    if (showEstimate) {
+        ModalBottomSheet(
+            onDismissRequest = { showEstimate = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = GlassSurface,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
+        ) {
+            pl.media30.todoisto.ui.screens.EstimateBreakdownSheet(items = todayOpen, projects = projects)
         }
     }
 

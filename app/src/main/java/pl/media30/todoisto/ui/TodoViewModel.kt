@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -165,9 +166,38 @@ class TodoViewModel(
     val activities: StateFlow<List<pl.media30.todoisto.data.Activity>> =
         repository.allActivities.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val areas: StateFlow<List<pl.media30.todoisto.data.Area>> =
+        repository.allAreas.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Aktywny obszar (null = „Wszystko"). */
+    val activeArea: StateFlow<Long?> =
+        settings.activeArea.map { if (it < 0) null else it }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    fun setActiveArea(id: Long?) = settings.setActiveArea(id ?: -1L)
+    fun addArea(name: String, color: Long) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            repository.insertArea(pl.media30.todoisto.data.Area(name = name.trim(), colorArgb = color, position = areas.value.size))
+        }
+    }
+
     private val _freeTime = MutableStateFlow<FreeTimeState?>(null)
     val freeTime: StateFlow<FreeTimeState?> = _freeTime.asStateFlow()
     private val dismissedActivityIds = mutableSetOf<Long>()
+
+    /** Dzisiejsze otwarte zadania (bez rutyn) do rozbicia „Szacowanego czasu" — z filtrem obszaru. */
+    val todayOpen: StateFlow<List<Task>> =
+        combine(repository.allTasks, repository.allProjects, settings.activeArea) { tasks, projects, area ->
+            val today = LocalDate.now().toEpochDay()
+            val projArea = projects.associate { it.id to it.areaId }
+            val archived = projects.filter { it.isArchived }.map { it.id }.toSet()
+            tasks.filter { t ->
+                t.parentId == null && !t.isCompleted && t.dueDate != null && t.dueDate <= today &&
+                    !(t.projectId != null && archived.contains(t.projectId)) &&
+                    !(t.recurrence != null && t.dueTimeMinutes == null && t.priority.ordinal >= 2) &&
+                    (area < 0 || (t.projectId?.let { projArea[it] } ?: t.areaId) == area)
+            }.sortedWith(compareBy({ it.dueTimeMinutes ?: 9999 }, { it.priority.ordinal }))
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val sources = combine(
         repository.allTasks, repository.allSections, repository.allProjects, repository.allLabels
@@ -176,14 +206,19 @@ class TodoViewModel(
     private val prefsFlow = combine(_sort, settings.dailyGoal, settings.weeklyGoal) { s, d, w -> Prefs(s, d, w) }
 
     val uiState: StateFlow<TodoUiState> =
-        combine(sources, _view, prefsFlow) { src, view, prefs ->
-            buildState(src, view, prefs)
+        combine(sources, _view, prefsFlow, settings.activeArea) { src, view, prefs, area ->
+            buildState(src, view, prefs, area.takeIf { it >= 0 })
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodoUiState())
 
-    private fun buildState(src: Sources, view: AppView, prefs: Prefs): TodoUiState {
+    private fun buildState(src: Sources, view: AppView, prefs: Prefs, activeArea: Long?): TodoUiState {
         val today = LocalDate.now().toEpochDay()
         val archivedIds = src.projects.filter { it.isArchived }.map { it.id }.toSet()
-        val topLevel = src.tasks.filter { it.parentId == null }
+        val projAreaById = src.projects.associate { it.id to it.areaId }
+        val topLevelAll = src.tasks.filter { it.parentId == null }
+        // Filtr obszaru: zadanie z projektem dziedziczy obszar projektu; bez projektu ma własny areaId.
+        val topLevel = if (activeArea == null) topLevelAll else topLevelAll.filter { t ->
+            (t.projectId?.let { projAreaById[it] } ?: t.areaId) == activeArea
+        }
 
         val inArchived = { t: Task -> t.projectId != null && archivedIds.contains(t.projectId) }
 

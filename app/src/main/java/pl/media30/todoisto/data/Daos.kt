@@ -43,6 +43,24 @@ interface TaskDao {
 }
 
 @Dao
+interface AreaDao {
+    @Query("SELECT * FROM areas ORDER BY position ASC, id ASC")
+    fun getAll(): Flow<List<Area>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(area: Area): Long
+
+    @Update
+    suspend fun update(area: Area)
+
+    @Query("SELECT COUNT(*) FROM areas")
+    suspend fun count(): Int
+
+    @Query("DELETE FROM areas WHERE id = :id")
+    suspend fun deleteById(id: Long)
+}
+
+@Dao
 interface ProjectDao {
     @Query("SELECT * FROM projects ORDER BY position ASC, id ASC")
     fun getAll(): Flow<List<Project>>

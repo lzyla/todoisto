@@ -49,6 +49,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -189,6 +190,11 @@ fun TaskListScreen(
     onAddActivityQuick: () -> Unit = {},
     onSharePlan: () -> Unit = {},
     onDeferToTomorrow: (Task) -> Unit = {},
+    areas: List<pl.media30.todoisto.data.Area> = emptyList(),
+    activeAreaId: Long? = null,
+    onSelectArea: (Long?) -> Unit = {},
+    onAddArea: (String, Long) -> Unit = { _, _ -> },
+    onOpenEstimate: () -> Unit = {},
     routinesExpandedInitially: Boolean = false,
     weekTasks: List<Task> = emptyList()
 ) {
@@ -238,7 +244,8 @@ fun TaskListScreen(
                 isPhotoBackground = isPhotoBackground,
                 onTogglePhotoBackground = onTogglePhotoBackground,
                 activities = activities,
-                onAddActivity = { onAddActivityQuick(); scope.launch { drawerState.close() } }
+                onAddActivity = { onAddActivityQuick(); scope.launch { drawerState.close() } },
+                onOpenEstimate = { onOpenEstimate(); scope.launch { drawerState.close() } }
             )
         }
     ) {
@@ -253,17 +260,20 @@ fun TaskListScreen(
                         Icon(Icons.Filled.Menu, "Menu", tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
                     }
                     Spacer(Modifier.weight(1f))
-                    Row(
-                        Modifier
-                            .height(42.dp)
-                            .controlCenterGlass(RoundedCornerShape(21.dp))
-                            .bouncy(0.94f) { briefOpen = !briefOpen }
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(15.dp))
-                        Spacer(Modifier.width(7.dp))
-                        Text("Tydzień", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        AreaSwitcher(areas, activeAreaId, onSelectArea) { dialog = DialogKind.NewArea }
+                        Row(
+                            Modifier
+                                .height(42.dp)
+                                .controlCenterGlass(RoundedCornerShape(21.dp))
+                                .bouncy(0.94f) { briefOpen = !briefOpen }
+                                .padding(horizontal = 15.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(15.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Tydzień", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                        }
                     }
                     Spacer(Modifier.weight(1f))
                     CircleGlassButton(onFreeTime) {
@@ -420,6 +430,7 @@ fun TaskListScreen(
     }
 
     when (dialog) {
+        DialogKind.NewArea -> NameColorDialog("Nowy obszar", "Nazwa obszaru", true, { dialog = null }) { n, c -> onAddArea(n, c); dialog = null }
         DialogKind.NewProject -> NameColorDialog("Nowy projekt", "Nazwa projektu", true, { dialog = null }) { n, c -> onAddProject(n, c); dialog = null }
         DialogKind.NewLabel -> NameColorDialog("Nowa etykieta", "Nazwa etykiety", true, { dialog = null }) { n, c -> onAddLabel(n, c); dialog = null }
         DialogKind.NewSection -> NameColorDialog("Nowa sekcja", "Nazwa sekcji", false, { dialog = null }) { n, _ ->
@@ -431,9 +442,55 @@ fun TaskListScreen(
     }
 }
 
-private enum class DialogKind { NewProject, NewLabel, NewSection, Goals }
+private enum class DialogKind { NewArea, NewProject, NewLabel, NewSection, Goals }
 
 // ─── Elementy paska i docka ──────────────────────────────────────────────────
+
+@Composable
+private fun AreaSwitcher(
+    areas: List<pl.media30.todoisto.data.Area>,
+    activeAreaId: Long?,
+    onSelect: (Long?) -> Unit,
+    onAdd: () -> Unit
+) {
+    var open by remember { mutableStateOf(false) }
+    val active = areas.firstOrNull { it.id == activeAreaId }
+    val dotColor = active?.let { Color(it.colorArgb) } ?: GlassAccent
+    Box {
+        Row(
+            Modifier
+                .height(42.dp)
+                .controlCenterGlass(RoundedCornerShape(21.dp))
+                .bouncy(0.94f) { open = true }
+                .padding(start = 13.dp, end = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(Modifier.size(9.dp).clip(CircleShape).background(dotColor))
+            Spacer(Modifier.width(7.dp))
+            Text(active?.name ?: "Wszystko", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary, maxLines = 1, softWrap = false)
+            Icon(Icons.Filled.KeyboardArrowDown, null, tint = GlassTextSecondary, modifier = Modifier.size(15.dp).padding(start = 2.dp))
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text((if (activeAreaId == null) "✓  " else "     ") + "Wszystko") },
+                onClick = { open = false; onSelect(null) }
+            )
+            areas.forEach { a ->
+                DropdownMenuItem(
+                    leadingIcon = { Box(Modifier.size(10.dp).clip(CircleShape).background(Color(a.colorArgb))) },
+                    text = { Text((if (activeAreaId == a.id) "✓  " else "     ") + a.name) },
+                    onClick = { open = false; onSelect(a.id) }
+                )
+            }
+            HorizontalDivider()
+            DropdownMenuItem(
+                leadingIcon = { Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp)) },
+                text = { Text("Nowy obszar") },
+                onClick = { open = false; onAdd() }
+            )
+        }
+    }
+}
 
 @Composable
 private fun CircleGlassButton(onClick: () -> Unit, content: @Composable () -> Unit) {
@@ -1064,7 +1121,8 @@ private fun DrawerContent(
     isPhotoBackground: Boolean,
     onTogglePhotoBackground: () -> Unit,
     activities: List<pl.media30.todoisto.data.Activity>,
-    onAddActivity: () -> Unit
+    onAddActivity: () -> Unit,
+    onOpenEstimate: () -> Unit
 ) {
     ModalDrawerSheet(
         drawerContainerColor = GlassDrawerBg,
@@ -1091,8 +1149,8 @@ private fun DrawerContent(
             DrawerRow(Icons.Outlined.CheckCircle, "Ukończone", null, current == AppView.Completed) { onSelect(AppView.Completed) }
             DrawerRow(Icons.Outlined.Bolt, "Pula aktywności", null, false, onOpenActivityPool)
 
-            // Szacowanie: ile pracy zostało na dziś (suma czasów zadań)
-            EstimateCard(uiState.todayCount, uiState.estTodayMinutes)
+            // Szacowanie: ile pracy zostało na dziś (suma czasów zadań) — klik → rozbicie
+            EstimateCard(uiState.todayCount, uiState.estTodayMinutes, onOpenEstimate)
 
             // Ulubione
             val favs = projects.filter { it.isFavorite && !it.isArchived }.map { Triple(AppView.ProjectView(it.id) as AppView, "#${it.name}", Color(it.colorArgb)) } +
@@ -1233,18 +1291,12 @@ private fun DrawerContent(
     }
 }
 
-/** Szacowanie: ile zadań i ile czasu zostało dziś do zrobienia. */
+/** Szacowanie: ile zadań i ile czasu zostało dziś do zrobienia. Klik → rozbicie na zadania. */
 @Composable
-private fun EstimateCard(count: Int, minutes: Int) {
-    val timeLabel = when {
-        minutes <= 0 -> "—"
-        minutes < 60 -> "~${minutes} min"
-        minutes % 60 == 0 -> "~${minutes / 60}h"
-        else -> "~${minutes / 60}h ${minutes % 60}min"
-    }
+private fun EstimateCard(count: Int, minutes: Int, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp)
-            .clip(RoundedCornerShape(18.dp)).background(GlassTint).padding(horizontal = 14.dp, vertical = 12.dp),
+            .clip(RoundedCornerShape(18.dp)).background(GlassTint).bouncy(0.98f, onClick).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(Icons.Outlined.Schedule, null, tint = GlassAccent, modifier = Modifier.size(18.dp))
@@ -1253,8 +1305,65 @@ private fun EstimateCard(count: Int, minutes: Int) {
             Text("SZACOWANY CZAS NA DZIŚ", fontSize = 9.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.9.sp, color = GlassTextSecondary)
             Spacer(Modifier.height(3.dp))
             Text(
-                if (count == 0) "Nic nie zaplanowane" else "$count " + when { count == 1 -> "zadanie"; count in 2..4 -> "zadania"; else -> "zadań" } + " · $timeLabel",
+                if (count == 0) "Nic nie zaplanowane" else "$count " + when { count == 1 -> "zadanie"; count in 2..4 -> "zadania"; else -> "zadań" } + " · " + estTime(minutes),
                 fontSize = 14.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary
+            )
+        }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = GlassTextSecondary, modifier = Modifier.size(18.dp))
+    }
+}
+
+private fun estTime(minutes: Int): String = when {
+    minutes <= 0 -> "—"
+    minutes < 60 -> "~${minutes} min"
+    minutes % 60 == 0 -> "~${minutes / 60}h"
+    else -> "~${minutes / 60}h ${minutes % 60}min"
+}
+
+/** #4a — rozbicie „Szacowanego czasu na dziś" na poszczególne zadania z minutami. */
+@Composable
+fun EstimateBreakdownSheet(items: List<Task>, projects: List<Project>) {
+    val total = items.sumOf { it.durationMinutes ?: 20 }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 26.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.Schedule, null, tint = GlassAccent, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Szacowany czas na dziś", fontSize = 19.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary, modifier = Modifier.weight(1f))
+            Text(estTime(total), fontSize = 13.sp, fontWeight = FontWeight.W800, color = GlassAccent)
+        }
+        Spacer(Modifier.height(14.dp))
+        if (items.isEmpty()) {
+            Text("Nic nie zaplanowane na dziś.", fontSize = 13.sp, color = GlassTextSecondary)
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items.forEach { t ->
+                    val mins = t.durationMinutes ?: 20
+                    val est = t.durationMinutes == null
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(GlassTint).padding(horizontal = 14.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(Modifier.size(8.dp).clip(CircleShape).background(if (t.priority != Priority.P4) t.priority.color else GlassAccent))
+                        Spacer(Modifier.width(11.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(t.title, fontSize = 14.sp, fontWeight = FontWeight.W600, color = GlassTextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            projects.firstOrNull { it.id == t.projectId }?.let {
+                                Text("#${it.name}", fontSize = 11.sp, color = GlassTextSecondary)
+                            }
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            (if (est) "≈" else "") + "$mins min",
+                            fontSize = 12.5.sp, fontWeight = FontWeight.W800,
+                            color = if (est) GlassTextSecondary else GlassTextPrimary
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "≈ = brak ustawionego czasu, przyjęto 20 min.",
+                fontSize = 11.sp, color = GlassTextSecondary.copy(alpha = 0.8f)
             )
         }
     }

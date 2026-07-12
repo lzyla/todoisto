@@ -13,7 +13,7 @@ import pl.media30.todoisto.data.TodoDatabase
 class TodoApplication : Application() {
     private val db by lazy { TodoDatabase.getInstance(this) }
     val repository: TaskRepository by lazy {
-        TaskRepository(db.taskDao(), db.projectDao(), db.sectionDao(), db.labelDao(), db.activityDao())
+        TaskRepository(db.taskDao(), db.projectDao(), db.sectionDao(), db.labelDao(), db.activityDao(), db.areaDao())
     }
     val settings: SettingsStore by lazy { SettingsStore(this) }
 

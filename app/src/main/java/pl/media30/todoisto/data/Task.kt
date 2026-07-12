@@ -28,6 +28,8 @@ data class Task(
     val projectId: Long? = null,
     val sectionId: Long? = null,
     val parentId: Long? = null,
+    /** Obszar dla zadań bez projektu (Skrzynka); zadania z projektem dziedziczą obszar projektu. */
+    val areaId: Long? = null,
     val labelIds: List<Long> = emptyList(),
     /** Attachment URLs — image links render as thumbnails, the rest as link rows. */
     val attachments: List<String> = emptyList(),

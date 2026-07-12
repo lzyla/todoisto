@@ -31,18 +31,25 @@ object DemoSeeder {
 
     private suspend fun seed(db: TodoDatabase) {
         val td = db.taskDao(); val pd = db.projectDao(); val sd = db.sectionDao()
-        val ld = db.labelDao(); val ad = db.activityDao()
+        val ld = db.labelDao(); val ad = db.activityDao(); val ar = db.areaDao()
         val today = LocalDate.now().toEpochDay()
         val now = System.currentTimeMillis()
         var pos = 0
         fun p() = pos++
 
-        // ── Projekty ────────────────────────────────────────────────────────
-        val praca = pd.insert(Project(name = "Praca", colorArgb = 0xFF4D6BFF, position = 0, isFavorite = true, workEffortType = EffortType.MENTAL))
-        val dom = pd.insert(Project(name = "Dom", colorArgb = 0xFF2DD4BF, position = 1, workEffortType = EffortType.PHYSICAL))
-        val zdrowie = pd.insert(Project(name = "Zdrowie", colorArgb = 0xFFFB7185, position = 2, isFavorite = true, workEffortType = EffortType.PHYSICAL))
-        val nauka = pd.insert(Project(name = "Nauka", colorArgb = 0xFF9B6BFF, position = 3, workEffortType = EffortType.MENTAL))
-        pd.insert(Project(name = "Remont mieszkania", colorArgb = 0xFFEB8909, position = 4, isArchived = true))
+        // ── Obszary ─────────────────────────────────────────────────────────
+        val aOsobiste = ar.insert(Area(name = "Osobiste", colorArgb = 0xFF2DD4BF, position = 0))
+        val aVocative = ar.insert(Area(name = "Vocative", colorArgb = 0xFF4D6BFF, position = 1))
+        val aPraca = ar.insert(Area(name = "Praca", colorArgb = 0xFF9B6BFF, position = 2))
+        val aProjekty = ar.insert(Area(name = "Projekty", colorArgb = 0xFFEB8909, position = 3))
+
+        // ── Projekty (przypisane do obszarów) ───────────────────────────────
+        val praca = pd.insert(Project(name = "Praca", colorArgb = 0xFF4D6BFF, position = 0, isFavorite = true, workEffortType = EffortType.MENTAL, areaId = aPraca))
+        val dom = pd.insert(Project(name = "Dom", colorArgb = 0xFF2DD4BF, position = 1, workEffortType = EffortType.PHYSICAL, areaId = aOsobiste))
+        val zdrowie = pd.insert(Project(name = "Zdrowie", colorArgb = 0xFFFB7185, position = 2, isFavorite = true, workEffortType = EffortType.PHYSICAL, areaId = aOsobiste))
+        val nauka = pd.insert(Project(name = "Nauka", colorArgb = 0xFF9B6BFF, position = 3, workEffortType = EffortType.MENTAL, areaId = aProjekty))
+        val kampania = pd.insert(Project(name = "Kampania NGO", colorArgb = 0xFF34D399, position = 4, workEffortType = EffortType.MENTAL, areaId = aVocative))
+        pd.insert(Project(name = "Remont mieszkania", colorArgb = 0xFFEB8909, position = 5, isArchived = true, areaId = aOsobiste))
 
         // ── Sekcje (Praca) ──────────────────────────────────────────────────
         val secSprint = sd.insert(Section(projectId = praca, name = "Sprint bieżący", position = 0))
@@ -81,6 +88,13 @@ object DemoSeeder {
             durationMinutes = 75, recurrence = Recurrence.WEEKLY, projectId = zdrowie, position = p(), createdAt = now))
         td.insert(Task(title = "Kurs Kotlin — rozdział 5", priority = Priority.P3, dueDate = today, dueTimeMinutes = 20 * 60,
             durationMinutes = 40, projectId = nauka, position = p(), createdAt = now))
+        // Obszar Vocative
+        td.insert(Task(title = "Zredagować newsletter NGO", priority = Priority.P2, dueDate = today, dueTimeMinutes = 13 * 60,
+            durationMinutes = 45, projectId = kampania, position = p(), createdAt = now))
+        td.insert(Task(title = "Przygotować grafiki do posta", priority = Priority.P3, dueDate = today + 1,
+            durationMinutes = 30, projectId = kampania, position = p(), createdAt = now))
+        td.insert(Task(title = "Zaplanować kampanię w social media", priority = Priority.P2, dueDate = today + 2,
+            projectId = kampania, position = p(), createdAt = now))
 
         // ── Zaległe (dla „Asystenta tygodnia" i chipa „Zaległe") ────────────
         td.insert(Task(title = "Wysłać fakturę klientowi", priority = Priority.P1, dueDate = today - 2,
@@ -104,9 +118,9 @@ object DemoSeeder {
         td.insert(Task(title = "Przegląd kwartalny", priority = Priority.P2, dueDate = today + 6, dueTimeMinutes = 15 * 60, projectId = praca, position = p(), createdAt = now))
 
         // ── Skrzynka (bez projektu i terminu) ───────────────────────────────
-        td.insert(Task(title = "Pomysł: aplikacja do biegania", priority = Priority.P4, position = p(), createdAt = now))
-        td.insert(Task(title = "Sprawdzić ofertę nowego internetu", priority = Priority.P3, labelIds = listOf(lZakupy), position = p(), createdAt = now))
-        td.insert(Task(title = "Obejrzeć kurs o inwestowaniu", priority = Priority.P4, position = p(), createdAt = now))
+        td.insert(Task(title = "Pomysł: aplikacja do biegania", priority = Priority.P4, areaId = aProjekty, position = p(), createdAt = now))
+        td.insert(Task(title = "Sprawdzić ofertę nowego internetu", priority = Priority.P3, areaId = aOsobiste, labelIds = listOf(lZakupy), position = p(), createdAt = now))
+        td.insert(Task(title = "Obejrzeć kurs o inwestowaniu", priority = Priority.P4, areaId = aOsobiste, position = p(), createdAt = now))
 
         // ── Ukończone dziś (licznik dzienny) ────────────────────────────────
         listOf(

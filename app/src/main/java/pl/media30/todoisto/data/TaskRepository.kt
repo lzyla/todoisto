@@ -7,7 +7,8 @@ class TaskRepository(
     private val projectDao: ProjectDao,
     private val sectionDao: SectionDao,
     private val labelDao: LabelDao,
-    private val activityDao: ActivityDao
+    private val activityDao: ActivityDao,
+    private val areaDao: AreaDao
 ) {
 
     val allTasks: Flow<List<Task>> = taskDao.getAllTasks()
@@ -15,6 +16,12 @@ class TaskRepository(
     val allSections: Flow<List<Section>> = sectionDao.getAll()
     val allLabels: Flow<List<Label>> = labelDao.getAll()
     val allActivities: Flow<List<Activity>> = activityDao.getAll()
+    val allAreas: Flow<List<Area>> = areaDao.getAll()
+
+    // --- areas (obszary) ---
+    suspend fun insertArea(area: Area): Long = areaDao.insert(area)
+    suspend fun updateArea(area: Area) = areaDao.update(area)
+    suspend fun deleteArea(id: Long) = areaDao.deleteById(id)
 
     // --- tasks ---
     suspend fun getTaskById(id: Long): Task? = taskDao.getTaskById(id)

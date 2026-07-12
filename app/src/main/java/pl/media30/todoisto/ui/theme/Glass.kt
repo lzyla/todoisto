@@ -92,14 +92,14 @@ val GlassSurface: Color get() = if (d) Color(0xF23A1E84) else Color(0xF7FCFAFF)
 /** --inbg: tło pól tekstowych. */
 val GlassInputBg: Color get() = if (d) Color.White.copy(alpha = 0.10f) else Color(0x128B5CFF)
 
-/** dockBg / tafla Rutyn — przydymiona (bez realnego backdrop-blur kryjąca mocniej). */
-val GlassDockBg: Color get() = if (d) Color(0xF2453C63) else Color(0xF2E7E1F2)
+/** dockBg / tafla Rutyn — w pełni kryjąca (żeby treść listy nie prześwitywała). */
+val GlassDockBg: Color get() = if (d) Color(0xFF3B3357) else Color(0xFFF1ECFB)
 
 /** Tło szuflady. */
 val GlassDrawerBg: Color get() = if (d) Color(0xF02E204E) else Color(0xF5FCFAFF)
 
 /** Pigułka rutyny. */
-val GlassRoutinePill: Color get() = if (d) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.30f)
+val GlassRoutinePill: Color get() = if (d) Color.White.copy(alpha = 0.10f) else Color(0xFFFBF9FF)
 
 // Priorytety (PC z prototypu)
 val PrioColors = listOf(Color(0xFFD1453B), Color(0xFFEB8909), Color(0xFF246FE0), Color(0xFF9E9E9E))

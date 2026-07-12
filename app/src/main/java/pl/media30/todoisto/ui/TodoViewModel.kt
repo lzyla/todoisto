@@ -53,6 +53,14 @@ data class FreeTimeState(
     val noWindows: Boolean
 )
 
+/** Stan zapytania do AI (przycisk „Zapytaj AI"). */
+data class AiAskState(
+    val loading: Boolean = false,
+    val answer: String? = null,
+    val error: String? = null,
+    val needsKey: Boolean = false
+)
+
 enum class SortMode(val label: String) {
     SMART("Sprytne"),
     PRIORITY("Priorytet"),
@@ -122,6 +130,31 @@ class TodoViewModel(
 
     val photoBackground: StateFlow<Boolean> = settings.photoBackground
     fun setPhotoBackground(value: Boolean) = settings.setPhotoBackground(value)
+
+    // --- Integracja AI (OpenAI) ---
+    val openAiKey: StateFlow<String> = settings.openAiKey
+    fun setOpenAiKey(value: String) = settings.setOpenAiKey(value)
+
+    private val _aiAsk = MutableStateFlow<AiAskState?>(null)
+    val aiAsk: StateFlow<AiAskState?> = _aiAsk.asStateFlow()
+    fun dismissAi() { _aiAsk.value = null }
+
+    /** „Zapytaj AI" na żywo: woła OpenAI kluczem użytkownika i pokazuje odpowiedź w apce. */
+    fun askAi(prompt: String) {
+        val key = settings.openAiKey.value
+        if (key.isBlank()) {
+            _aiAsk.value = AiAskState(loading = false, needsKey = true)
+            return
+        }
+        _aiAsk.value = AiAskState(loading = true)
+        viewModelScope.launch {
+            _aiAsk.value = try {
+                AiAskState(loading = false, answer = pl.media30.todoisto.data.AiClient.ask(key, prompt))
+            } catch (e: Exception) {
+                AiAskState(loading = false, error = e.message ?: "Błąd połączenia")
+            }
+        }
+    }
 
     /** Tekstowy plan dnia — do wysłania/wklejenia np. do Claude (share sheet). */
     fun buildDayPlanText(): String {

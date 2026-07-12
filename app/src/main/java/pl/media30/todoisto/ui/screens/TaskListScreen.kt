@@ -195,6 +195,8 @@ fun TaskListScreen(
     onSelectArea: (Long?) -> Unit = {},
     onAddArea: (String, Long) -> Unit = { _, _ -> },
     onOpenEstimate: () -> Unit = {},
+    hasApiKey: Boolean = false,
+    onSetApiKey: (String) -> Unit = {},
     routinesExpandedInitially: Boolean = false,
     weekTasks: List<Task> = emptyList()
 ) {
@@ -245,7 +247,9 @@ fun TaskListScreen(
                 onTogglePhotoBackground = onTogglePhotoBackground,
                 activities = activities,
                 onAddActivity = { onAddActivityQuick(); scope.launch { drawerState.close() } },
-                onOpenEstimate = { onOpenEstimate(); scope.launch { drawerState.close() } }
+                onOpenEstimate = { onOpenEstimate(); scope.launch { drawerState.close() } },
+                hasApiKey = hasApiKey,
+                onOpenApiKey = { dialog = DialogKind.ApiKey }
             )
         }
     ) {
@@ -438,11 +442,44 @@ fun TaskListScreen(
             dialog = null
         }
         DialogKind.Goals -> GoalsDialog(uiState.goalDaily, uiState.goalWeekly, { dialog = null }) { d, w -> onSetGoals(d, w); dialog = null }
+        DialogKind.ApiKey -> ApiKeyDialog(hasApiKey, { dialog = null }) { k -> onSetApiKey(k); dialog = null }
         null -> {}
     }
 }
 
-private enum class DialogKind { NewArea, NewProject, NewLabel, NewSection, Goals }
+private enum class DialogKind { NewArea, NewProject, NewLabel, NewSection, Goals, ApiKey }
+
+@Composable
+private fun ApiKeyDialog(hasKey: Boolean, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var key by remember { mutableStateOf("") }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = { onSave(key) }, enabled = key.isNotBlank()) { Text("Zapisz") }
+        },
+        dismissButton = {
+            Row {
+                if (hasKey) androidx.compose.material3.TextButton(onClick = { onSave("") }) { Text("Usuń") }
+                androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Anuluj") }
+            }
+        },
+        title = { Text("Klucz AI (OpenAI)") },
+        text = {
+            Column {
+                Text(
+                    (if (hasKey) "Klucz jest ustawiony. Wklej nowy, aby zmienić.\n\n" else "") +
+                    "Klucz utworzysz na platform.openai.com → API keys. Zostaje tylko na tym urządzeniu.",
+                    fontSize = 12.5.sp
+                )
+                Spacer(Modifier.height(12.dp))
+                androidx.compose.material3.OutlinedTextField(
+                    value = key, onValueChange = { key = it }, singleLine = true,
+                    placeholder = { Text("sk-…") }, modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    )
+}
 
 // ─── Elementy paska i docka ──────────────────────────────────────────────────
 
@@ -1132,7 +1169,9 @@ private fun DrawerContent(
     onTogglePhotoBackground: () -> Unit,
     activities: List<pl.media30.todoisto.data.Activity>,
     onAddActivity: () -> Unit,
-    onOpenEstimate: () -> Unit
+    onOpenEstimate: () -> Unit,
+    hasApiKey: Boolean,
+    onOpenApiKey: () -> Unit
 ) {
     ModalDrawerSheet(
         drawerContainerColor = GlassDrawerBg,
@@ -1277,6 +1316,22 @@ private fun DrawerContent(
                 ) {
                     Box(Modifier.offset(x = knob2, y = 3.dp).size(18.dp).clip(CircleShape).background(Color.White))
                 }
+            }
+            Spacer(Modifier.height(10.dp))
+
+            // Klucz AI (OpenAI)
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(GlassTint)
+                    .bouncy(0.98f, onClick = onOpenApiKey).padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Klucz AI (OpenAI)", fontSize = 13.5.sp, fontWeight = FontWeight.W700, color = GlassTextPrimary)
+                    Text(if (hasApiKey) "Ustawiony — Zapytaj AI działa" else "Nie ustawiony", fontSize = 11.sp, color = GlassTextSecondary)
+                }
+                Box(Modifier.size(9.dp).clip(CircleShape).background(if (hasApiKey) Color(0xFF34D399) else GlassTextSecondary.copy(alpha = 0.4f)))
             }
             Spacer(Modifier.height(10.dp))
 

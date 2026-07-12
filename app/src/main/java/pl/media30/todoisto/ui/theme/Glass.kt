@@ -196,9 +196,16 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
         animationSpec = infiniteRepeatable(tween(22000, easing = LinearEasing), RepeatMode.Reverse),
         label = "bgT"
     )
+    // Wolny obrót fazy (0..1 → 2π) — orbitujące „bloby" koloru dają morfizm.
+    val ang = tr.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(34000, easing = LinearEasing), RepeatMode.Restart),
+        label = "bgAng"
+    )
     drawBehind {
         val p = t.value          // 0..1 tam i z powrotem
         val drift = (p - 0.5f)   // -0.5..0.5
+        val a = ang.value * 6.2832f
         val w = size.width; val h = size.height
         if (photo) {
             // niebo
@@ -220,25 +227,27 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
                 )
             )
         } else {
-            val meshA = if (dark) 0.55f else 0.58f
+            val meshA = if (dark) 0.5f else 0.55f
+            // Baza — pionowy gradient 4 barw
             drawRect(Brush.verticalGradient(pal.base))
-            // pozioma warstwa mesh — środek dryfuje w lewo/prawo (morfizm)
-            val cx = 0.5f + drift * 0.6f
-            drawRect(
-                Brush.horizontalGradient(
-                    0f to pal.meshL.copy(alpha = meshA),
-                    cx.coerceIn(0.15f, 0.85f) to Color.Transparent,
-                    1f to pal.meshR.copy(alpha = meshA)
+            // Wielokolorowe „bloby" orbitujące po lekkich elipsach (liquid mesh morph).
+            val big = maxOf(w, h)
+            fun blob(color: Color, phase: Float, cx: Float, cy: Float, rx: Float, ry: Float, alpha: Float) {
+                val x = (cx + rx * kotlin.math.cos(a + phase)) * w
+                val y = (cy + ry * kotlin.math.sin(a + phase)) * h
+                drawRect(
+                    Brush.radialGradient(
+                        colors = listOf(color.copy(alpha = alpha), Color.Transparent),
+                        center = Offset(x, y),
+                        radius = big * 0.72f
+                    )
                 )
-            )
-            // górna poświata — koniec wektora dryfuje (aurora oddycha)
-            drawRect(
-                Brush.linearGradient(
-                    colors = listOf(pal.meshTop.copy(alpha = meshA), Color.Transparent),
-                    start = Offset(0f, 0f),
-                    end = Offset(w * (0.5f + drift * 0.4f), h * (0.9f + drift * 0.3f))
-                )
-            )
+            }
+            blob(pal.meshL, 0f, 0.30f, 0.34f, 0.14f, 0.10f, meshA)
+            blob(pal.meshR, 2.1f, 0.72f, 0.56f, 0.14f, 0.12f, meshA)
+            blob(pal.meshTop, 4.2f, 0.52f, 0.20f, 0.12f, 0.09f, meshA * 0.95f)
+            // subtelny akcent, który „oddycha" z pingpongiem t
+            blob(GlassAccent, 1.0f, 0.5f, 0.8f, 0.10f, 0.08f, (if (dark) 0.16f else 0.12f) * (0.6f + 0.4f * p))
         }
     }
 }

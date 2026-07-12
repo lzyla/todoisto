@@ -96,6 +96,7 @@ fun TodoistoApp(
     val areas by viewModel.areas.collectAsState()
     val activeAreaId by viewModel.activeArea.collectAsState()
     val todayOpen by viewModel.todayOpen.collectAsState()
+    val openAiKey by viewModel.openAiKey.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     var detailTaskId by remember { mutableStateOf<Long?>(null) }
@@ -158,6 +159,8 @@ fun TodoistoApp(
         onSelectArea = viewModel::setActiveArea,
         onAddArea = viewModel::addArea,
         onOpenEstimate = { showEstimate = true },
+        hasApiKey = openAiKey.isNotBlank(),
+        onSetApiKey = viewModel::setOpenAiKey,
         weekTasks = allTasks
     )
 
@@ -254,7 +257,26 @@ fun TodoistoApp(
                     viewModel.deleteTask(detailTask)
                     detailTaskId = null
                 },
-                onClose = { detailTaskId = null }
+                onClose = { detailTaskId = null },
+                onAskAi = viewModel::askAi
+            )
+        }
+    }
+
+    // Odpowiedź AI (na żywo z OpenAI)
+    val aiAsk by viewModel.aiAsk.collectAsState()
+    aiAsk?.let { st ->
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.dismissAi() },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = GlassSurface,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
+        ) {
+            pl.media30.todoisto.ui.screens.AiAnswerSheet(
+                loading = st.loading,
+                answer = st.answer,
+                error = st.error,
+                needsKey = st.needsKey
             )
         }
     }

@@ -1,0 +1,66 @@
+package pl.media30.todoisto.ui.screens
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import pl.media30.todoisto.ui.theme.GlassAccent
+import pl.media30.todoisto.ui.theme.GlassTextPrimary
+import pl.media30.todoisto.ui.theme.GlassTextSecondary
+
+/** Arkusz z odpowiedzią „Zapytaj AI" (OpenAI). */
+@Composable
+fun AiAnswerSheet(loading: Boolean, answer: String?, error: String?, needsKey: Boolean) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Asystent AI", fontSize = 19.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+        }
+        Spacer(Modifier.height(16.dp))
+        when {
+            loading -> Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(color = GlassAccent, strokeWidth = 2.5.dp, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(12.dp))
+                Text("Myślę nad najlepszym sposobem…", fontSize = 13.5.sp, color = GlassTextSecondary)
+            }
+            needsKey -> Column {
+                Text("Brak klucza OpenAI", fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Otwórz menu (☰) → Klucz AI (OpenAI) i wklej swój klucz z platform.openai.com. " +
+                    "Klucz zostaje tylko na tym urządzeniu.",
+                    fontSize = 13.sp, lineHeight = 19.sp, color = GlassTextSecondary
+                )
+            }
+            error != null -> Column {
+                Text("Nie udało się zapytać AI", fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                Spacer(Modifier.height(6.dp))
+                Text(error, fontSize = 13.sp, lineHeight = 19.sp, color = GlassTextSecondary)
+            }
+            answer != null -> Box(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState())) {
+                Text(answer, fontSize = 13.5.sp, lineHeight = 20.sp, color = GlassTextPrimary)
+            }
+        }
+    }
+}

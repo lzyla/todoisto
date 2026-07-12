@@ -122,7 +122,8 @@ fun TaskDetailSheet(
     onAddSubtask: (String) -> Unit,
     onDuplicate: () -> Unit,
     onDelete: () -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onAskAi: (String) -> Unit = {}
 ) {
     var newSubtask by remember { mutableStateOf("") }
     var newLink by remember { mutableStateOf("") }
@@ -403,7 +404,7 @@ fun TaskDetailSheet(
 
         // Automatyzacja / „jak zrobić to szybciej"
         Spacer(Modifier.height(14.dp))
-        AutomationCard(task.title, task.notes)
+        AutomationCard(task.title, task.notes, onAskAi)
 
         // Stopka
         Spacer(Modifier.height(14.dp))
@@ -442,10 +443,9 @@ private fun HairLine() {
 /** #4b — samouczek „jak zrobić to szybciej / zautomatyzować" dla danego zadania. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AutomationCard(title: String, notes: String) {
+private fun AutomationCard(title: String, notes: String, onAskAi: (String) -> Unit) {
     val tip = remember(title, notes) { pl.media30.todoisto.data.AutomationAdvisor.advise(title, notes) }
     var expanded by remember { mutableStateOf(false) }
-    val context = LocalContext.current
     val chev by animateFloatAsState(if (expanded) 0f else -90f, label = "autoChev")
 
     Column(
@@ -496,23 +496,17 @@ private fun AutomationCard(title: String, notes: String) {
                 Spacer(Modifier.height(4.dp))
                 Row(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(GlassAccent)
-                        .bouncy(0.97f) {
-                            val send = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, tip.aiPrompt)
-                            }
-                            context.startActivity(Intent.createChooser(send, "Zapytaj AI"))
-                        }
+                        .bouncy(0.97f) { onAskAi(tip.aiPrompt) }
                         .padding(vertical = 12.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Zapytaj AI (gotowy prompt)", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W800)
+                    Text("Zapytaj AI (na żywo)", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W800)
                 }
                 Text(
-                    "Otworzy udostępnianie — wyślij prompt do Claude/ChatGPT po odpowiedź na żywo.",
+                    "Zapyta OpenAI Twoim kluczem i pokaże odpowiedź tutaj. Klucz ustawisz w menu.",
                     fontSize = 10.5.sp, color = GlassTextSecondary, modifier = Modifier.padding(top = 8.dp)
                 )
             }

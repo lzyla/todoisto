@@ -43,6 +43,15 @@ class SettingsStore(context: Context) {
     fun isDemoSeeded(): Boolean = prefs.getBoolean(KEY_SEEDED, false)
     fun markDemoSeeded() { prefs.edit().putBoolean(KEY_SEEDED, true).apply() }
 
+    // Klucz OpenAI — przechowywany lokalnie na urządzeniu (nigdy w repo).
+    private val _openAiKey = MutableStateFlow(prefs.getString(KEY_OPENAI, "").orEmpty())
+    val openAiKey: StateFlow<String> = _openAiKey.asStateFlow()
+    fun setOpenAiKey(value: String) {
+        val v = value.trim()
+        prefs.edit().putString(KEY_OPENAI, v).apply()
+        _openAiKey.value = v
+    }
+
     fun setGoals(daily: Int, weekly: Int) {
         prefs.edit().putInt(KEY_DAILY, daily).putInt(KEY_WEEKLY, weekly).apply()
         _dailyGoal.value = daily
@@ -58,5 +67,6 @@ class SettingsStore(context: Context) {
         // (v4: po dodaniu Obszarów baza jest przebudowywana, więc dosiewamy z obszarami).
         const val KEY_SEEDED = "demo_seeded_v4"
         const val KEY_AREA = "active_area"
+        const val KEY_OPENAI = "openai_key"
     }
 }

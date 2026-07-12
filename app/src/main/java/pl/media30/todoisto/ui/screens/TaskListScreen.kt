@@ -954,7 +954,7 @@ private fun ZenRowWithSubs(
                                         .bouncy(0.9f) { onOpenAutomation(task) }.padding(horizontal = 9.dp, vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(12.dp))
+                                    Icon(Icons.Outlined.AutoAwesome, null, tint = Color(0xFFF4B740), modifier = Modifier.size(12.dp))
                                     Spacer(Modifier.width(4.dp))
                                     Text("AI", fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = GlassAccent)
                                 }
@@ -1044,8 +1044,13 @@ private fun QuickAddMorph(
                 .padding(end = 14.dp, bottom = bottomPad)
                 .size(width, height)
                 .then(
-                    // Otwarty panel = liquid glass (rozmycie treści pod spodem); zamknięty = FAB akcentowy
-                    if (open) Modifier.glassBlur(RoundedCornerShape(29.dp))
+                    // Otwarty panel = czytelne frosted szkło (treść listy pod spodem NIE
+                    // prześwituje); zamknięty = FAB akcentowy.
+                    if (open) Modifier
+                        .shadow(22.dp, RoundedCornerShape(29.dp))
+                        .clip(RoundedCornerShape(29.dp))
+                        .background(GlassSurface)
+                        .border(1.dp, GlassRim.copy(alpha = 0.6f), RoundedCornerShape(29.dp))
                     else Modifier.clip(RoundedCornerShape(29.dp)).background(GlassAccent)
                 )
         ) {

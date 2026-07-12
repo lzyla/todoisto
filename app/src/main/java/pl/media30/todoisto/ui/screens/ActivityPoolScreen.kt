@@ -67,7 +67,8 @@ private fun metaLine(a: Activity): String {
 fun ActivityPoolSheet(
     activities: List<Activity>,
     onAdd: () -> Unit,
-    onEdit: (Activity) -> Unit
+    onEdit: (Activity) -> Unit,
+    onImport: () -> Unit = {}
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -83,7 +84,13 @@ fun ActivityPoolSheet(
                 Text("Dodaj", color = Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.W800)
             }
         }
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "Importuj z Google Sheets",
+            fontSize = 12.sp, fontWeight = FontWeight.W700, color = GlassAccent,
+            modifier = Modifier.clip(RoundedCornerShape(50)).bouncy(0.96f, onImport).padding(horizontal = 4.dp, vertical = 4.dp)
+        )
+        Spacer(Modifier.height(10.dp))
         if (activities.isEmpty()) {
             Text(
                 "Pula jest pusta. Dodaj coś, co MOŻESZ robić w wolnym oknie — appka sama zaproponuje kiedy.",

@@ -14,7 +14,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import pl.media30.todoisto.ui.TodoViewModel
 import pl.media30.todoisto.ui.screens.TaskDetailSheet
@@ -35,7 +39,9 @@ class MainActivity : ComponentActivity() {
         val app = application as TodoApplication
         setContent {
             val dark by app.settings.darkTheme.collectAsState()
+            val photoBg by app.settings.photoBackground.collectAsState()
             GlassTheme.dark = dark
+            GlassTheme.photo = photoBg
             GlassTheme.phase = pl.media30.todoisto.ui.theme.dayPhaseFromClock()
             TodoistoTheme {
                 GlassBackground {
@@ -84,13 +90,24 @@ fun TodoistoApp(
     val labels by viewModel.labels.collectAsState()
     val allTasks by viewModel.allTasks.collectAsState()
     val darkTheme by viewModel.darkTheme.collectAsState()
+    val photoBg by viewModel.photoBackground.collectAsState()
     val activities by viewModel.activities.collectAsState()
     val freeTime by viewModel.freeTime.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     var detailTaskId by remember { mutableStateOf<Long?>(null) }
     var showPool by remember { mutableStateOf(false) }
     var showForm by remember { mutableStateOf(false) }
+    var showImport by remember { mutableStateOf(false) }
     var editingActivity by remember { mutableStateOf<pl.media30.todoisto.data.Activity?>(null) }
+
+    val importResult by viewModel.importResult.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(importResult) {
+        importResult?.let {
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_LONG).show()
+            viewModel.clearImportResult()
+        }
+    }
 
     TaskListScreen(
         uiState = uiState,
@@ -119,6 +136,19 @@ fun TodoistoApp(
         onMoveOverdueToToday = viewModel::moveOverdueToToday,
         onOpenActivityPool = { showPool = true },
         onFreeTime = { viewModel.suggestFreeTime() },
+        isPhotoBackground = photoBg,
+        onTogglePhotoBackground = { viewModel.setPhotoBackground(!photoBg) },
+        activities = activities,
+        onAddActivityQuick = { showPool = true },
+        onSharePlan = {
+            val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(android.content.Intent.EXTRA_SUBJECT, "Plan dnia — Todoisto")
+                putExtra(android.content.Intent.EXTRA_TEXT, viewModel.buildDayPlanText())
+            }
+            context.startActivity(android.content.Intent.createChooser(send, "Wyślij plan dnia"))
+        },
+        onDeferToTomorrow = viewModel::deferToTomorrow,
         weekTasks = allTasks
     )
 
@@ -150,7 +180,8 @@ fun TodoistoApp(
             pl.media30.todoisto.ui.screens.ActivityPoolSheet(
                 activities = activities,
                 onAdd = { editingActivity = null; showForm = true },
-                onEdit = { editingActivity = it; showForm = true }
+                onEdit = { editingActivity = it; showForm = true },
+                onImport = { showImport = true }
             )
         }
     }
@@ -170,6 +201,13 @@ fun TodoistoApp(
                 onClose = { showForm = false }
             )
         }
+    }
+
+    if (showImport) {
+        ImportActivitiesDialog(
+            onDismiss = { showImport = false },
+            onImport = { url -> viewModel.importActivitiesFromCsv(url); showImport = false }
+        )
     }
 
     val detailTask = detailTaskId?.let { id -> allTasks.firstOrNull { it.id == id } }
@@ -200,4 +238,38 @@ fun TodoistoApp(
             )
         }
     }
+}
+
+/** Dialog importu aktywności z opublikowanego arkusza Google (link CSV). */
+@Composable
+private fun ImportActivitiesDialog(onDismiss: () -> Unit, onImport: (String) -> Unit) {
+    var url by remember { mutableStateOf("") }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = { onImport(url) }, enabled = url.isNotBlank()) {
+                androidx.compose.material3.Text("Importuj")
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { androidx.compose.material3.Text("Anuluj") }
+        },
+        title = { androidx.compose.material3.Text("Import z Google Sheets") },
+        text = {
+            androidx.compose.foundation.layout.Column {
+                androidx.compose.material3.Text(
+                    "Wklej link do arkusza opublikowanego jako CSV (Plik → Udostępnij → Opublikuj w internecie → CSV) lub zwykły link do arkusza.\n\nKolumny: nazwa, minuty, wysiłek (fizyczny/umysłowy/regeneracja), miejsce, energia.",
+                    fontSize = 12.5.sp
+                )
+                androidx.compose.foundation.layout.Spacer(Modifier.height(12.dp))
+                androidx.compose.material3.OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    singleLine = true,
+                    placeholder = { androidx.compose.material3.Text("https://docs.google.com/…") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    )
 }

@@ -65,7 +65,9 @@ import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Inbox
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -91,6 +93,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -180,6 +183,12 @@ fun TaskListScreen(
     onMoveOverdueToToday: () -> Unit = {},
     onOpenActivityPool: () -> Unit = {},
     onFreeTime: () -> Unit = {},
+    isPhotoBackground: Boolean = false,
+    onTogglePhotoBackground: () -> Unit = {},
+    activities: List<pl.media30.todoisto.data.Activity> = emptyList(),
+    onAddActivityQuick: () -> Unit = {},
+    onSharePlan: () -> Unit = {},
+    onDeferToTomorrow: (Task) -> Unit = {},
     routinesExpandedInitially: Boolean = false,
     weekTasks: List<Task> = emptyList()
 ) {
@@ -225,7 +234,11 @@ fun TaskListScreen(
                 onAddLabel = { dialog = DialogKind.NewLabel },
                 onGoals = { dialog = DialogKind.Goals },
                 onToggleDark = onToggleTheme,
-                onOpenActivityPool = { onOpenActivityPool(); scope.launch { drawerState.close() } }
+                onOpenActivityPool = { onOpenActivityPool(); scope.launch { drawerState.close() } },
+                isPhotoBackground = isPhotoBackground,
+                onTogglePhotoBackground = onTogglePhotoBackground,
+                activities = activities,
+                onAddActivity = { onAddActivityQuick(); scope.launch { drawerState.close() } }
             )
         }
     ) {
@@ -260,7 +273,7 @@ fun TaskListScreen(
 
                 // ── Treść bezpośrednio na gradiencie (bez matowej tafli) ─────
                 Box(Modifier.weight(1f)) {
-                    ZenContent(uiState, projects, labels, onToggle, onTaskClick)
+                    ZenContent(uiState, projects, labels, onToggle, onTaskClick, onDeferToTomorrow)
                     // ⋮ akcje widoku — dyskretna nakładka w prawym górnym rogu
                     Box(Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = 8.dp)) {
                         Box(
@@ -282,6 +295,7 @@ fun TaskListScreen(
                                 DropdownMenuItem({ Text(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") }, onClick = { menuOpen = false; onToggleLabelFavorite(label.id) })
                                 DropdownMenuItem({ Text("Usuń etykietę") }, onClick = { menuOpen = false; onDeleteLabel(label.id) })
                             }
+                            DropdownMenuItem({ Text("Wyślij plan dnia") }, onClick = { menuOpen = false; onSharePlan() })
                             DropdownMenuItem({ Text("Usuń ukończone") }, onClick = { menuOpen = false; onClearCompleted() })
                         }
                         DropdownMenu(expanded = sortMenuOpen, onDismissRequest = { sortMenuOpen = false }) {
@@ -453,7 +467,8 @@ private fun ZenContent(
     projects: List<Project>,
     labels: List<Label>,
     onToggle: (Task) -> Unit,
-    onTaskClick: (Task) -> Unit
+    onTaskClick: (Task) -> Unit,
+    onDefer: (Task) -> Unit
 ) {
     val today = LocalDate.now()
     val collapsed = remember { mutableStateMapOf<String, Boolean>() }
@@ -491,7 +506,7 @@ private fun ZenContent(
                         buckets.getValue(key).add(n)
                     }
                     buckets.filterValues { it.isNotEmpty() }.forEach { (name, secNodes) ->
-                        zenSection(name, secNodes, collapsed, uiState, projects, labels, onToggle, onTaskClick)
+                        zenSection(name, secNodes, collapsed, uiState, projects, labels, onToggle, onTaskClick, onDefer)
                     }
                 }
             }
@@ -525,7 +540,7 @@ private fun ZenContent(
                         } else {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 dayNodes.forEachIndexed { i, node ->
-                                    ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick)
+                                    ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer)
                                 }
                             }
                         }
@@ -563,12 +578,12 @@ private fun ZenContent(
                 } else {
                     uiState.groups.forEach { group ->
                         if (group.name != null) {
-                            zenSection(group.name, group.nodes, collapsed, uiState, projects, labels, onToggle, onTaskClick)
+                            zenSection(group.name, group.nodes, collapsed, uiState, projects, labels, onToggle, onTaskClick, onDefer)
                         } else {
                             item(key = "flat-${group.sectionId}") {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     group.nodes.forEach { node ->
-                                        ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick)
+                                        ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer)
                                     }
                                 }
                             }
@@ -588,7 +603,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.zenSection(
     projects: List<Project>,
     labels: List<Label>,
     onToggle: (Task) -> Unit,
-    onTaskClick: (Task) -> Unit
+    onTaskClick: (Task) -> Unit,
+    onDefer: (Task) -> Unit
 ) {
     item(key = "sec-$name") {
         val isCollapsed = collapsed[name] == true
@@ -618,7 +634,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.zenSection(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     nodes.forEachIndexed { i, node ->
-                        ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick)
+                        ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer)
                     }
                 }
             }
@@ -626,6 +642,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.zenSection(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ZenRowWithSubs(
     node: TaskNode,
@@ -633,7 +650,8 @@ private fun ZenRowWithSubs(
     projects: List<Project>,
     labels: List<Label>,
     onToggle: (Task) -> Unit,
-    onTaskClick: (Task) -> Unit
+    onTaskClick: (Task) -> Unit,
+    onDefer: (Task) -> Unit
 ) {
     val task = node.task
     val todayEpoch = LocalDate.now().toEpochDay()
@@ -663,11 +681,75 @@ private fun ZenRowWithSubs(
         subTotal = node.subtasks.size,
         linkDomains = task.attachments.map { it.removePrefix("https://").removePrefix("http://").substringBefore('/') }
     )
-    Column(Modifier.fillMaxWidth().taskTile { onTaskClick(task) }) {
-        TaskRowZen(task, meta, { onToggle(task) }, { onTaskClick(task) })
-        node.subtasks.forEach { sub ->
-            TaskRowZen(sub, "", { onToggle(sub) }, { onTaskClick(sub) }, compact = true)
+    // #4 — znacznik dla długiego zadania ze zbliżającym się deadline'em
+    val longTask = (task.durationMinutes ?: 0) >= 60
+    val dlSoon = task.deadline?.let { it - todayEpoch in 0..2 } == true
+    val deadlineWarn = longTask && dlSoon && !task.isCompleted
+
+    // #3 — swipe: w prawo = ukończ, w lewo = odłóż na jutro
+    val view = LocalView.current
+    val dismiss = androidx.compose.material3.rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            when (value) {
+                androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd -> {
+                    view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM); onToggle(task); true
+                }
+                androidx.compose.material3.SwipeToDismissBoxValue.EndToStart -> {
+                    view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK); onDefer(task); true
+                }
+                else -> false
+            }
+        },
+        positionalThreshold = { it * 0.5f }
+    )
+    androidx.compose.material3.SwipeToDismissBox(
+        state = dismiss,
+        modifier = Modifier.clip(RoundedCornerShape(20.dp)),
+        backgroundContent = { SwipeBg(dismiss.dismissDirection) }
+    ) {
+        Column(Modifier.fillMaxWidth().taskTile { onTaskClick(task) }) {
+            if (deadlineWarn) {
+                Row(
+                    Modifier.padding(start = 14.dp, top = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "⏳ Napięty deadline",
+                        fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = Color(0xFFB45309),
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0x33F59E0B)).padding(horizontal = 9.dp, vertical = 3.dp)
+                    )
+                }
+            }
+            TaskRowZen(task, meta, { onToggle(task) }, { onTaskClick(task) })
+            node.subtasks.forEach { sub ->
+                TaskRowZen(sub, "", { onToggle(sub) }, { onTaskClick(sub) }, compact = true)
+            }
         }
+    }
+}
+
+/** Tło ujawniane podczas swipe: zielony „ukończ" (→) / bursztynowy „jutro" (←). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeBg(dir: androidx.compose.material3.SwipeToDismissBoxValue) {
+    // W spoczynku NIE rysujemy nic (przezroczyste tło pod kafelkiem).
+    if (dir == androidx.compose.material3.SwipeToDismissBoxValue.Settled) {
+        Box(Modifier.fillMaxSize()); return
+    }
+    val toEnd = dir == androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd
+    val color = if (toEnd) Color(0xFF1F8A5B) else Color(0xFFEB8909)
+    Row(
+        Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).background(color)
+            .padding(horizontal = 22.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = if (toEnd) Arrangement.Start else Arrangement.End
+    ) {
+        Icon(
+            if (toEnd) Icons.Filled.Check else Icons.Outlined.DateRange,
+            null, tint = Color.White, modifier = Modifier.size(22.dp)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(if (toEnd) "Ukończ" else "Na jutro", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W800)
     }
 }
 
@@ -733,11 +815,6 @@ private fun QuickAddMorph(
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 15.dp, bottom = 12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 46.dp)) {
                         Text("Nowe zadanie", fontSize = 13.5.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "parser PL", fontSize = 10.5.sp, fontWeight = FontWeight.W700, color = GlassTextSecondary,
-                            modifier = Modifier.clip(RoundedCornerShape(50)).background(GlassTint).padding(horizontal = 8.dp, vertical = 2.dp)
-                        )
                     }
                     Spacer(Modifier.height(10.dp))
                     BasicTextField(
@@ -750,7 +827,6 @@ private fun QuickAddMorph(
                                 Modifier.fillMaxWidth()
                                     .clip(RoundedCornerShape(14.dp))
                                     .background(GlassInputBg)
-                                    .border(1.dp, GlassHair, RoundedCornerShape(14.dp))
                                     .padding(horizontal = 14.dp, vertical = 12.dp)
                             ) {
                                 if (text.isEmpty()) {
@@ -980,7 +1056,11 @@ private fun DrawerContent(
     onAddLabel: () -> Unit,
     onGoals: () -> Unit,
     onToggleDark: () -> Unit,
-    onOpenActivityPool: () -> Unit
+    onOpenActivityPool: () -> Unit,
+    isPhotoBackground: Boolean,
+    onTogglePhotoBackground: () -> Unit,
+    activities: List<pl.media30.todoisto.data.Activity>,
+    onAddActivity: () -> Unit
 ) {
     ModalDrawerSheet(
         drawerContainerColor = GlassDrawerBg,
@@ -1007,6 +1087,9 @@ private fun DrawerContent(
             DrawerRow(Icons.Outlined.CheckCircle, "Ukończone", null, current == AppView.Completed) { onSelect(AppView.Completed) }
             DrawerRow(Icons.Outlined.Bolt, "Pula aktywności", null, false, onOpenActivityPool)
 
+            // Szacowanie: ile pracy zostało na dziś (suma czasów zadań)
+            EstimateCard(uiState.todayCount, uiState.estTodayMinutes)
+
             // Ulubione
             val favs = projects.filter { it.isFavorite && !it.isArchived }.map { Triple(AppView.ProjectView(it.id) as AppView, "#${it.name}", Color(it.colorArgb)) } +
                 labels.filter { it.isFavorite }.map { Triple(AppView.LabelView(it.id) as AppView, "@${it.name}", Color(it.colorArgb)) }
@@ -1019,24 +1102,6 @@ private fun DrawerContent(
                 favs.forEach { (view, name, color) ->
                     DrawerDotRow(color, name, current == view) { onSelect(view) }
                 }
-            }
-
-            // Cele
-            Column(
-                Modifier.padding(horizontal = 8.dp).padding(top = 14.dp, bottom = 4.dp)
-                    .clip(RoundedCornerShape(20.dp)).background(GlassTint)
-                    .bouncy(0.98f, onClick = onGoals).padding(horizontal = 14.dp, vertical = 13.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(14.dp))
-                    Spacer(Modifier.width(7.dp))
-                    Text("CELE PRODUKTYWNOŚCI", fontSize = 11.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.69.sp, color = GlassTextSecondary, modifier = Modifier.weight(1f))
-                    Icon(Icons.Outlined.Edit, null, tint = GlassTextSecondary, modifier = Modifier.size(14.dp))
-                }
-                Spacer(Modifier.height(9.dp))
-                GoalBar("Dzisiaj", uiState.doneToday, uiState.goalDaily)
-                Spacer(Modifier.height(8.dp))
-                GoalBar("Tydzień", uiState.doneWeek, uiState.goalWeekly)
             }
 
             // Projekty
@@ -1059,6 +1124,35 @@ private fun DrawerContent(
             }
             FlowRowLabels(labels, current, onSelect)
 
+            // Aktywności (pula) — lista + dodawanie
+            Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 16.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Bolt, null, tint = GlassAccent, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(7.dp))
+                Text("AKTYWNOŚCI", fontSize = 10.5.sp, fontWeight = FontWeight.W800, letterSpacing = 1.26.sp, color = GlassTextSecondary, modifier = Modifier.weight(1f))
+                Box(Modifier.size(24.dp).clip(CircleShape).bouncy(0.85f, onClick = onAddActivity), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Add, "Dodaj aktywność", tint = GlassTextSecondary, modifier = Modifier.size(13.dp))
+                }
+            }
+            if (activities.isEmpty()) {
+                Text(
+                    "Brak aktywności — dodaj pierwszą plusem.",
+                    fontSize = 12.sp, color = GlassTextSecondary.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
+                )
+            } else {
+                activities.forEach { a ->
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                            .bouncy(0.98f, onClick = onAddActivity).padding(horizontal = 12.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(a.effortType.emoji, fontSize = 15.sp, modifier = Modifier.padding(end = 10.dp))
+                        Text(a.name, fontSize = 13.5.sp, fontWeight = FontWeight.W600, color = GlassTextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        Text("${a.durationMinutes}m", fontSize = 11.5.sp, fontWeight = FontWeight.W700, color = GlassTextSecondary)
+                    }
+                }
+            }
+
             // Archiwum
             val archived = projects.filter { it.isArchived }
             if (archived.isNotEmpty()) {
@@ -1073,6 +1167,46 @@ private fun DrawerContent(
             }
 
             Spacer(Modifier.weight(1f).height(16.dp))
+
+            // Cele produktywności — na samym dole
+            Column(
+                Modifier.padding(horizontal = 8.dp).padding(bottom = 12.dp)
+                    .clip(RoundedCornerShape(20.dp)).background(GlassTint)
+                    .bouncy(0.98f, onClick = onGoals).padding(horizontal = 14.dp, vertical = 13.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(7.dp))
+                    Text("CELE PRODUKTYWNOŚCI", fontSize = 11.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.69.sp, color = GlassTextSecondary, modifier = Modifier.weight(1f))
+                    Icon(Icons.Outlined.Edit, null, tint = GlassTextSecondary, modifier = Modifier.size(14.dp))
+                }
+                Spacer(Modifier.height(9.dp))
+                GoalBar("Dzisiaj", uiState.doneToday, uiState.goalDaily)
+                Spacer(Modifier.height(8.dp))
+                GoalBar("Tydzień", uiState.doneWeek, uiState.goalWeekly)
+            }
+
+            // Tło: gradient / foto
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(GlassTint)
+                    .bouncy(0.98f, onClick = onTogglePhotoBackground).padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Tło zdjęciowe", fontSize = 13.5.sp, fontWeight = FontWeight.W700, color = GlassTextPrimary)
+                    Text(if (isPhotoBackground) "Scena wg pory dnia" else "Gradient", fontSize = 11.sp, color = GlassTextSecondary)
+                }
+                val knob2 by animateDpAsState(if (isPhotoBackground) 19.dp else 3.dp, spring(dampingRatio = 0.6f), label = "knob2")
+                Box(
+                    Modifier.size(40.dp, 24.dp).clip(RoundedCornerShape(12.dp))
+                        .background(if (isPhotoBackground) GlassAccent else GlassTextSecondary.copy(alpha = 0.35f))
+                ) {
+                    Box(Modifier.offset(x = knob2, y = 3.dp).size(18.dp).clip(CircleShape).background(Color.White))
+                }
+            }
+            Spacer(Modifier.height(10.dp))
 
             // Tryb ciemny
             Row(
@@ -1091,6 +1225,33 @@ private fun DrawerContent(
                     Box(Modifier.offset(x = knob, y = 3.dp).size(18.dp).clip(CircleShape).background(Color.White))
                 }
             }
+        }
+    }
+}
+
+/** Szacowanie: ile zadań i ile czasu zostało dziś do zrobienia. */
+@Composable
+private fun EstimateCard(count: Int, minutes: Int) {
+    val timeLabel = when {
+        minutes <= 0 -> "—"
+        minutes < 60 -> "~${minutes} min"
+        minutes % 60 == 0 -> "~${minutes / 60}h"
+        else -> "~${minutes / 60}h ${minutes % 60}min"
+    }
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp)
+            .clip(RoundedCornerShape(18.dp)).background(GlassTint).padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Outlined.Schedule, null, tint = GlassAccent, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text("SZACOWANY CZAS NA DZIŚ", fontSize = 9.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.9.sp, color = GlassTextSecondary)
+            Spacer(Modifier.height(3.dp))
+            Text(
+                if (count == 0) "Nic nie zaplanowane" else "$count " + when { count == 1 -> "zadanie"; count in 2..4 -> "zadania"; else -> "zadań" } + " · $timeLabel",
+                fontSize = 14.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary
+            )
         }
     }
 }

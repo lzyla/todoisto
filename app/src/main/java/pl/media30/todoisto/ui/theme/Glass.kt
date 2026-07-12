@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -61,6 +62,8 @@ object GlassTheme {
     var dark by mutableStateOf(false)
     /** Ustawiane przy starcie z zegara; wpływa tylko na tło (nie na motyw tekstu). */
     var phase by mutableStateOf(DayPhase.NOON)
+    /** Tryb tła: false = gradient „mesh", true = malarska scena „foto" zależna od pory dnia. */
+    var photo by mutableStateOf(false)
 }
 private val d get() = GlassTheme.dark
 
@@ -110,60 +113,133 @@ private class BgPalette(
 )
 
 private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
-    // Rano — ciepły świt: brzoskwinia → róż → liliowy → błękit
+    // Rano — ciepły świt: brzoskwinia → róż → liliowy → błękit (jaśniej)
     DayPhase.MORNING -> if (d) BgPalette(
         listOf(Color(0xFF5A3E6E), Color(0xFF46305E), Color(0xFF3A2A55), Color(0xFF2A2148)),
         Color(0xFFCC7A5E), Color(0xFF5E6FB0), Color(0xFFCC6E86)
     ) else BgPalette(
-        listOf(Color(0xFFFFE6D2), Color(0xFFFFD3E0), Color(0xFFEAD9FF), Color(0xFFCFE4FF)),
-        Color(0xFFFFC79E), Color(0xFF9FC0FF), Color(0xFFFFB4C6)
+        listOf(Color(0xFFFFF0E4), Color(0xFFFFE2EC), Color(0xFFF2E6FF), Color(0xFFE1EFFF)),
+        Color(0xFFFFD5B6), Color(0xFFB7D2FF), Color(0xFFFFC9D6)
     )
-    // Południe — powietrzny dzień: błękit → cyjan → liliowy → mięta
+    // Południe — powietrzny dzień: błękit → cyjan → liliowy → mięta (jaśniej)
     DayPhase.NOON -> if (d) BgPalette(
         listOf(Color(0xFF33487E), Color(0xFF34406E), Color(0xFF2C3A66), Color(0xFF232E58)),
         Color(0xFF4E80C8), Color(0xFF7E6FC8), Color(0xFF4EA0C0)
     ) else BgPalette(
-        listOf(Color(0xFFD6ECFF), Color(0xFFDCE4FF), Color(0xFFE6DBFF), Color(0xFFD4F3FF)),
-        Color(0xFF8FC4FF), Color(0xFFC0A6FF), Color(0xFF9EE9FF)
+        listOf(Color(0xFFE7F4FF), Color(0xFFECF1FF), Color(0xFFF1EAFF), Color(0xFFE7FAFF)),
+        Color(0xFFAED6FF), Color(0xFFD2BEFF), Color(0xFFBEF1FF)
     )
-    // Wieczór — zmierzch: magenta → fiolet → indygo → róż
+    // Wieczór — zmierzch: magenta → fiolet → indygo → róż (jaśniej)
     DayPhase.EVENING -> if (d) BgPalette(
         listOf(Color(0xFF7A3FB0), Color(0xFF5B35C4), Color(0xFF44239E), Color(0xFF361C7E)),
         Color(0xFFB44DD8), Color(0xFF6A5CD8), Color(0xFFD86EB8)
     ) else BgPalette(
-        listOf(Color(0xFFF3D6FF), Color(0xFFE6D3FF), Color(0xFFD9D6FF), Color(0xFFEFD6F0)),
-        Color(0xFFE7A6F0), Color(0xFFA6A6F0), Color(0xFFF0A6D8)
+        listOf(Color(0xFFF8E6FF), Color(0xFFEEE1FF), Color(0xFFE6E3FF), Color(0xFFF7E6F6)),
+        Color(0xFFF0BEF6), Color(0xFFBEBEF6), Color(0xFFF6BEE4)
+    )
+}
+
+// Malarska scena „foto" — niebo + poświata słońca/księżyca + pas horyzontu.
+private class PhotoScene(
+    val sky: List<Color>,   // pionowe niebo (góra→dół)
+    val glow: Color,        // barwa poświaty słońca/księżyca
+    val glowAt: Offset,     // względne (0..1) położenie poświaty
+    val horizon: Color      // barwa pasa przy dole
+)
+
+private fun photoScene(): PhotoScene = when (GlassTheme.phase) {
+    DayPhase.MORNING -> if (d) PhotoScene(
+        listOf(Color(0xFF2A2148), Color(0xFF3A2A55), Color(0xFF5A3E6E), Color(0xFF7A4E5E)),
+        Color(0xFFE8A06E), Offset(0.22f, 0.72f), Color(0xFF8A5A64)
+    ) else PhotoScene(
+        listOf(Color(0xFFBFE0FF), Color(0xFFDCE6FF), Color(0xFFFFE0D8), Color(0xFFFFD1B0)),
+        Color(0xFFFFC98A), Offset(0.22f, 0.70f), Color(0xFFFFB98E)
+    )
+    DayPhase.NOON -> if (d) PhotoScene(
+        listOf(Color(0xFF20305E), Color(0xFF2C3A66), Color(0xFF34518A), Color(0xFF4E77B0)),
+        Color(0xFF9AC4F0), Offset(0.72f, 0.20f), Color(0xFF4E77A0)
+    ) else PhotoScene(
+        listOf(Color(0xFF8FC6FF), Color(0xFFB6DEFF), Color(0xFFDCEFFF), Color(0xFFEFF8FF)),
+        Color(0xFFFFFBE8), Offset(0.74f, 0.18f), Color(0xFFCDEBFF)
+    )
+    DayPhase.EVENING -> if (d) PhotoScene(
+        listOf(Color(0xFF251550), Color(0xFF3A1C7E), Color(0xFF5B2FA0), Color(0xFF8A3E80)),
+        Color(0xFFE86EA8), Offset(0.78f, 0.74f), Color(0xFF8A3E6E)
+    ) else PhotoScene(
+        listOf(Color(0xFFB9C4FF), Color(0xFFD6C4FF), Color(0xFFF0C4E8), Color(0xFFFFC9C0)),
+        Color(0xFFFFB06E), Offset(0.78f, 0.72f), Color(0xFFF0A0A6)
     )
 }
 
 /**
- * Pełnoekranowe tło: wielokolorowy gradient „mesh" zależny od pory dnia —
- * bez żadnych kształtów. Baza to pionowy gradient 4 barw, na to skrzyżowana
- * warstwa pozioma + górna poświata, co daje aurorę (lewa≠prawa≠góra) bez
- * widocznych brył. Kierunek lekko ukośny (165° jak w prototypie).
+ * Pełnoekranowe tło. Backdrop jest osobnym „rodzeństwem" [content], więc jego
+ * powolna animacja (morfizm) NIE rekomponuje treści aplikacji. Dwa tryby:
+ * gradient „mesh" (domyślny) lub malarska scena „foto" zależna od pory dnia.
  */
 @Composable
 fun GlassBackground(content: @Composable () -> Unit) {
+    Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().glassBackdrop())
+        content()
+    }
+}
+
+/** Animowany backdrop (drift w fazie rysowania — bez rekompozycji treści). */
+private fun Modifier.glassBackdrop(): Modifier = composed {
+    val dark = GlassTheme.dark
+    val photo = GlassTheme.photo
     val pal = bgPalette()
-    val meshA = if (d) 0.55f else 0.60f
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Brush.verticalGradient(pal.base))
-            .background(
-                Brush.horizontalGradient(
-                    listOf(pal.meshL.copy(alpha = meshA), Color.Transparent, pal.meshR.copy(alpha = meshA))
+    val scene = photoScene()
+    val tr = rememberInfiniteTransition(label = "bg")
+    val t = tr.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(22000, easing = LinearEasing), RepeatMode.Reverse),
+        label = "bgT"
+    )
+    drawBehind {
+        val p = t.value          // 0..1 tam i z powrotem
+        val drift = (p - 0.5f)   // -0.5..0.5
+        val w = size.width; val h = size.height
+        if (photo) {
+            // niebo
+            drawRect(Brush.verticalGradient(scene.sky))
+            // poświata słońca/księżyca — dryfuje delikatnie w poziomie
+            val gx = (scene.glowAt.x + drift * 0.10f) * w
+            val gy = scene.glowAt.y * h
+            val r = maxOf(w, h) * (0.55f + 0.05f * p)
+            drawRect(
+                Brush.radialGradient(
+                    colors = listOf(scene.glow.copy(alpha = if (dark) 0.55f else 0.85f), Color.Transparent),
+                    center = Offset(gx, gy), radius = r
                 )
             )
-            .background(
+            // pas horyzontu przy dole
+            drawRect(
+                Brush.verticalGradient(
+                    0.62f to Color.Transparent, 1f to scene.horizon.copy(alpha = if (dark) 0.5f else 0.6f)
+                )
+            )
+        } else {
+            val meshA = if (dark) 0.55f else 0.58f
+            drawRect(Brush.verticalGradient(pal.base))
+            // pozioma warstwa mesh — środek dryfuje w lewo/prawo (morfizm)
+            val cx = 0.5f + drift * 0.6f
+            drawRect(
+                Brush.horizontalGradient(
+                    0f to pal.meshL.copy(alpha = meshA),
+                    cx.coerceIn(0.15f, 0.85f) to Color.Transparent,
+                    1f to pal.meshR.copy(alpha = meshA)
+                )
+            )
+            // górna poświata — koniec wektora dryfuje (aurora oddycha)
+            drawRect(
                 Brush.linearGradient(
                     colors = listOf(pal.meshTop.copy(alpha = meshA), Color.Transparent),
                     start = Offset(0f, 0f),
-                    end = Offset(600f, 1400f)
+                    end = Offset(w * (0.5f + drift * 0.4f), h * (0.9f + drift * 0.3f))
                 )
             )
-    ) {
-        content()
+        }
     }
 }
 

@@ -138,6 +138,26 @@ class ScreenshotTest {
     }
 
     @Test
+    fun photoMorning() {
+        GlassTheme.dark = false
+        GlassTheme.photo = true
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.MORNING
+        paparazzi.snapshot { TodoistoTheme { GlassBackground { listScreen() } } }
+        GlassTheme.photo = false
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.NOON
+    }
+
+    @Test
+    fun photoEvening() {
+        GlassTheme.dark = false
+        GlassTheme.photo = true
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.EVENING
+        paparazzi.snapshot { TodoistoTheme { GlassBackground { listScreen() } } }
+        GlassTheme.photo = false
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.NOON
+    }
+
+    @Test
     fun taskListRoutinesOpen() {
         GlassTheme.dark = false
         paparazzi.snapshot { TodoistoTheme { GlassBackground { listScreen(routinesExpanded = true) } } }

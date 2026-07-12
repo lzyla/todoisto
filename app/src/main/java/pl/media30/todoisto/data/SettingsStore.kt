@@ -19,9 +19,17 @@ class SettingsStore(context: Context) {
     private val _weeklyGoal = MutableStateFlow(prefs.getInt(KEY_WEEKLY, 25))
     val weeklyGoal: StateFlow<Int> = _weeklyGoal.asStateFlow()
 
+    private val _photoBackground = MutableStateFlow(prefs.getBoolean(KEY_PHOTO_BG, false))
+    val photoBackground: StateFlow<Boolean> = _photoBackground.asStateFlow()
+
     fun setDarkTheme(value: Boolean) {
         prefs.edit().putBoolean(KEY_DARK, value).apply()
         _darkTheme.value = value
+    }
+
+    fun setPhotoBackground(value: Boolean) {
+        prefs.edit().putBoolean(KEY_PHOTO_BG, value).apply()
+        _photoBackground.value = value
     }
 
     fun setGoals(daily: Int, weekly: Int) {
@@ -34,5 +42,6 @@ class SettingsStore(context: Context) {
         const val KEY_DARK = "dark_theme"
         const val KEY_DAILY = "daily_goal"
         const val KEY_WEEKLY = "weekly_goal"
+        const val KEY_PHOTO_BG = "photo_background"
     }
 }

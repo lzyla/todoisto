@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import pl.media30.todoisto.data.Label
 import pl.media30.todoisto.data.Priority
 import pl.media30.todoisto.data.Project
@@ -89,7 +90,9 @@ data class TodoUiState(
     /** Habit-style tasks for the Today routines bar (recurring, P3/P4, no fixed time). */
     val routines: List<Task> = emptyList(),
     /** Routines already completed today (their due date has advanced). */
-    val routinesDone: Int = 0
+    val routinesDone: Int = 0,
+    /** Szacowany czas potrzebny na dokończenie dzisiejszych zadań (suma durationMinutes; brak = 20 min). */
+    val estTodayMinutes: Int = 0
 )
 
 private data class Sources(
@@ -115,6 +118,38 @@ class TodoViewModel(
 
     val darkTheme: StateFlow<Boolean> = settings.darkTheme
     fun setDarkTheme(value: Boolean) = settings.setDarkTheme(value)
+
+    val photoBackground: StateFlow<Boolean> = settings.photoBackground
+    fun setPhotoBackground(value: Boolean) = settings.setPhotoBackground(value)
+
+    /** Tekstowy plan dnia — do wysłania/wklejenia np. do Claude (share sheet). */
+    fun buildDayPlanText(): String {
+        val today = LocalDate.now()
+        val todayEpoch = today.toEpochDay()
+        val open = allTasks.value.filter {
+            it.parentId == null && !it.isCompleted && it.dueDate != null && it.dueDate!! <= todayEpoch
+        }.sortedWith(compareBy({ it.dueTimeMinutes ?: 9999 }, { it.priority.ordinal }))
+        val projById = projects.value.associateBy { it.id }
+        val fmt = java.time.format.DateTimeFormatter.ofPattern("EEEE, d MMMM", java.util.Locale.forLanguageTag("pl"))
+        val sb = StringBuilder()
+        sb.append("Plan dnia — ${today.format(fmt)}\n\n")
+        if (open.isEmpty()) {
+            sb.append("Brak zaplanowanych zadań na dziś.\n")
+        } else {
+            open.forEach { t ->
+                val time = t.dueTimeMinutes?.let { "%d:%02d ".format(it / 60, it % 60) } ?: ""
+                val dur = t.durationMinutes?.let { " (${it} min)" } ?: ""
+                val proj = t.projectId?.let { projById[it]?.name }?.let { " #$it" } ?: ""
+                val prio = if (t.priority.ordinal < 3) " P${t.priority.ordinal + 1}" else ""
+                val overdue = if (t.dueDate!! < todayEpoch) " [zaległe]" else ""
+                sb.append("• ${time}${t.title}${dur}${proj}${prio}${overdue}\n")
+            }
+        }
+        val est = uiState.value.estTodayMinutes
+        if (est > 0) sb.append("\nSzacowany czas: ${est / 60}h ${est % 60}min\n")
+        sb.append("\n— wygenerowano w Todoisto")
+        return sb.toString()
+    }
     fun setGoals(daily: Int, weekly: Int) = settings.setGoals(daily, weekly)
     fun setSort(mode: SortMode) { _sort.value = mode }
 
@@ -238,7 +273,10 @@ class TodoViewModel(
             currentProject = (view as? AppView.ProjectView)?.let { v -> src.projects.firstOrNull { it.id == v.id } },
             currentLabel = (view as? AppView.LabelView)?.let { v -> src.labels.firstOrNull { it.id == v.id } },
             routines = routines,
-            routinesDone = routinesDone
+            routinesDone = routinesDone,
+            estTodayMinutes = topLevel
+                .filter { !it.isCompleted && it.dueDate != null && it.dueDate <= today && !inArchived(it) && !isRoutine(it) }
+                .sumOf { it.durationMinutes ?: 20 }
         )
     }
 
@@ -302,6 +340,12 @@ class TodoViewModel(
 
     fun toggleCompleted(task: Task) = viewModelScope.launch { repository.toggleCompleted(task) }
 
+    /** Swipe w lewo: odłóż zadanie na jutro (zachowuje godzinę). */
+    fun deferToTomorrow(task: Task) = viewModelScope.launch {
+        val base = maxOf(task.dueDate ?: LocalDate.now().toEpochDay(), LocalDate.now().toEpochDay())
+        repository.update(task.copy(dueDate = base + 1))
+    }
+
     /** Akcja Asystenta tygodnia: przenosi wszystkie zaległe zadania na dziś. */
     fun moveOverdueToToday() = viewModelScope.launch {
         val today = LocalDate.now().toEpochDay()
@@ -356,6 +400,30 @@ class TodoViewModel(
     // --- Pula aktywności ---
     fun addActivity(activity: pl.media30.todoisto.data.Activity) =
         viewModelScope.launch { if (activity.name.isNotBlank()) repository.insertActivity(activity) }
+
+    private val _importResult = MutableStateFlow<String?>(null)
+    val importResult: StateFlow<String?> = _importResult.asStateFlow()
+    fun clearImportResult() { _importResult.value = null }
+
+    /** #10 — import aktywności z opublikowanego arkusza Google (link CSV). */
+    fun importActivitiesFromCsv(url: String) = viewModelScope.launch {
+        if (url.isBlank()) return@launch
+        val result = withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val target = pl.media30.todoisto.data.ActivityCsvParser.normalizeSheetUrl(url)
+                val conn = (java.net.URL(target).openConnection() as java.net.HttpURLConnection).apply {
+                    connectTimeout = 12000; readTimeout = 12000; instanceFollowRedirects = true
+                }
+                val text = conn.inputStream.bufferedReader().use { it.readText() }
+                val acts = pl.media30.todoisto.data.ActivityCsvParser.parse(text)
+                acts.forEach { repository.insertActivity(it) }
+                if (acts.isEmpty()) "Nie znaleziono aktywności w arkuszu" else "Zaimportowano ${acts.size} aktywności"
+            } catch (e: Exception) {
+                "Błąd importu: ${e.message ?: "sprawdź link i połączenie"}"
+            }
+        }
+        _importResult.value = result
+    }
 
     fun updateActivity(activity: pl.media30.todoisto.data.Activity) =
         viewModelScope.launch { repository.updateActivity(activity) }

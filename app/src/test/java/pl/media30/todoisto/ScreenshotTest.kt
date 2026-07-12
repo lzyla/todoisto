@@ -205,6 +205,30 @@ class ScreenshotTest {
         }
     }
 
+    @Test
+    fun taskDetailAiExpanded() {
+        GlassTheme.dark = false
+        paparazzi.snapshot {
+            TodoistoTheme {
+                GlassBackground {
+                    androidx.compose.foundation.layout.Box(
+                        modifier = androidx.compose.ui.Modifier
+                            .fillMaxWidth()
+                            .background(GlassSurface, androidx.compose.foundation.shape.RoundedCornerShape(34.dp))
+                            .padding(top = 14.dp)
+                    ) {
+                        TaskDetailSheet(
+                            task = Task(id = 1, title = "Przygotować raport miesięczny", priority = Priority.P1, dueDate = today, projectId = 1),
+                            projects = projects, labels = labels, subtasks = emptyList(),
+                            onPatch = {}, onToggleSubtask = {}, onAddSubtask = {}, onDuplicate = {}, onDelete = {}, onClose = {},
+                            onAskAi = {}, aiExpanded = true
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     private val poolActivities = listOf(
         Activity(1, "Spacer w parku", EffortType.PHYSICAL, durationMinutes = 30, place = Place.OUTSIDE, energyCost = EnergyCost.LOW, frequencyTarget = 4),
         Activity(2, "Czytanie książki", EffortType.RELAX, durationMinutes = 45, place = Place.HOME, energyCost = EnergyCost.LOW),

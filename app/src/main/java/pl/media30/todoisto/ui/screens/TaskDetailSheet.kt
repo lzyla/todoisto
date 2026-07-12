@@ -126,7 +126,8 @@ fun TaskDetailSheet(
     onDuplicate: () -> Unit,
     onDelete: () -> Unit,
     onClose: () -> Unit,
-    onAskAi: (String) -> Unit = {}
+    onAskAi: (String) -> Unit = {},
+    aiExpanded: Boolean = false
 ) {
     var newSubtask by remember { mutableStateOf("") }
     var newLink by remember { mutableStateOf("") }
@@ -145,7 +146,7 @@ fun TaskDetailSheet(
     ) {
         // Chmurka AI — dymek asystenta na samej górze (z zapasem miejsca)
         Spacer(Modifier.height(6.dp))
-        AutomationCard(task.title, task.notes, onAskAi)
+        AutomationCard(task.title, task.notes, onAskAi, aiExpanded)
         Spacer(Modifier.height(22.dp))
 
         // Nagłówek
@@ -475,9 +476,9 @@ private fun HairLine() {
 /** #4b — mała chmurka „AI" u góry ustawień; po kliknięciu rozwija samouczek automatyzacji. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AutomationCard(title: String, notes: String, onAskAi: (String) -> Unit) {
+private fun AutomationCard(title: String, notes: String, onAskAi: (String) -> Unit, initiallyExpanded: Boolean = false) {
     val tip = remember(title, notes) { pl.media30.todoisto.data.AutomationAdvisor.advise(title, notes) }
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember(title, initiallyExpanded) { mutableStateOf(initiallyExpanded) }
 
     // Dymek jak w Messengerze: awatar + chmurka „glass" z ogonkiem przy awatarze.
     val bubbleShape = RoundedCornerShape(topStart = 6.dp, topEnd = 22.dp, bottomEnd = 22.dp, bottomStart = 22.dp)

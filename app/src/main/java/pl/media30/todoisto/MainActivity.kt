@@ -107,6 +107,7 @@ fun TodoistoApp(
     var showForm by remember { mutableStateOf(false) }
     var showImport by remember { mutableStateOf(false) }
     var showEstimate by remember { mutableStateOf(false) }
+    var detailAiExpanded by remember { mutableStateOf(false) }
     var editingActivity by remember { mutableStateOf<pl.media30.todoisto.data.Activity?>(null) }
 
     val importResult by viewModel.importResult.collectAsState()
@@ -126,7 +127,7 @@ fun TodoistoApp(
         onPrefillConsumed = onPrefillConsumed,
         onSelectView = viewModel::setView,
         onToggle = viewModel::toggleCompleted,
-        onTaskClick = { detailTaskId = it.id },
+        onTaskClick = { detailTaskId = it.id; detailAiExpanded = false },
         onQuickAdd = viewModel::quickAdd,
         onAddProject = viewModel::addProject,
         onDeleteProject = viewModel::deleteProject,
@@ -157,6 +158,7 @@ fun TodoistoApp(
             context.startActivity(android.content.Intent.createChooser(send, "Wyślij plan dnia"))
         },
         onDeferToTomorrow = viewModel::deferToTomorrow,
+        onOpenAutomation = { detailTaskId = it.id; detailAiExpanded = true },
         areas = areas,
         activeAreaId = activeAreaId,
         onSelectArea = viewModel::setActiveArea,
@@ -261,7 +263,8 @@ fun TodoistoApp(
                     detailTaskId = null
                 },
                 onClose = { detailTaskId = null },
-                onAskAi = viewModel::askAi
+                onAskAi = viewModel::askAi,
+                aiExpanded = detailAiExpanded
             )
         }
     }

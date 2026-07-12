@@ -191,6 +191,7 @@ fun TaskListScreen(
     onAddActivityQuick: () -> Unit = {},
     onSharePlan: () -> Unit = {},
     onDeferToTomorrow: (Task) -> Unit = {},
+    onOpenAutomation: (Task) -> Unit = {},
     areas: List<pl.media30.todoisto.data.Area> = emptyList(),
     activeAreaId: Long? = null,
     onSelectArea: (Long?) -> Unit = {},
@@ -288,7 +289,7 @@ fun TaskListScreen(
 
                 // ── Treść bezpośrednio na gradiencie (bez matowej tafli) ─────
                 Box(Modifier.weight(1f)) {
-                    ZenContent(uiState, projects, labels, onToggle, onTaskClick, onDeferToTomorrow)
+                    ZenContent(uiState, projects, labels, onToggle, onTaskClick, onDeferToTomorrow, onOpenAutomation)
                     // ⋮ akcje widoku — dyskretna nakładka w prawym górnym rogu
                     Box(Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = 8.dp)) {
                         Box(
@@ -607,7 +608,8 @@ private fun ZenContent(
     labels: List<Label>,
     onToggle: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
-    onDefer: (Task) -> Unit
+    onDefer: (Task) -> Unit,
+    onOpenAutomation: (Task) -> Unit
 ) {
     val today = LocalDate.now()
     val collapsed = remember { mutableStateMapOf<String, Boolean>() }
@@ -645,7 +647,7 @@ private fun ZenContent(
                         buckets.getValue(key).add(n)
                     }
                     buckets.filterValues { it.isNotEmpty() }.forEach { (name, secNodes) ->
-                        zenSection(name, secNodes, collapsed, uiState, projects, labels, onToggle, onTaskClick, onDefer)
+                        zenSection(name, secNodes, collapsed, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
                     }
                 }
             }
@@ -679,7 +681,7 @@ private fun ZenContent(
                         } else {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 dayNodes.forEachIndexed { i, node ->
-                                    ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer)
+                                    ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
                                 }
                             }
                         }
@@ -717,12 +719,12 @@ private fun ZenContent(
                 } else {
                     uiState.groups.forEach { group ->
                         if (group.name != null) {
-                            zenSection(group.name, group.nodes, collapsed, uiState, projects, labels, onToggle, onTaskClick, onDefer)
+                            zenSection(group.name, group.nodes, collapsed, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
                         } else {
                             item(key = "flat-${group.sectionId}") {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     group.nodes.forEach { node ->
-                                        ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer)
+                                        ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
                                     }
                                 }
                             }
@@ -743,7 +745,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.zenSection(
     labels: List<Label>,
     onToggle: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
-    onDefer: (Task) -> Unit
+    onDefer: (Task) -> Unit,
+    onOpenAutomation: (Task) -> Unit
 ) {
     item(key = "sec-$name") {
         val isCollapsed = collapsed[name] == true
@@ -773,7 +776,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.zenSection(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     nodes.forEachIndexed { i, node ->
-                        ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer)
+                        ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
                     }
                 }
             }
@@ -790,7 +793,8 @@ private fun ZenRowWithSubs(
     labels: List<Label>,
     onToggle: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
-    onDefer: (Task) -> Unit
+    onDefer: (Task) -> Unit,
+    onOpenAutomation: (Task) -> Unit
 ) {
     val task = node.task
     val todayEpoch = LocalDate.now().toEpochDay()
@@ -868,7 +872,8 @@ private fun ZenRowWithSubs(
                         if (automatable) Text(
                             "⚡ AI",
                             fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = GlassAccent,
-                            modifier = Modifier.clip(RoundedCornerShape(50)).background(GlassAccent.copy(alpha = 0.14f)).padding(horizontal = 9.dp, vertical = 3.dp)
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(GlassAccent.copy(alpha = 0.14f))
+                                .bouncy(0.9f) { onOpenAutomation(task) }.padding(horizontal = 9.dp, vertical = 3.dp)
                         )
                     }
                 }

@@ -129,104 +129,24 @@ private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
 }
 
 /**
- * Pełnoekranowe tło „szkło 3D": duże miękkie bryły szkła (biel → fiolet)
- * z wolnym dryfem (20–26s, alternate) + ukośna smuga światła + miętowa
- * poświata — wiernie wg warstw prototypu.
+ * Pełnoekranowe tło: sam czysty gradient zależny od pory dnia — bez kształtów
+ * (wg prototypu: body{background:linear-gradient(...)}). Diagonalny kierunek
+ * 165° jak w źródle.
  */
 @Composable
 fun GlassBackground(content: @Composable () -> Unit) {
-    val t = rememberInfiniteTransition(label = "g3d")
-    val pA by t.animateFloat(0f, 1f, infiniteRepeatable(tween(20_000, easing = LinearEasing), RepeatMode.Reverse), label = "a")
-    val pB by t.animateFloat(0f, 1f, infiniteRepeatable(tween(26_000, easing = LinearEasing), RepeatMode.Reverse), label = "b")
-    val pC by t.animateFloat(1f, 0f, infiniteRepeatable(tween(23_000, easing = LinearEasing), RepeatMode.Reverse), label = "c")
-
     val pal = bgPalette()
-    BoxWithConstraints(
+    Box(
         Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(pal.top, pal.mid, pal.bottom)))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(pal.top, pal.mid, pal.bottom),
+                    start = Offset(0f, 0f),
+                    end = Offset(220f, 1000f)
+                )
+            )
     ) {
-        val w = maxWidth
-        val h = maxHeight
-        val whiteA = if (d) 0.35f else 0.75f
-        // bryła 1 — lewy górny róg
-        Box(
-            Modifier
-                .offset(x = w * -0.18f + w * 0.10f * pA, y = h * -0.04f + h * 0.03f * pA)
-                .size(w * 0.86f, h * 0.46f)
-                .blur(28.dp)
-                .background(
-                    Brush.radialGradient(
-                        listOf(
-                            Color.White.copy(alpha = whiteA),
-                            pal.lobe1.copy(alpha = 0.60f),
-                            pal.lobe1.copy(alpha = 0.45f),
-                            pal.lobe2.copy(alpha = 0.50f)
-                        )
-                    ),
-                    RoundedCornerShape(50)
-                )
-        )
-        // bryła 2 — prawa strona
-        Box(
-            Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = w * 0.20f - w * 0.09f * pB, y = h * 0.34f + h * 0.04f * pB)
-                .size(w * 0.86f, h * 0.48f)
-                .blur(28.dp)
-                .background(
-                    Brush.radialGradient(
-                        listOf(
-                            Color.White.copy(alpha = whiteA - 0.05f),
-                            pal.lobe2.copy(alpha = 0.55f),
-                            pal.lobe2.copy(alpha = 0.45f),
-                            pal.lobe3.copy(alpha = 0.45f)
-                        )
-                    ),
-                    RoundedCornerShape(50)
-                )
-        )
-        // bryła 3 — lewy dół
-        Box(
-            Modifier
-                .align(Alignment.BottomStart)
-                .offset(x = w * -0.10f + w * 0.07f * pC, y = h * 0.14f - h * 0.07f * pC)
-                .size(w * 0.78f, h * 0.44f)
-                .blur(32.dp)
-                .background(
-                    Brush.radialGradient(
-                        listOf(
-                            pal.lobe3.copy(alpha = 0.60f),
-                            pal.lobe3.copy(alpha = 0.45f),
-                            pal.lobe1.copy(alpha = 0.40f)
-                        )
-                    ),
-                    RoundedCornerShape(50)
-                )
-        )
-        // ukośna smuga światła
-        Box(
-            Modifier
-                .offset(x = w * 0.08f, y = h * 0.08f - h * 0.05f * pB)
-                .size(w * 0.60f, h * 0.70f)
-                .blur(36.dp)
-                .background(
-                    Brush.linearGradient(
-                        0.34f to Color.Transparent,
-                        0.50f to Color.White.copy(alpha = pal.streakAlpha),
-                        0.62f to Color.Transparent
-                    )
-                )
-        )
-        // poświata pory dnia prawy dół
-        Box(
-            Modifier
-                .align(Alignment.BottomEnd)
-                .offset(x = w * -0.12f, y = h * -0.10f + h * 0.05f * pA)
-                .size(w * 0.34f, h * 0.20f)
-                .blur(48.dp)
-                .background(Brush.radialGradient(listOf(pal.glow.copy(alpha = 0.5f), Color.Transparent)), CircleShape)
-        )
         content()
     }
 }
@@ -296,6 +216,19 @@ fun Modifier.glass(shape: Shape = RoundedCornerShape(24.dp), sheenOn: Boolean = 
             ),
             shape
         )
+}
+
+/**
+ * Kafelek zadania (wg prototypu vC): zaokrąglony (20dp), prawie niewidoczny
+ * w spoczynku — leży bezpośrednio na gradiencie, delikatny rant sugeruje taflę,
+ * dotyk (bouncy) materializuje szkło.
+ */
+fun Modifier.taskTile(): Modifier {
+    val shape = RoundedCornerShape(20.dp)
+    return this
+        .clip(shape)
+        .background(if (d) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.14f))
+        .border(1.dp, if (d) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.30f), shape)
 }
 
 /** Tafla „Control Center" (dock, Tydzień, kółko Rutyn) — gradientowa, jaśniejsza. */

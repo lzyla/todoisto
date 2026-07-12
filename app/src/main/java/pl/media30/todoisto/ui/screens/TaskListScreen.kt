@@ -128,6 +128,7 @@ import pl.media30.todoisto.ui.theme.GlassTint
 import pl.media30.todoisto.ui.theme.Sora
 import pl.media30.todoisto.ui.theme.controlCenterGlass
 import pl.media30.todoisto.ui.theme.glass
+import pl.media30.todoisto.ui.theme.taskTile
 import java.time.LocalDate
 import java.time.format.TextStyle as JTextStyle
 import java.util.Locale
@@ -226,7 +227,7 @@ fun TaskListScreen(
     ) {
         Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().statusBarsPadding()) {
-                // ── Pasek górny: ☰ … ✦ Tydzień · motyw · ⋮ ──────────────────
+                // ── Pasek górny: ☰ (lewo) · ✦ Tydzień (środek) · motyw (prawo) ─
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -247,17 +248,25 @@ fun TaskListScreen(
                         Spacer(Modifier.width(7.dp))
                         Text("Tydzień", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
                     }
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.weight(1f))
                     CircleGlassButton(onToggleTheme) {
                         Icon(
                             if (isDarkTheme) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
                             "Motyw", tint = GlassTextPrimary, modifier = Modifier.size(17.dp)
                         )
                     }
-                    Spacer(Modifier.width(8.dp))
-                    Box {
-                        CircleGlassButton({ menuOpen = true }) {
-                            Icon(Icons.Filled.MoreVert, "Więcej", tint = GlassTextPrimary, modifier = Modifier.size(17.dp))
+                }
+
+                // ── Treść bezpośrednio na gradiencie (bez matowej tafli) ─────
+                Box(Modifier.weight(1f)) {
+                    ZenContent(uiState, projects, labels, onToggle, onTaskClick)
+                    // ⋮ akcje widoku — dyskretna nakładka w prawym górnym rogu
+                    Box(Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = 8.dp)) {
+                        Box(
+                            Modifier.size(34.dp).clip(CircleShape).bouncy(0.9f) { menuOpen = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Filled.MoreVert, "Więcej", tint = GlassTextSecondary, modifier = Modifier.size(18.dp))
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                             DropdownMenuItem({ Text("Sortowanie: ${uiState.sortMode.label}") }, onClick = { menuOpen = false; sortMenuOpen = true })
@@ -283,24 +292,6 @@ fun TaskListScreen(
                             }
                         }
                     }
-                }
-
-                // ── Treść na matowej tafli (veil z prototypu, wariant C) ─────
-                Box(Modifier.weight(1f)) {
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    0f to Color.White.copy(alpha = 0f),
-                                    0.055f to Color.White.copy(alpha = if (GlassTheme.dark) 0.10f else 0.50f),
-                                    0.22f to Color.White.copy(alpha = if (GlassTheme.dark) 0.06f else 0.32f),
-                                    0.78f to Color.White.copy(alpha = if (GlassTheme.dark) 0.06f else 0.30f),
-                                    1f to Color.White.copy(alpha = if (GlassTheme.dark) 0.10f else 0.50f)
-                                )
-                            )
-                    )
-                    ZenContent(uiState, projects, labels, onToggle, onTaskClick)
                 }
             }
 
@@ -531,9 +522,8 @@ private fun ZenContent(
                                 modifier = Modifier.padding(start = 4.dp)
                             )
                         } else {
-                            Column {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 dayNodes.forEachIndexed { i, node ->
-                                    if (i > 0) HorizontalDivider(color = GlassHair, thickness = 1.dp)
                                     ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick)
                                 }
                             }
@@ -575,9 +565,8 @@ private fun ZenContent(
                             zenSection(group.name, group.nodes, collapsed, uiState, projects, labels, onToggle, onTaskClick)
                         } else {
                             item(key = "flat-${group.sectionId}") {
-                                Column {
-                                    group.nodes.forEachIndexed { i, node ->
-                                        if (i > 0) HorizontalDivider(color = GlassHair, thickness = 1.dp)
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    group.nodes.forEach { node ->
                                         ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick)
                                     }
                                 }
@@ -626,9 +615,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.zenSection(
                 enter = expandVertically(tween(500, easing = EASE)) + fadeIn(),
                 exit = shrinkVertically(tween(500, easing = EASE)) + fadeOut()
             ) {
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     nodes.forEachIndexed { i, node ->
-                        if (i > 0) HorizontalDivider(color = GlassHair, thickness = 1.dp)
                         ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick)
                     }
                 }
@@ -674,7 +662,7 @@ private fun ZenRowWithSubs(
         subTotal = node.subtasks.size,
         linkDomains = task.attachments.map { it.removePrefix("https://").removePrefix("http://").substringBefore('/') }
     )
-    Column {
+    Column(Modifier.fillMaxWidth().taskTile()) {
         TaskRowZen(task, meta, { onToggle(task) }, { onTaskClick(task) })
         node.subtasks.forEach { sub ->
             TaskRowZen(sub, "", { onToggle(sub) }, { onTaskClick(sub) }, compact = true)

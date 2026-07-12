@@ -14,6 +14,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks ORDER BY isCompleted ASC, (dueDate IS NULL), dueDate ASC, priority ASC, position ASC, createdAt DESC")
     fun getAllTasks(): Flow<List<Task>>
 
+    @Query("SELECT COUNT(*) FROM tasks")
+    suspend fun count(): Int
+
     @Query("SELECT * FROM tasks WHERE id = :id LIMIT 1")
     suspend fun getTaskById(id: Long): Task?
 

@@ -32,6 +32,9 @@ class SettingsStore(context: Context) {
         _photoBackground.value = value
     }
 
+    fun isDemoSeeded(): Boolean = prefs.getBoolean(KEY_SEEDED, false)
+    fun markDemoSeeded() { prefs.edit().putBoolean(KEY_SEEDED, true).apply() }
+
     fun setGoals(daily: Int, weekly: Int) {
         prefs.edit().putInt(KEY_DAILY, daily).putInt(KEY_WEEKLY, weekly).apply()
         _dailyGoal.value = daily
@@ -43,5 +46,6 @@ class SettingsStore(context: Context) {
         const val KEY_DAILY = "daily_goal"
         const val KEY_WEEKLY = "weekly_goal"
         const val KEY_PHOTO_BG = "photo_background"
+        const val KEY_SEEDED = "demo_seeded"
     }
 }

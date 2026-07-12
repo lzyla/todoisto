@@ -1,0 +1,136 @@
+package pl.media30.todoisto.data
+
+import java.time.LocalDate
+import java.time.ZoneId
+
+/**
+ * Zasiew danych demonstracyjnych przy pierwszym uruchomieniu — tak, aby od razu
+ * było widać w akcji wszystkie funkcje: projekty (ulubione/archiwum), sekcje,
+ * etykiety, zadania z priorytetami/godzinami/czasem/terminami/cyklami/podzadaniami,
+ * zadania zaległe, rutyny, skrzynkę, ukończone (liczniki celów) oraz pulę aktywności.
+ */
+object DemoSeeder {
+
+    suspend fun seedIfEmpty(db: TodoDatabase, settings: SettingsStore) {
+        if (settings.isDemoSeeded()) return
+        if (db.taskDao().count() > 0) { settings.markDemoSeeded(); return }
+        seed(db)
+        settings.markDemoSeeded()
+    }
+
+    private fun millis(date: LocalDate, hour: Int = 12): Long =
+        date.atTime(hour, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+    private suspend fun seed(db: TodoDatabase) {
+        val td = db.taskDao(); val pd = db.projectDao(); val sd = db.sectionDao()
+        val ld = db.labelDao(); val ad = db.activityDao()
+        val today = LocalDate.now().toEpochDay()
+        val now = System.currentTimeMillis()
+        var pos = 0
+        fun p() = pos++
+
+        // ── Projekty ────────────────────────────────────────────────────────
+        val praca = pd.insert(Project(name = "Praca", colorArgb = 0xFF4D6BFF, position = 0, isFavorite = true, workEffortType = EffortType.MENTAL))
+        val dom = pd.insert(Project(name = "Dom", colorArgb = 0xFF2DD4BF, position = 1, workEffortType = EffortType.PHYSICAL))
+        val zdrowie = pd.insert(Project(name = "Zdrowie", colorArgb = 0xFFFB7185, position = 2, isFavorite = true, workEffortType = EffortType.PHYSICAL))
+        val nauka = pd.insert(Project(name = "Nauka", colorArgb = 0xFF9B6BFF, position = 3, workEffortType = EffortType.MENTAL))
+        pd.insert(Project(name = "Remont mieszkania", colorArgb = 0xFFEB8909, position = 4, isArchived = true))
+
+        // ── Sekcje (Praca) ──────────────────────────────────────────────────
+        val secSprint = sd.insert(Section(projectId = praca, name = "Sprint bieżący", position = 0))
+        val secReview = sd.insert(Section(projectId = praca, name = "Do przeglądu", position = 1))
+
+        // ── Etykiety ────────────────────────────────────────────────────────
+        val lPilne = ld.insert(Label(name = "pilne", colorArgb = 0xFFC24DFF, isFavorite = true))
+        val lZakupy = ld.insert(Label(name = "zakupy", colorArgb = 0xFFEB8909))
+        val lTelefon = ld.insert(Label(name = "telefon", colorArgb = 0xFF4D6BFF))
+        val lCzekam = ld.insert(Label(name = "czekam", colorArgb = 0xFF34D399))
+
+        // ── Zadania: DZISIAJ ────────────────────────────────────────────────
+        // Długie zadanie z bliskim deadline'em → znacznik „⏳ Napięty deadline"
+        val raport = td.insert(Task(
+            title = "Przygotować raport miesięczny", notes = "Zebrać dane sprzedażowe i wysłać do zarządu.",
+            priority = Priority.P1, dueDate = today, dueTimeMinutes = 9 * 60, durationMinutes = 90,
+            deadline = today + 1, projectId = praca, sectionId = secSprint, labelIds = listOf(lPilne),
+            position = p(), createdAt = now
+        ))
+        td.insert(Task(title = "Zebrać dane z CRM", isCompleted = true, completedAt = millis(LocalDate.now(), 8), parentId = raport, projectId = praca, position = p(), createdAt = now))
+        td.insert(Task(title = "Zbudować wykresy", parentId = raport, projectId = praca, position = p(), createdAt = now))
+        td.insert(Task(title = "Napisać podsumowanie", parentId = raport, projectId = praca, position = p(), createdAt = now))
+
+        td.insert(Task(title = "Stand-up zespołu", priority = Priority.P3, dueDate = today, dueTimeMinutes = 9 * 60 + 30,
+            recurrence = Recurrence.DAILY, projectId = praca, sectionId = secSprint, position = p(), createdAt = now))
+        td.insert(Task(title = "Zadzwonić do księgowej", priority = Priority.P2, dueDate = today, dueTimeMinutes = 11 * 60,
+            durationMinutes = 20, projectId = praca, labelIds = listOf(lTelefon, lCzekam), position = p(), createdAt = now))
+        td.insert(Task(title = "Nadać paczkę na poczcie", priority = Priority.P4, dueDate = today,
+            projectId = dom, position = p(), createdAt = now))
+        td.insert(Task(title = "Przegląd pull requestów", priority = Priority.P3, dueDate = today, dueTimeMinutes = 14 * 60,
+            durationMinutes = 45, projectId = praca, sectionId = secReview, position = p(), createdAt = now))
+        td.insert(Task(title = "Kupić prezent dla Zosi", priority = Priority.P2, dueDate = today, dueTimeMinutes = 15 * 60,
+            deadline = today + 3, projectId = dom, labelIds = listOf(lZakupy),
+            attachments = listOf("https://images.example.com/prezent-jednorozec.jpg"), position = p(), createdAt = now))
+        td.insert(Task(title = "Trening — siłownia", priority = Priority.P4, dueDate = today, dueTimeMinutes = 18 * 60 + 30,
+            durationMinutes = 75, recurrence = Recurrence.WEEKLY, projectId = zdrowie, position = p(), createdAt = now))
+        td.insert(Task(title = "Kurs Kotlin — rozdział 5", priority = Priority.P3, dueDate = today, dueTimeMinutes = 20 * 60,
+            durationMinutes = 40, projectId = nauka, position = p(), createdAt = now))
+
+        // ── Zaległe (dla „Asystenta tygodnia" i chipa „Zaległe") ────────────
+        td.insert(Task(title = "Wysłać fakturę klientowi", priority = Priority.P1, dueDate = today - 2,
+            projectId = praca, labelIds = listOf(lPilne), position = p(), createdAt = now))
+        td.insert(Task(title = "Odpisać na maila od Marka", priority = Priority.P3, dueDate = today - 1,
+            projectId = praca, labelIds = listOf(lCzekam), position = p(), createdAt = now))
+
+        // ── Rutyny (cykliczne, bez godziny, P3/P4) → pasek Rutyn ────────────
+        td.insert(Task(title = "Nauka japońskiego — 15 min", priority = Priority.P4, dueDate = today, recurrence = Recurrence.DAILY, projectId = nauka, position = p(), createdAt = now))
+        td.insert(Task(title = "Podlać kwiaty", priority = Priority.P4, dueDate = today, recurrence = Recurrence.DAILY, projectId = dom, position = p(), createdAt = now))
+        td.insert(Task(title = "Wypić 2 litry wody", priority = Priority.P4, dueDate = today, recurrence = Recurrence.DAILY, position = p(), createdAt = now))
+
+        // ── Nadchodzące (dni +1..+7) ────────────────────────────────────────
+        td.insert(Task(title = "Spotkanie z klientem", priority = Priority.P1, dueDate = today + 1, dueTimeMinutes = 10 * 60,
+            durationMinutes = 60, projectId = praca, labelIds = listOf(lPilne), position = p(), createdAt = now))
+        td.insert(Task(title = "Wizyta u dentysty", priority = Priority.P2, dueDate = today + 2, dueTimeMinutes = 12 * 60 + 30,
+            deadline = today + 2, projectId = zdrowie, position = p(), createdAt = now))
+        td.insert(Task(title = "Oddać książki do biblioteki", priority = Priority.P3, dueDate = today + 3, projectId = nauka, position = p(), createdAt = now))
+        td.insert(Task(title = "Zrobić zakupy spożywcze", priority = Priority.P3, dueDate = today + 3, projectId = dom, labelIds = listOf(lZakupy), position = p(), createdAt = now))
+        td.insert(Task(title = "Urodziny mamy — kupić kwiaty", priority = Priority.P1, dueDate = today + 5, projectId = dom, labelIds = listOf(lZakupy), position = p(), createdAt = now))
+        td.insert(Task(title = "Przegląd kwartalny", priority = Priority.P2, dueDate = today + 6, dueTimeMinutes = 15 * 60, projectId = praca, position = p(), createdAt = now))
+
+        // ── Skrzynka (bez projektu i terminu) ───────────────────────────────
+        td.insert(Task(title = "Pomysł: aplikacja do biegania", priority = Priority.P4, position = p(), createdAt = now))
+        td.insert(Task(title = "Sprawdzić ofertę nowego internetu", priority = Priority.P3, labelIds = listOf(lZakupy), position = p(), createdAt = now))
+        td.insert(Task(title = "Obejrzeć kurs o inwestowaniu", priority = Priority.P4, position = p(), createdAt = now))
+
+        // ── Ukończone dziś (licznik dzienny) ────────────────────────────────
+        listOf(
+            "Poranna kawa i przegląd planu" to 7,
+            "Sprawdzić skrzynkę mailową" to 8,
+            "Krótki spacer" to 9,
+            "Przygotować prezentację" to 10
+        ).forEach { (t, h) ->
+            td.insert(Task(title = t, isCompleted = true, completedAt = millis(LocalDate.now(), h),
+                dueDate = today, projectId = praca, position = p(), createdAt = now))
+        }
+        // ── Ukończone wcześniej w tygodniu (licznik tygodniowy) ─────────────
+        for (d in 1..5) {
+            td.insert(Task(title = "Zadanie z dnia -$d", isCompleted = true,
+                completedAt = millis(LocalDate.now().minusDays(d.toLong()), 14),
+                dueDate = today - d, projectId = if (d % 2 == 0) dom else praca, position = p(), createdAt = now))
+            td.insert(Task(title = "Drobne zadanie -$d", isCompleted = true,
+                completedAt = millis(LocalDate.now().minusDays(d.toLong()), 16),
+                dueDate = today - d, projectId = nauka, position = p(), createdAt = now))
+        }
+
+        // ── Pula aktywności ─────────────────────────────────────────────────
+        val acts = listOf(
+            Activity(name = "Spacer w parku", effortType = EffortType.PHYSICAL, durationMinutes = 30, place = Place.OUTSIDE, energyCost = EnergyCost.LOW, frequencyTarget = 4, createdAt = now),
+            Activity(name = "Rozciąganie", effortType = EffortType.PHYSICAL, durationMinutes = 15, place = Place.HOME, energyCost = EnergyCost.LOW, createdAt = now),
+            Activity(name = "Czytanie książki", effortType = EffortType.RELAX, durationMinutes = 45, place = Place.HOME, energyCost = EnergyCost.LOW, frequencyTarget = 3, createdAt = now),
+            Activity(name = "Medytacja", effortType = EffortType.RELAX, durationMinutes = 10, place = Place.HOME, energyCost = EnergyCost.LOW, createdAt = now),
+            Activity(name = "Nauka hiszpańskiego", effortType = EffortType.MENTAL, durationMinutes = 20, place = Place.HOME, energyCost = EnergyCost.MED, frequencyTarget = 3, createdAt = now),
+            Activity(name = "Trening siłowy", effortType = EffortType.PHYSICAL, durationMinutes = 60, place = Place.OUTSIDE, windowStartMin = 17 * 60, windowEndMin = 21 * 60, energyCost = EnergyCost.HIGH, createdAt = now),
+            Activity(name = "Podcast o technologii", effortType = EffortType.RELAX, durationMinutes = 25, place = Place.HOME, energyCost = EnergyCost.LOW, createdAt = now),
+            Activity(name = "Gra na gitarze", effortType = EffortType.RELAX, durationMinutes = 30, place = Place.HOME, energyCost = EnergyCost.MED, createdAt = now)
+        )
+        acts.forEach { ad.insert(it) }
+    }
+}

@@ -57,7 +57,7 @@ class ScreenshotTest {
     )
 
     private val tasks = listOf(
-        Task(1, "Przygotować raport miesięczny", "Wysłać do Anny przed spotkaniem zarządu", false, Priority.P1, today, dueTimeMinutes = 600, projectId = 1, labelIds = listOf(1)),
+        Task(1, "Przygotować raport miesięczny", "Wysłać do Anny przed spotkaniem zarządu", false, Priority.P1, today, dueTimeMinutes = 600, durationMinutes = 90, deadline = today + 1, projectId = 1, labelIds = listOf(1)),
         Task(2, "Stand-up zespołu", "", false, Priority.P4, today, dueTimeMinutes = 570, recurrence = Recurrence.DAILY, projectId = 1),
         Task(3, "Nadać paczkę na poczcie", "", false, Priority.P4, today, projectId = 2),
         Task(4, "Przegląd pull requestów", "", false, Priority.P3, today, dueTimeMinutes = 14 * 60, durationMinutes = 45, projectId = 1),

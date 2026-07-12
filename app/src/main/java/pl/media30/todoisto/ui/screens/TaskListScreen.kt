@@ -323,7 +323,7 @@ fun TaskListScreen(
                     Row(
                         Modifier
                             .height(42.dp)
-                            .glassBlur(RoundedCornerShape(21.dp))
+                            .glass(RoundedCornerShape(21.dp))
                             .bouncy(0.94f) { briefOpen = !briefOpen }
                             .padding(horizontal = 15.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -513,7 +513,7 @@ private fun AreaSwitcher(
         Row(
             Modifier
                 .height(42.dp)
-                .glassBlur(RoundedCornerShape(21.dp))
+                .glass(RoundedCornerShape(21.dp))
                 .bouncy(0.94f) { open = true }
                 .padding(start = 13.dp, end = 11.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -630,7 +630,7 @@ private fun GlassMenuItem(text: String, onClick: () -> Unit) {
 @Composable
 private fun CircleGlassButton(onClick: () -> Unit, content: @Composable () -> Unit) {
     Box(
-        Modifier.size(42.dp).glassBlur(CircleShape).bouncy(0.9f, onClick),
+        Modifier.size(42.dp).glass(CircleShape).bouncy(0.9f, onClick),
         contentAlignment = Alignment.Center,
         content = { content() }
     )

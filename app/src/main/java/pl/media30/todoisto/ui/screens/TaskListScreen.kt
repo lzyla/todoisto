@@ -64,6 +64,7 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Autorenew
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DateRange
@@ -205,6 +206,7 @@ fun TaskListScreen(
     onOpenEstimate: () -> Unit = {},
     hasApiKey: Boolean = false,
     onSetApiKey: (String) -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     routinesExpandedInitially: Boolean = false,
     weekTasks: List<Task> = emptyList()
 ) {
@@ -258,7 +260,8 @@ fun TaskListScreen(
                 onAddActivity = { onAddActivityQuick(); scope.launch { drawerState.close() } },
                 onOpenEstimate = { onOpenEstimate(); scope.launch { drawerState.close() } },
                 hasApiKey = hasApiKey,
-                onOpenApiKey = { dialog = DialogKind.ApiKey }
+                onOpenApiKey = { dialog = DialogKind.ApiKey },
+                onOpenSettings = { onOpenSettings(); scope.launch { drawerState.close() } }
             )
         }
     ) {
@@ -1285,7 +1288,8 @@ private fun DrawerContent(
     onAddActivity: () -> Unit,
     onOpenEstimate: () -> Unit,
     hasApiKey: Boolean,
-    onOpenApiKey: () -> Unit
+    onOpenApiKey: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     ModalDrawerSheet(
         drawerContainerColor = GlassDrawerBg,
@@ -1311,6 +1315,7 @@ private fun DrawerContent(
             DrawerRow(Icons.Outlined.Inbox, "Skrzynka", uiState.inboxCount, current == AppView.Inbox) { onSelect(AppView.Inbox) }
             DrawerRow(Icons.Outlined.CheckCircle, "Ukończone", null, current == AppView.Completed) { onSelect(AppView.Completed) }
             DrawerRow(Icons.Outlined.Bolt, "Pula aktywności", null, false, onOpenActivityPool)
+            DrawerRow(Icons.Outlined.Settings, "Ustawienia", null, false, onOpenSettings)
 
             // Szacowanie: ile pracy zostało na dziś (suma czasów zadań) — klik → rozbicie
             EstimateCard(uiState.todayCount, uiState.estTodayMinutes, onOpenEstimate)

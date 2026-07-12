@@ -171,6 +171,23 @@ class ScreenshotTest {
     }
 
     @Test
+    fun settingsScreen() {
+        GlassTheme.dark = false
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.NOON
+        paparazzi.snapshot {
+            TodoistoTheme {
+                pl.media30.todoisto.ui.screens.SettingsScreen(
+                    dark = false, photo = false, hasApiKey = true,
+                    dailyGoal = 5, weeklyGoal = 25,
+                    onBack = {}, onToggleDark = {}, onTogglePhoto = {},
+                    onSetApiKey = {}, onSetGoals = { _, _ -> },
+                    onOpenPool = {}, onOpenImport = {}
+                )
+            }
+        }
+    }
+
+    @Test
     fun taskDetailSheet() {
         GlassTheme.dark = false
         paparazzi.snapshot {

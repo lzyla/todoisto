@@ -108,6 +108,7 @@ fun TodoistoApp(
     var showForm by remember { mutableStateOf(false) }
     var showImport by remember { mutableStateOf(false) }
     var showEstimate by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
     var detailAiExpanded by remember { mutableStateOf(false) }
     var editingActivity by remember { mutableStateOf<pl.media30.todoisto.data.Activity?>(null) }
 
@@ -167,8 +168,27 @@ fun TodoistoApp(
         onOpenEstimate = { showEstimate = true },
         hasApiKey = openAiKey.isNotBlank(),
         onSetApiKey = viewModel::setOpenAiKey,
+        onOpenSettings = { showSettings = true },
         weekTasks = allTasks
     )
+
+    // Ekran ustawień (liquid glass) — nakładka pełnoekranowa nad listą.
+    if (showSettings) {
+        pl.media30.todoisto.ui.screens.SettingsScreen(
+            dark = darkTheme,
+            photo = photoBg,
+            hasApiKey = openAiKey.isNotBlank(),
+            dailyGoal = uiState.goalDaily,
+            weeklyGoal = uiState.goalWeekly,
+            onBack = { showSettings = false },
+            onToggleDark = { viewModel.setDarkTheme(!darkTheme) },
+            onTogglePhoto = { viewModel.setPhotoBackground(!photoBg) },
+            onSetApiKey = viewModel::setOpenAiKey,
+            onSetGoals = viewModel::setGoals,
+            onOpenPool = { showSettings = false; showPool = true },
+            onOpenImport = { showSettings = false; showImport = true }
+        )
+    }
 
     // Panel „Czas wolny"
     freeTime?.let { ft ->

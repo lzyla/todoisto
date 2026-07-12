@@ -40,7 +40,8 @@ fun TaskRowZen(
     onToggle: () -> Unit,
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
-    compact: Boolean = false
+    compact: Boolean = false,
+    trailing: (@Composable () -> Unit)? = null
 ) {
     val ring = if (task.priority != Priority.P4) task.priority.color else GlassAccent
     val done = task.isCompleted
@@ -88,7 +89,10 @@ fun TaskRowZen(
                 )
             }
         }
-        task.dueTimeMinutes?.let { m ->
+        if (trailing != null) {
+            Spacer(Modifier.width(8.dp))
+            trailing()
+        } else task.dueTimeMinutes?.let { m ->
             Spacer(Modifier.width(8.dp))
             Text(
                 "%d:%02d".format(m / 60, m % 60),

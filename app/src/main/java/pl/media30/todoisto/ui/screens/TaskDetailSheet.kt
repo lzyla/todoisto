@@ -197,12 +197,7 @@ fun TaskDetailSheet(
         // Priorytet — karta z ringami kolorów
         val prioAccent = if (task.priority != Priority.P4) task.priority.color else GlassAccent
         Row(
-            Modifier.fillMaxWidth().padding(top = 10.dp)
-                .shadow(5.dp, RoundedCornerShape(18.dp), spotColor = prioAccent.copy(alpha = 0.4f))
-                .clip(RoundedCornerShape(18.dp))
-                .background(GlassTint)
-                .border(1.dp, prioAccent.copy(alpha = 0.16f), RoundedCornerShape(18.dp))
-                .padding(14.dp),
+            Modifier.fillMaxWidth().padding(top = 10.dp).softCard().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(Modifier.size(7.dp).clip(CircleShape).background(prioAccent))
@@ -279,11 +274,7 @@ fun TaskDetailSheet(
 
         // Załączniki i linki
         Column(
-            Modifier.fillMaxWidth().padding(top = 10.dp)
-                .shadow(5.dp, RoundedCornerShape(18.dp), spotColor = Color(0xFF4D6BFF).copy(alpha = 0.4f))
-                .clip(RoundedCornerShape(18.dp)).background(GlassTint)
-                .border(1.dp, Color(0xFF4D6BFF).copy(alpha = 0.16f), RoundedCornerShape(18.dp))
-                .padding(14.dp)
+            Modifier.fillMaxWidth().padding(top = 10.dp).softCard().padding(16.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(7.dp).clip(CircleShape).background(Color(0xFF4D6BFF)))
@@ -382,11 +373,7 @@ fun TaskDetailSheet(
         // Podzadania
         if (task.parentId == null) {
             Column(
-                Modifier.fillMaxWidth().padding(top = 10.dp)
-                    .shadow(5.dp, RoundedCornerShape(18.dp), spotColor = Color(0xFFA47CFF).copy(alpha = 0.4f))
-                    .clip(RoundedCornerShape(18.dp)).background(GlassTint)
-                    .border(1.dp, Color(0xFFA47CFF).copy(alpha = 0.16f), RoundedCornerShape(18.dp))
-                    .padding(14.dp)
+                Modifier.fillMaxWidth().padding(top = 10.dp).softCard().padding(16.dp)
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(7.dp).clip(CircleShape).background(Color(0xFFA47CFF)))
@@ -475,6 +462,12 @@ private fun HairLine() {
     Box(Modifier.fillMaxWidth().height(1.dp).background(GlassHair))
 }
 
+/** Miękka karta sekcji: bez ramki, mały cień, delikatnie „szklana" (jednolita tafla). */
+private fun Modifier.softCard(radius: Int = 22): Modifier = this
+    .shadow(7.dp, RoundedCornerShape(radius.dp), spotColor = Color(0x1A140A2E), ambientColor = Color(0x12140A2E))
+    .clip(RoundedCornerShape(radius.dp))
+    .background(if (GlassTheme.dark) Color.White.copy(alpha = 0.07f) else Color.White.copy(alpha = 0.5f))
+
 /** #4b — mała chmurka „AI" u góry ustawień; po kliknięciu rozwija samouczek automatyzacji. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -490,108 +483,117 @@ private fun AutomationCard(
     val cardShape = RoundedCornerShape(28.dp)
 
     Column(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.Top) {
-            // Awatar AI
-            Box(
-                Modifier.size(44.dp)
-                    .shadow(10.dp, CircleShape, spotColor = GlassAccent.copy(alpha = 0.5f))
-                    .clip(CircleShape)
-                    .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFA47CFF), Color(0xFF6B3FE0)))),
-                contentAlignment = Alignment.Center
-            ) { Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(23.dp)) }
-            Spacer(Modifier.width(11.dp))
-
-            Column(Modifier.weight(1f)) {
-                // Chmurka (zwinięta) — pytanie zachęcające
-                if (!expanded) {
-                    Column(
-                        Modifier.glass(bubbleShape).bouncy(0.96f) { expanded = true }
-                            .padding(horizontal = 16.dp, vertical = 13.dp)
-                    ) {
-                        Text("Nie wiesz jak się zabrać?", fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
-                        Spacer(Modifier.height(3.dp))
-                        Text("Stuknij — ogarniemy to razem ✨", fontSize = 12.5.sp, fontWeight = FontWeight.W600, color = GlassTextSecondary)
+        // Zwinięta chmurka — awatar + dymek (styl czatu)
+        if (!expanded) {
+            Row(verticalAlignment = Alignment.Top) {
+                Box(
+                    Modifier.size(44.dp)
+                        .shadow(10.dp, CircleShape, spotColor = GlassAccent.copy(alpha = 0.5f))
+                        .clip(CircleShape)
+                        .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFA47CFF), Color(0xFF6B3FE0)))),
+                    contentAlignment = Alignment.Center
+                ) { Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(23.dp)) }
+                Spacer(Modifier.width(11.dp))
+                Column(
+                    Modifier.glass(bubbleShape).bouncy(0.96f) { expanded = true }
+                        .padding(horizontal = 16.dp, vertical = 13.dp)
+                ) {
+                    Text("Nie wiesz jak się zabrać?", fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                    Spacer(Modifier.height(3.dp))
+                    Text("Stuknij — ogarniemy to razem ✨", fontSize = 12.5.sp, fontWeight = FontWeight.W600, color = GlassTextSecondary)
+                }
+            }
+        }
+        // Rozwinięta chmurka — PEŁNA SZEROKOŚĆ, przezroczysta, z cieniem („bąbel" się powiększa)
+        androidx.compose.animation.AnimatedVisibility(
+            visible = expanded,
+            enter = androidx.compose.animation.fadeIn(tween(140)) +
+                androidx.compose.animation.scaleIn(
+                    spring(dampingRatio = 0.66f, stiffness = androidx.compose.animation.core.Spring.StiffnessLow),
+                    initialScale = 0.7f,
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
+                ) + androidx.compose.animation.expandVertically(spring(dampingRatio = 0.8f)),
+            exit = androidx.compose.animation.fadeOut(tween(120)) +
+                androidx.compose.animation.scaleOut(tween(200), targetScale = 0.7f, transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)) +
+                androidx.compose.animation.shrinkVertically(tween(200))
+        ) {
+            Column(
+                Modifier.fillMaxWidth()
+                    .shadow(24.dp, cardShape, spotColor = GlassAccent.copy(alpha = 0.35f))
+                    .clip(cardShape)
+                    .background(if (GlassTheme.dark) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.55f))
+                    .padding(18.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(32.dp).clip(CircleShape)
+                            .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFA47CFF), Color(0xFF6B3FE0)))),
+                        contentAlignment = Alignment.Center
+                    ) { Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(17.dp)) }
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Ogarnijmy to razem", fontSize = 16.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                        Text(tip.headline, fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = GlassAccent)
+                    }
+                    Box(Modifier.size(28.dp).clip(CircleShape).bouncy(0.9f) { expanded = false }, contentAlignment = Alignment.Center) {
+                        Icon(Icons.Filled.Close, "Zwiń", tint = GlassTextSecondary, modifier = Modifier.size(16.dp))
                     }
                 }
-                // Chmurka (rozwinięta) — „bąbel" się powiększa
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = expanded,
-                    enter = androidx.compose.animation.fadeIn(tween(140)) +
-                        androidx.compose.animation.scaleIn(
-                            spring(dampingRatio = 0.62f, stiffness = androidx.compose.animation.core.Spring.StiffnessLow),
-                            initialScale = 0.5f,
-                            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
-                        ) + androidx.compose.animation.expandVertically(spring(dampingRatio = 0.78f)),
-                    exit = androidx.compose.animation.fadeOut(tween(120)) +
-                        androidx.compose.animation.scaleOut(tween(200), targetScale = 0.6f, transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)) +
-                        androidx.compose.animation.shrinkVertically(tween(200))
-                ) {
-                    Column(Modifier.glass(cardShape).padding(18.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text("Ogarnijmy to razem", fontSize = 16.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
-                                Text(tip.headline, fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = GlassAccent)
-                            }
-                            Box(Modifier.size(28.dp).clip(CircleShape).bouncy(0.9f) { expanded = false }, contentAlignment = Alignment.Center) {
-                                Icon(Icons.Filled.Close, "Zwiń", tint = GlassTextSecondary, modifier = Modifier.size(16.dp))
-                            }
-                        }
-                        Spacer(Modifier.height(14.dp))
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            tip.tools.forEach { t ->
-                                Text(
-                                    t, fontSize = 11.5.sp, fontWeight = FontWeight.W800, color = GlassAccent,
-                                    modifier = Modifier.clip(RoundedCornerShape(50)).background(GlassAccent.copy(alpha = 0.12f)).padding(horizontal = 11.dp, vertical = 5.dp)
-                                )
-                            }
-                        }
-                        Spacer(Modifier.height(14.dp))
-                        tip.steps.forEachIndexed { i, step ->
-                            Row(Modifier.padding(bottom = 10.dp)) {
-                                Box(
-                                    Modifier.size(22.dp).clip(CircleShape).background(GlassAccent),
-                                    contentAlignment = Alignment.Center
-                                ) { Text("${i + 1}", color = Color.White, fontSize = 11.5.sp, fontWeight = FontWeight.W800) }
-                                Spacer(Modifier.width(11.dp))
-                                Text(step, fontSize = 13.5.sp, lineHeight = 19.sp, color = GlassTextPrimary, modifier = Modifier.weight(1f))
-                            }
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent)
-                                .bouncy(0.97f) { onAskAi(tip.aiPrompt) }
-                                .padding(vertical = 13.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Zróbmy to z AI", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
-                        }
+                Spacer(Modifier.height(14.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    tip.tools.forEach { t ->
                         Text(
-                            "Zapyta AI Twoim kluczem i pokaże odpowiedź tutaj. Klucz ustawisz w menu.",
-                            fontSize = 10.5.sp, color = GlassTextSecondary, modifier = Modifier.padding(top = 8.dp)
+                            t, fontSize = 11.5.sp, fontWeight = FontWeight.W800, color = GlassAccent,
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(GlassAccent.copy(alpha = 0.12f)).padding(horizontal = 11.dp, vertical = 5.dp)
                         )
-                        // Odpowiedź AI — rozwija się TUTAJ (nie na ekranie głównym)
-                        if (aiState != null) {
-                            Spacer(Modifier.height(12.dp))
-                            Box(Modifier.fillMaxWidth().height(1.dp).background(GlassHair))
-                            Spacer(Modifier.height(12.dp))
-                            when {
-                                aiState.loading -> Row(verticalAlignment = Alignment.CenterVertically) {
-                                    androidx.compose.material3.CircularProgressIndicator(color = GlassAccent, strokeWidth = 2.5.dp, modifier = Modifier.size(18.dp))
-                                    Spacer(Modifier.width(10.dp))
-                                    Text("Myślę nad najlepszym sposobem…", fontSize = 12.5.sp, color = GlassTextSecondary)
-                                }
-                                aiState.needsKey -> Text(
-                                    "Dodaj klucz w menu (☰ → Klucz AI), żeby zapytać AI na żywo.",
-                                    fontSize = 12.5.sp, lineHeight = 18.sp, color = GlassTextSecondary
-                                )
-                                aiState.error != null -> Text(aiState.error, fontSize = 12.5.sp, lineHeight = 18.sp, color = GlassTextSecondary)
-                                aiState.answer != null -> Box(
-                                    Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())
-                                ) { Text(aiState.answer, fontSize = 13.sp, lineHeight = 19.sp, color = GlassTextPrimary) }
-                            }
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+                tip.steps.forEachIndexed { i, step ->
+                    Row(Modifier.padding(bottom = 10.dp)) {
+                        Box(
+                            Modifier.size(22.dp).clip(CircleShape).background(GlassAccent),
+                            contentAlignment = Alignment.Center
+                        ) { Text("${i + 1}", color = Color.White, fontSize = 11.5.sp, fontWeight = FontWeight.W800) }
+                        Spacer(Modifier.width(11.dp))
+                        Text(step, fontSize = 13.5.sp, lineHeight = 19.sp, color = GlassTextPrimary, modifier = Modifier.weight(1f))
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent)
+                        .bouncy(0.97f) { onAskAi(tip.aiPrompt) }
+                        .padding(vertical = 13.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Zróbmy to z AI", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
+                }
+                // Odpowiedź AI — TUTAJ (nie na ekranie głównym)
+                if (aiState != null) {
+                    Spacer(Modifier.height(14.dp))
+                    when {
+                        aiState.loading -> Row(verticalAlignment = Alignment.CenterVertically) {
+                            androidx.compose.material3.CircularProgressIndicator(color = GlassAccent, strokeWidth = 2.5.dp, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Text("Myślę nad najlepszym sposobem…", fontSize = 12.5.sp, color = GlassTextSecondary)
+                        }
+                        aiState.needsKey -> Text(
+                            "Dodaj klucz w menu (☰ → Klucz AI), żeby zapytać AI na żywo.",
+                            fontSize = 12.5.sp, lineHeight = 18.sp, color = GlassTextSecondary
+                        )
+                        aiState.error != null -> Text(aiState.error, fontSize = 12.5.sp, lineHeight = 18.sp, color = GlassTextSecondary)
+                        aiState.answer != null -> Column(
+                            Modifier.fillMaxWidth()
+                                .shadow(10.dp, RoundedCornerShape(18.dp), spotColor = Color(0x1A140A2E))
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(if (GlassTheme.dark) Color.White.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.42f))
+                                .heightIn(max = 380.dp).verticalScroll(rememberScrollState())
+                                .padding(16.dp)
+                        ) {
+                            Text(cleanMarkdown(aiState.answer), fontSize = 13.5.sp, lineHeight = 20.sp, color = GlassTextPrimary)
                         }
                     }
                 }
@@ -600,16 +602,18 @@ private fun AutomationCard(
     }
 }
 
+/** Lekkie oczyszczenie odpowiedzi z markdownu (nagłówki #, pogrubienia **, listy). */
+private fun cleanMarkdown(s: String): String = s
+    .replace(Regex("\\*\\*"), "")
+    .replace(Regex("(?m)^\\s*#{1,6}\\s*"), "")
+    .replace(Regex("(?m)^\\s*[-*]\\s+"), "• ")
+    .trim()
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DetailSection(title: String, accent: Color = GlassAccent, content: @Composable () -> Unit) {
     Column(
-        Modifier.fillMaxWidth().padding(top = 10.dp)
-            .shadow(5.dp, RoundedCornerShape(18.dp), spotColor = accent.copy(alpha = 0.4f))
-            .clip(RoundedCornerShape(18.dp))
-            .background(GlassTint)
-            .border(1.dp, accent.copy(alpha = 0.16f), RoundedCornerShape(18.dp))
-            .padding(14.dp)
+        Modifier.fillMaxWidth().padding(top = 10.dp).softCard().padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(7.dp).clip(CircleShape).background(accent))

@@ -40,9 +40,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -259,70 +256,72 @@ fun TaskListScreen(
         }
     ) {
         Box(Modifier.fillMaxSize()) {
-            // ── Treść na pełnym ekranie — przewija się POD paskiem górnym (widać szkło) ─
-            ZenContent(uiState, projects, labels, onToggle, onTaskClick, onDeferToTomorrow, onOpenAutomation)
-
-            // ── ⋮ akcje widoku — nakładka pod paskiem, prawy górny róg ─────
-            Box(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 54.dp, end = 8.dp)) {
-                Box(
-                    Modifier.size(34.dp).clip(CircleShape).bouncy(0.9f) { menuOpen = true },
-                    contentAlignment = Alignment.Center
+            Column(Modifier.fillMaxSize().statusBarsPadding()) {
+                // ── Pasek górny — pigułki glass (☰ · Obszar · Tydzień · ⚡) ─────
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Filled.MoreVert, "Więcej", tint = GlassTextSecondary, modifier = Modifier.size(18.dp))
-                }
-                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    DropdownMenuItem({ Text("Sortowanie: ${uiState.sortMode.label}") }, onClick = { menuOpen = false; sortMenuOpen = true })
-                    uiState.currentProject?.let { project ->
-                        DropdownMenuItem({ Text(if (project.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") }, onClick = { menuOpen = false; onToggleProjectFavorite(project.id) })
-                        DropdownMenuItem({ Text("Dodaj sekcję") }, onClick = { menuOpen = false; dialog = DialogKind.NewSection })
-                        DropdownMenuItem({ Text("Duplikuj projekt") }, onClick = { menuOpen = false; onDuplicateProject(project.id) })
-                        DropdownMenuItem({ Text(if (project.isArchived) "Przywróć z archiwum" else "Archiwizuj projekt") }, onClick = { menuOpen = false; onArchiveProject(project.id, !project.isArchived) })
-                        DropdownMenuItem({ Text("Usuń projekt") }, onClick = { menuOpen = false; onDeleteProject(project.id) })
+                    CircleGlassButton({ scope.launch { drawerState.open() } }) {
+                        Icon(Icons.Filled.Menu, "Menu", tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
                     }
-                    uiState.currentLabel?.let { label ->
-                        DropdownMenuItem({ Text(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") }, onClick = { menuOpen = false; onToggleLabelFavorite(label.id) })
-                        DropdownMenuItem({ Text("Usuń etykietę") }, onClick = { menuOpen = false; onDeleteLabel(label.id) })
+                    Spacer(Modifier.weight(1f))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        AreaSwitcher(areas, activeAreaId, onSelectArea) { dialog = DialogKind.NewArea }
+                        Row(
+                            Modifier
+                                .height(42.dp)
+                                .glass(RoundedCornerShape(21.dp))
+                                .bouncy(0.94f) { briefOpen = !briefOpen }
+                                .padding(horizontal = 15.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(15.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Tydzień", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                        }
                     }
-                    DropdownMenuItem({ Text("Wyślij plan dnia") }, onClick = { menuOpen = false; onSharePlan() })
-                    DropdownMenuItem({ Text("Usuń ukończone") }, onClick = { menuOpen = false; onClearCompleted() })
-                }
-                DropdownMenu(expanded = sortMenuOpen, onDismissRequest = { sortMenuOpen = false }) {
-                    SortMode.entries.forEach { mode ->
-                        DropdownMenuItem(
-                            { Text((if (mode == uiState.sortMode) "✓ " else "") + mode.label) },
-                            onClick = { sortMenuOpen = false; onSort(mode) }
-                        )
+                    Spacer(Modifier.weight(1f))
+                    CircleGlassButton(onFreeTime) {
+                        Icon(Icons.Outlined.Bolt, "Czas wolny", tint = GlassAccent, modifier = Modifier.size(19.dp))
                     }
                 }
-            }
 
-            // ── Pasek górny — nakładka glass (treść widoczna przez szkło pod nim) ─
-            Row(
-                Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CircleGlassButton({ scope.launch { drawerState.open() } }) {
-                    Icon(Icons.Filled.Menu, "Menu", tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
-                }
-                Spacer(Modifier.weight(1f))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    AreaSwitcher(areas, activeAreaId, onSelectArea) { dialog = DialogKind.NewArea }
-                    Row(
-                        Modifier
-                            .height(42.dp)
-                            .glass(RoundedCornerShape(21.dp))
-                            .bouncy(0.94f) { briefOpen = !briefOpen }
-                            .padding(horizontal = 15.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(15.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Tydzień", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                // ── Treść pod paskiem ──────────────────────────────────────────
+                Box(Modifier.weight(1f)) {
+                    ZenContent(uiState, projects, labels, onToggle, onTaskClick, onDeferToTomorrow, onOpenAutomation)
+                    Box(Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = 8.dp)) {
+                        Box(
+                            Modifier.size(34.dp).clip(CircleShape).bouncy(0.9f) { menuOpen = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Filled.MoreVert, "Więcej", tint = GlassTextSecondary, modifier = Modifier.size(18.dp))
+                        }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem({ Text("Sortowanie: ${uiState.sortMode.label}") }, onClick = { menuOpen = false; sortMenuOpen = true })
+                            uiState.currentProject?.let { project ->
+                                DropdownMenuItem({ Text(if (project.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") }, onClick = { menuOpen = false; onToggleProjectFavorite(project.id) })
+                                DropdownMenuItem({ Text("Dodaj sekcję") }, onClick = { menuOpen = false; dialog = DialogKind.NewSection })
+                                DropdownMenuItem({ Text("Duplikuj projekt") }, onClick = { menuOpen = false; onDuplicateProject(project.id) })
+                                DropdownMenuItem({ Text(if (project.isArchived) "Przywróć z archiwum" else "Archiwizuj projekt") }, onClick = { menuOpen = false; onArchiveProject(project.id, !project.isArchived) })
+                                DropdownMenuItem({ Text("Usuń projekt") }, onClick = { menuOpen = false; onDeleteProject(project.id) })
+                            }
+                            uiState.currentLabel?.let { label ->
+                                DropdownMenuItem({ Text(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") }, onClick = { menuOpen = false; onToggleLabelFavorite(label.id) })
+                                DropdownMenuItem({ Text("Usuń etykietę") }, onClick = { menuOpen = false; onDeleteLabel(label.id) })
+                            }
+                            DropdownMenuItem({ Text("Wyślij plan dnia") }, onClick = { menuOpen = false; onSharePlan() })
+                            DropdownMenuItem({ Text("Usuń ukończone") }, onClick = { menuOpen = false; onClearCompleted() })
+                        }
+                        DropdownMenu(expanded = sortMenuOpen, onDismissRequest = { sortMenuOpen = false }) {
+                            SortMode.entries.forEach { mode ->
+                                DropdownMenuItem(
+                                    { Text((if (mode == uiState.sortMode) "✓ " else "") + mode.label) },
+                                    onClick = { sortMenuOpen = false; onSort(mode) }
+                                )
+                            }
+                        }
                     }
-                }
-                Spacer(Modifier.weight(1f))
-                CircleGlassButton(onFreeTime) {
-                    Icon(Icons.Outlined.Bolt, "Czas wolny", tint = GlassAccent, modifier = Modifier.size(19.dp))
                 }
             }
 
@@ -613,12 +612,8 @@ private fun ZenContent(
 ) {
     val today = LocalDate.now()
     val collapsed = remember { mutableStateMapOf<String, Boolean>() }
-    // Zapas u góry = status bar + wysokość paska; treść zaczyna się pod paskiem,
-    // ale przy przewijaniu wjeżdża POD niego (widać przezroczyste szkło).
-    val topInset = androidx.compose.foundation.layout.WindowInsets.statusBars
-        .asPaddingValues().calculateTopPadding()
 
-    LazyColumn(contentPadding = PaddingValues(start = 18.dp, top = topInset + 64.dp, end = 18.dp, bottom = 170.dp)) {
+    LazyColumn(contentPadding = PaddingValues(18.dp, 4.dp, 18.dp, 170.dp)) {
         when (uiState.view) {
             AppView.Today -> {
                 item(key = "hdr") {
@@ -862,30 +857,36 @@ private fun ZenRowWithSubs(
             backgroundContent = { SwipeBg(dismiss.dismissDirection) }
         ) {
             Column(Modifier.fillMaxWidth().taskTile { onTaskClick(task) }) {
-                if (deadlineWarn || automatable) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(start = 14.dp, end = 12.dp, top = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (deadlineWarn) Text(
+                if (deadlineWarn) {
+                    Row(Modifier.padding(start = 14.dp, top = 10.dp)) {
+                        Text(
                             "⏳ Napięty deadline",
                             fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = Color(0xFFB45309),
                             modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0x33F59E0B)).padding(horizontal = 9.dp, vertical = 3.dp)
                         )
-                        Spacer(Modifier.weight(1f))
-                        // Ikonka AI — zawsze po prawej stronie wiersza
-                        if (automatable) Row(
-                            Modifier.clip(RoundedCornerShape(50)).background(GlassAccent.copy(alpha = 0.14f))
-                                .bouncy(0.9f) { onOpenAutomation(task) }.padding(horizontal = 9.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(12.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("AI", fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = GlassAccent)
-                        }
                     }
                 }
-                TaskRowZen(task, meta, { onToggle(task) }, { onTaskClick(task) })
+                // Ikonka AI po prawej, na wysokości zadania; godzina pod spodem
+                val timeStr = task.dueTimeMinutes?.let { "%d:%02d".format(it / 60, it % 60) }
+                TaskRowZen(
+                    task, meta, { onToggle(task) }, { onTaskClick(task) },
+                    trailing = if (automatable) {
+                        {
+                            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(
+                                    Modifier.clip(RoundedCornerShape(50)).background(GlassAccent.copy(alpha = 0.14f))
+                                        .bouncy(0.9f) { onOpenAutomation(task) }.padding(horizontal = 9.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(12.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("AI", fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = GlassAccent)
+                                }
+                                if (timeStr != null) Text(timeStr, fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassAccent)
+                            }
+                        }
+                    } else null
+                )
                 node.subtasks.forEach { sub ->
                     TaskRowZen(sub, "", { onToggle(sub) }, { onTaskClick(sub) }, compact = true)
                 }

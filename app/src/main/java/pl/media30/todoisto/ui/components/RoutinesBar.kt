@@ -1,15 +1,11 @@
 package pl.media30.todoisto.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -20,15 +16,12 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,106 +33,74 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import pl.media30.todoisto.data.Task
+import pl.media30.todoisto.ui.theme.GlassRoutine
 import pl.media30.todoisto.ui.theme.GlassTextPrimary
 import pl.media30.todoisto.ui.theme.GlassTextSecondary
 import pl.media30.todoisto.ui.theme.GlassTheme
 
-// Muted, neutral shades — deliberately desaturated and distinct from both the
-// glass task cards and the priority colors: the "routines zone" reads as a
-// different mode before you read a single word.
-private val zoneBg: Color get() = if (GlassTheme.dark) Color(0xD94A4066) else Color(0xD9ECE9F2)
-private val zoneBorder: Color get() = if (GlassTheme.dark) Color(0xFF6A5F8A) else Color(0xFFD6D0E2)
 private val pillBg: Color get() = if (GlassTheme.dark) Color(0xCC574D75) else Color(0xE6F8F6FB)
+private val pillBorder: Color get() = if (GlassTheme.dark) Color(0xFF6A5F8A) else Color(0xFFD6D0E2)
 
 /**
- * Collapsed-by-default routines zone docked under the Today list.
- * Habit loop, not obligation: pills instead of task rows, its own check
- * animation, live "n z m" counter, auto-collapse when everything is done.
+ * Zawartość arkusza Rutyn (otwieranego kółkiem przy docku). Nawyki jako
+ * pigułki na przydymionej tafli [GlassRoutine] — celowo inny tryb niż zadania.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun RoutinesBar(
+fun RoutinesSheetContent(
     routines: List<Task>,
     doneCount: Int,
     onComplete: (Task) -> Unit,
-    modifier: Modifier = Modifier,
-    initiallyExpanded: Boolean = false
+    onAllDone: () -> Unit = {},
 ) {
     val total = routines.size + doneCount
-    if (total == 0) return
     val allDone = routines.isEmpty()
+    LaunchedEffect(allDone) { if (allDone && total > 0) { delay(900); onAllDone() } }
 
-    var expanded by remember { mutableStateOf(initiallyExpanded) }
-    // Close the loop without user action once the last routine is checked off.
-    LaunchedEffect(allDone) { if (allDone) expanded = false }
-
-    val chevron by animateFloatAsState(if (expanded) 180f else 0f, label = "chevron")
-
-    Column(
-        modifier = modifier
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 10.dp)
-            .navigationBarsPadding()
-            .fillMaxWidth()
-            .shadow(10.dp, RoundedCornerShape(26.dp), spotColor = Color(0x40352359), ambientColor = Color(0x26352359))
-            .clip(RoundedCornerShape(26.dp))
-            .background(zoneBg)
-            .border(1.dp, zoneBorder, RoundedCornerShape(26.dp))
-            .animateContentSize(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .bouncy(scaleDown = 0.98f) { if (!allDone) expanded = !expanded }
-                .padding(horizontal = 18.dp, vertical = 13.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = if (allDone) "✅ Rutyny zrobione" else "🔁 Rutyny",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = GlassTextPrimary
+                style = MaterialTheme.typography.titleLarge,
+                color = GlassTextPrimary,
             )
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(12.dp))
             if (!allDone) {
                 Text(
-                    text = "$doneCount z $total zrobione",
+                    "$doneCount z $total zrobione",
                     style = MaterialTheme.typography.labelMedium,
-                    color = GlassTextSecondary
-                )
-            }
-            Spacer(Modifier.weight(1f))
-            if (!allDone) {
-                Icon(
-                    Icons.Filled.KeyboardArrowUp,
-                    contentDescription = if (expanded) "Zwiń" else "Rozwiń",
-                    tint = GlassTextSecondary,
-                    modifier = Modifier.rotate(chevron)
+                    color = GlassTextSecondary,
                 )
             }
         }
-
-        AnimatedVisibility(
-            visible = expanded && !allDone,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
+        Spacer(Modifier.height(14.dp))
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(GlassRoutine)
+                .padding(14.dp)
         ) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 14.dp, end = 14.dp, bottom = 14.dp)
-            ) {
-                routines.forEach { task ->
-                    androidx.compose.runtime.key(task.id) {
-                        RoutinePill(task = task, onComplete = { onComplete(task) })
+            if (allDone) {
+                Text(
+                    "Wszystkie nawyki na dziś odhaczone 💜",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = GlassTextSecondary,
+                )
+            } else {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    routines.forEach { task ->
+                        androidx.compose.runtime.key(task.id) {
+                            RoutinePill(task = task, onComplete = { onComplete(task) })
+                        }
                     }
                 }
             }
@@ -148,9 +109,8 @@ fun RoutinesBar(
 }
 
 /**
- * A habit pill: ring + name. Checking it plays its own celebration — the ring
- * fills with a springy pop and the whole pill shrinks away — subtly different
- * from the task-card checkbox on purpose.
+ * Pigułka nawyku: ring + nazwa. Odhaczenie gra własną animację (sprężysty
+ * „pop" ringu i skurczenie pigułki) — subtelnie inną niż checkbox zadań.
  */
 @Composable
 private fun RoutinePill(task: Task, onComplete: () -> Unit) {
@@ -164,21 +124,21 @@ private fun RoutinePill(task: Task, onComplete: () -> Unit) {
     val ringScale by animateFloatAsState(
         targetValue = if (leaving) 1.25f else 1f,
         animationSpec = spring(dampingRatio = 0.35f, stiffness = Spring.StiffnessMedium),
-        label = "ringPop"
+        label = "ringPop",
     )
 
     AnimatedVisibility(
         visible = !leaving,
-        exit = scaleOut(targetScale = 0.6f) + fadeOut()
+        exit = scaleOut(targetScale = 0.6f) + fadeOut(),
     ) {
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(50))
                 .background(pillBg)
-                .border(1.dp, zoneBorder, RoundedCornerShape(50))
+                .border(1.dp, pillBorder, RoundedCornerShape(50))
                 .bouncy(scaleDown = 0.88f) { leaving = true }
                 .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
                 modifier = Modifier
@@ -193,7 +153,7 @@ private fun RoutinePill(task: Task, onComplete: () -> Unit) {
             Text(
                 text = task.title,
                 style = MaterialTheme.typography.labelMedium,
-                color = GlassTextPrimary
+                color = GlassTextPrimary,
             )
         }
     }

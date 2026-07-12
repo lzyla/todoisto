@@ -110,7 +110,8 @@ fun TodoistoApp(
                 onClearCompleted = viewModel::deleteCompleted,
                 onSort = viewModel::setSort,
                 onSetGoals = viewModel::setGoals,
-                onToggleTheme = { viewModel.setDarkTheme(!darkTheme) }
+                onToggleTheme = { viewModel.setDarkTheme(!darkTheme) },
+                weekTasks = allTasks
             )
         }
         composable(

@@ -1,12 +1,17 @@
 package pl.media30.todoisto.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,11 +22,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,10 +36,13 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Autorenew
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DateRange
@@ -45,7 +55,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -54,16 +64,14 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -71,37 +79,46 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import pl.media30.todoisto.data.Label
 import pl.media30.todoisto.data.PaletteColors
+import pl.media30.todoisto.data.Priority
 import pl.media30.todoisto.data.Project
 import pl.media30.todoisto.data.QuickAddParser
+import pl.media30.todoisto.data.Recurrence
 import pl.media30.todoisto.data.Task
 import pl.media30.todoisto.ui.AppView
 import pl.media30.todoisto.ui.QuickAddOverrides
 import pl.media30.todoisto.ui.SectionGroup
 import pl.media30.todoisto.ui.SortMode
+import pl.media30.todoisto.ui.TaskNode
 import pl.media30.todoisto.ui.TodoUiState
-import pl.media30.todoisto.ui.components.RoutinesBar
-import pl.media30.todoisto.ui.components.TaskItem
+import pl.media30.todoisto.ui.components.RoutinesSheetContent
+import pl.media30.todoisto.ui.components.TaskRowZen
 import pl.media30.todoisto.ui.components.bouncy
 import pl.media30.todoisto.ui.components.glassFieldColors
 import pl.media30.todoisto.ui.theme.GlassAccent
 import pl.media30.todoisto.ui.theme.GlassPanelTint
+import pl.media30.todoisto.ui.theme.GlassRoutine
 import pl.media30.todoisto.ui.theme.GlassSurface
-import pl.media30.todoisto.ui.theme.GlassTheme
 import pl.media30.todoisto.ui.theme.GlassTextPrimary
 import pl.media30.todoisto.ui.theme.GlassTextSecondary
+import pl.media30.todoisto.ui.theme.glass
+import pl.media30.todoisto.ui.theme.glassClear
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+
+private val dayFmt = DateTimeFormatter.ofPattern("EEEE, d MMM", Locale.forLanguageTag("pl"))
+private val shortFmt = DateTimeFormatter.ofPattern("d MMM", Locale.forLanguageTag("pl"))
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -129,13 +146,16 @@ fun TaskListScreen(
     onSort: (SortMode) -> Unit,
     onSetGoals: (Int, Int) -> Unit,
     onToggleTheme: () -> Unit,
-    routinesExpandedInitially: Boolean = false
+    routinesExpandedInitially: Boolean = false,
+    weekTasks: List<Task> = emptyList()
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var menuOpen by remember { mutableStateOf(false) }
     var sortMenuOpen by remember { mutableStateOf(false) }
     var showQuickAdd by remember { mutableStateOf(false) }
+    var showRoutines by remember { mutableStateOf(routinesExpandedInitially) }
+    var showWeek by remember { mutableStateOf(false) }
     var dialog by remember { mutableStateOf<DialogKind?>(null) }
 
     LaunchedEffect(quickAddPrefill) {
@@ -150,35 +170,64 @@ fun TaskListScreen(
                 projects = projects,
                 labels = labels,
                 uiState = uiState,
-                isDarkTheme = isDarkTheme,
                 onSelect = {
                     onSelectView(it)
                     scope.launch { drawerState.close() }
                 },
                 onAddProject = { dialog = DialogKind.AddProject },
                 onAddLabel = { dialog = DialogKind.AddLabel },
-                onGoalsClick = { dialog = DialogKind.Goals },
-                onToggleTheme = onToggleTheme
+                onGoalsClick = { dialog = DialogKind.Goals }
             )
         }
     ) {
-        Scaffold(
-            containerColor = Color.Transparent,
-            topBar = {
-                TopAppBar(
-                    title = { Text(uiState.title, fontWeight = FontWeight.Bold, color = GlassTextPrimary) },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.AutoMirrored.Filled.List, "Menu", tint = GlassTextPrimary)
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = GlassPanelTint.copy(alpha = 0.08f),
-                        titleContentColor = GlassTextPrimary
-                    ),
-                    actions = {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(Icons.Filled.MoreVert, "Więcej", tint = GlassTextPrimary)
+        Box(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize().statusBarsPadding()) {
+                // ── Górny pasek Zen: ☰ · tytuł · ✦ Tydzień · motyw · ⋮ ─────
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircleGlassButton(onClick = { scope.launch { drawerState.open() } }) {
+                        Icon(Icons.Filled.Menu, "Menu", tint = GlassTextPrimary, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        uiState.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = GlassTextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Row(
+                        Modifier
+                            .height(42.dp)
+                            .glassClear(RoundedCornerShape(21.dp))
+                            .bouncy(0.94f) { showWeek = true }
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(15.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text(
+                            "Tydzień",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = GlassTextPrimary
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    CircleGlassButton(onClick = onToggleTheme) {
+                        Icon(
+                            if (isDarkTheme) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
+                            "Motyw",
+                            tint = GlassTextPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Box {
+                        CircleGlassButton(onClick = { menuOpen = true }) {
+                            Icon(Icons.Filled.MoreVert, "Więcej", tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                             DropdownMenuItem(
@@ -233,36 +282,81 @@ fun TaskListScreen(
                             }
                         }
                     }
-                )
-            },
-            floatingActionButton = {
-                ExtendedFloatingActionButton(
-                    onClick = { showQuickAdd = true },
-                    shape = RoundedCornerShape(50),
-                    containerColor = GlassAccent,
-                    contentColor = Color.White,
-                    icon = { Icon(Icons.Filled.Add, null) },
-                    text = { Text("Dodaj zadanie", fontWeight = FontWeight.SemiBold) }
-                )
-            },
-            bottomBar = {
-                if (uiState.view == AppView.Today) {
-                    RoutinesBar(
-                        routines = uiState.routines,
-                        doneCount = uiState.routinesDone,
-                        onComplete = onToggle,
-                        initiallyExpanded = routinesExpandedInitially
-                    )
+                }
+
+                // ── Treść ───────────────────────────────────────────────────
+                Box(Modifier.weight(1f)) {
+                    Crossfade(targetState = uiState.isEmpty, label = "listOrEmpty") { empty ->
+                        if (empty) {
+                            EmptyState(uiState.view, hasRoutines = uiState.routines.isNotEmpty())
+                        } else {
+                            ZenList(uiState, projects, labels, onToggle, onTaskClick)
+                        }
+                    }
                 }
             }
-        ) { innerPadding ->
-            Box(Modifier.padding(innerPadding).fillMaxSize()) {
-                Crossfade(targetState = uiState.isEmpty, label = "listOrEmpty") { empty ->
-                    if (empty) {
-                        EmptyState(uiState.view, hasRoutines = uiState.routines.isNotEmpty())
-                    } else {
-                        TaskList(uiState.groups, labels, onToggle, onTaskClick)
+
+            // ── FAB: pigułka „Dodaj zadanie" ────────────────────────────────
+            Row(
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
+                    .padding(end = 16.dp, bottom = 96.dp)
+                    .height(52.dp)
+                    .background(GlassAccent, RoundedCornerShape(26.dp))
+                    .bouncy(0.94f) { showQuickAdd = true }
+                    .padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Add, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Dodaj zadanie",
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                )
+            }
+
+            // ── Dolny dock + kółko Rutyn ────────────────────────────────────
+            Row(
+                Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box {
+                    Box(
+                        Modifier
+                            .size(54.dp)
+                            .glassClear(CircleShape)
+                            .background(GlassRoutine, CircleShape)
+                            .bouncy(0.9f) { showRoutines = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Outlined.Autorenew, "Rutyny", tint = GlassTextPrimary, modifier = Modifier.size(19.dp))
                     }
+                    if (uiState.routines.isNotEmpty()) {
+                        Box(
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 3.dp, y = (-3).dp)
+                                .size(19.dp)
+                                .background(GlassAccent, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "${uiState.routines.size}",
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+                    }
+                }
+                Row(
+                    Modifier.glassClear(RoundedCornerShape(30.dp)).padding(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    DockTab("Dzisiaj", uiState.view == AppView.Today) { onSelectView(AppView.Today) }
+                    DockTab("Nadchodzące", uiState.view == AppView.Upcoming) { onSelectView(AppView.Upcoming) }
                 }
             }
         }
@@ -283,6 +377,31 @@ fun TaskListScreen(
                 onPrefillConsumed()
             }
         )
+    }
+
+    if (showRoutines) {
+        ModalBottomSheet(
+            onDismissRequest = { showRoutines = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = GlassSurface
+        ) {
+            RoutinesSheetContent(
+                routines = uiState.routines,
+                doneCount = uiState.routinesDone,
+                onComplete = onToggle,
+                onAllDone = { showRoutines = false }
+            )
+        }
+    }
+
+    if (showWeek) {
+        ModalBottomSheet(
+            onDismissRequest = { showWeek = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = GlassSurface
+        ) {
+            WeekSheetContent(uiState = uiState, weekTasks = weekTasks)
+        }
     }
 
     when (dialog) {
@@ -317,55 +436,122 @@ fun TaskListScreen(
 private enum class DialogKind { AddProject, AddLabel, AddSection, Goals }
 
 @Composable
-private fun TaskList(
-    groups: List<SectionGroup>,
+private fun DockTab(label: String, selected: Boolean, onClick: () -> Unit) {
+    val bg by animateColorAsState(
+        targetValue = if (selected) GlassAccent else Color.Transparent,
+        label = "dockBg"
+    )
+    Row(
+        Modifier
+            .background(bg, RoundedCornerShape(24.dp))
+            .bouncy(0.92f, onClick)
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+            color = if (selected) Color.White else GlassTextSecondary
+        )
+    }
+}
+
+@Composable
+private fun CircleGlassButton(onClick: () -> Unit, content: @Composable () -> Unit) {
+    Box(
+        Modifier.size(42.dp).glass(CircleShape).bouncy(0.9f, onClick),
+        contentAlignment = Alignment.Center,
+        content = { content() }
+    )
+}
+
+// ---- Lista Zen ---------------------------------------------------------------
+
+/** Panel = wspólna tafla glass; wewnątrz bezramkowe wiersze z separatorami. */
+private data class ZenSection(val key: String, val title: String?, val nodes: List<TaskNode>)
+
+@Composable
+private fun ZenList(
+    uiState: TodoUiState,
+    projects: List<Project>,
     labels: List<Label>,
     onToggle: (Task) -> Unit,
     onTaskClick: (Task) -> Unit
 ) {
-    LazyColumn(
-        contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 100.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        groups.forEach { group ->
-            if (group.name != null) {
-                item(key = "sec-${group.sectionId}") {
-                    Text(
-                        group.name,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = GlassTextSecondary,
-                        modifier = Modifier.padding(start = 4.dp, top = 6.dp)
-                    )
+    val today = LocalDate.now().toEpochDay()
+    val sections: List<ZenSection> = when (uiState.view) {
+        AppView.Today -> {
+            val nodes = uiState.groups.firstOrNull()?.nodes.orEmpty()
+            val buckets = linkedMapOf<String, MutableList<TaskNode>>()
+            nodes.forEach { n ->
+                val m = n.task.dueTimeMinutes
+                val bucket = when {
+                    m == null -> "W ciągu dnia"
+                    m < 12 * 60 -> "Rano"
+                    m < 17 * 60 -> "Po południu"
+                    else -> "Wieczorem"
                 }
+                buckets.getOrPut(bucket) { mutableListOf() }.add(n)
             }
-            items(group.nodes, key = { it.task.id }) { node ->
+            listOf("W ciągu dnia", "Rano", "Po południu", "Wieczorem")
+                .mapNotNull { name -> buckets[name]?.let { ZenSection("today-$name", name, it) } }
+        }
+        AppView.Upcoming -> {
+            val nodes = uiState.groups.firstOrNull()?.nodes.orEmpty()
+            val byDay = nodes.groupBy { it.task.dueDate ?: Long.MAX_VALUE }.toSortedMap()
+            byDay.map { (day, dayNodes) ->
+                val title = when {
+                    day == Long.MAX_VALUE -> "Bez terminu"
+                    day == today + 1 -> "Jutro"
+                    day <= today + 7 -> LocalDate.ofEpochDay(day).format(dayFmt)
+                        .replaceFirstChar { it.uppercase() }
+                    else -> "Później"
+                }
+                ZenSection("day-$day", title, dayNodes)
+            }.let { list ->
+                // scal wiele grup "Później" w jedną
+                val later = list.filter { it.title == "Później" }
+                if (later.size > 1) {
+                    list.filter { it.title != "Później" } +
+                        ZenSection("later", "Później", later.flatMap { it.nodes })
+                } else list
+            }
+        }
+        else -> uiState.groups.map { g -> ZenSection("sec-${g.sectionId}", g.name, g.nodes) }
+    }
+
+    val expanded = remember { mutableStateMapOf<String, Boolean>() }
+
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 170.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        sections.forEach { section ->
+            if (section.nodes.isEmpty() && section.title == null) return@forEach
+            item(key = section.key) {
+                val isOpen = expanded.getOrDefault(section.key, true)
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.animateItem(
+                    Modifier.animateItem(
                         fadeInSpec = spring(stiffness = Spring.StiffnessLow),
                         placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
                         fadeOutSpec = spring(stiffness = Spring.StiffnessMedium)
                     )
                 ) {
-                    TaskItem(
-                        task = node.task,
-                        labels = labels.filter { node.task.labelIds.contains(it.id) },
-                        onToggle = { onToggle(node.task) },
-                        onClick = { onTaskClick(node.task) },
-                        subtaskDone = node.subtasks.count { it.isCompleted },
-                        subtaskTotal = node.subtasks.size,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    node.subtasks.forEach { sub ->
-                        TaskItem(
-                            task = sub,
-                            labels = emptyList(),
-                            onToggle = { onToggle(sub) },
-                            onClick = { onTaskClick(sub) },
-                            compact = true,
-                            modifier = Modifier.fillMaxWidth().padding(start = 28.dp)
+                    if (section.title != null) {
+                        SectionHeader(
+                            title = section.title,
+                            count = section.nodes.size,
+                            open = isOpen,
+                            onClick = { expanded[section.key] = !isOpen }
                         )
+                        Spacer(Modifier.height(6.dp))
+                    }
+                    AnimatedVisibility(
+                        visible = isOpen || section.title == null,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        ZenPanel(section.nodes, uiState, projects, labels, onToggle, onTaskClick)
                     }
                 }
             }
@@ -373,7 +559,183 @@ private fun TaskList(
     }
 }
 
-// ---- Drawer ----------------------------------------------------------------
+@Composable
+private fun SectionHeader(title: String, count: Int, open: Boolean, onClick: () -> Unit) {
+    val chevron by animateFloatAsState(if (open) 180f else 0f, label = "chev")
+    Row(
+        Modifier
+            .clip(RoundedCornerShape(50))
+            .bouncy(0.97f, onClick)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            title.uppercase(),
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+            color = GlassTextSecondary
+        )
+        Spacer(Modifier.width(8.dp))
+        Text("$count", style = MaterialTheme.typography.labelMedium, color = GlassTextSecondary.copy(alpha = 0.7f))
+        Spacer(Modifier.width(4.dp))
+        Icon(
+            Icons.Filled.KeyboardArrowUp,
+            null,
+            tint = GlassTextSecondary,
+            modifier = Modifier.size(16.dp).rotate(chevron)
+        )
+    }
+}
+
+@Composable
+private fun ZenPanel(
+    nodes: List<TaskNode>,
+    uiState: TodoUiState,
+    projects: List<Project>,
+    labels: List<Label>,
+    onToggle: (Task) -> Unit,
+    onTaskClick: (Task) -> Unit
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .glass(RoundedCornerShape(24.dp))
+            .animateContentSize(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow))
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    ) {
+        nodes.forEachIndexed { index, node ->
+            if (index > 0) {
+                HorizontalDivider(color = GlassPanelTint.copy(alpha = 0.14f), thickness = 1.dp)
+            }
+            TaskRowZen(
+                task = node.task,
+                metaLine = metaLineFor(node, uiState, projects, labels),
+                metaColor = metaColorFor(node.task),
+                onToggle = { onToggle(node.task) },
+                onOpen = { onTaskClick(node.task) }
+            )
+            node.subtasks.forEach { sub ->
+                TaskRowZen(
+                    task = sub,
+                    metaLine = "",
+                    compact = true,
+                    onToggle = { onToggle(sub) },
+                    onOpen = { onTaskClick(sub) }
+                )
+            }
+        }
+    }
+}
+
+private fun metaLineFor(
+    node: TaskNode,
+    uiState: TodoUiState,
+    projects: List<Project>,
+    labels: List<Label>
+): String {
+    val task = node.task
+    val today = LocalDate.now().toEpochDay()
+    val parts = mutableListOf<String>()
+
+    task.dueDate?.let { due ->
+        val showDate = when (uiState.view) {
+            AppView.Today -> due < today
+            AppView.Upcoming -> false
+            else -> true
+        }
+        if (showDate) {
+            parts += when {
+                due < today -> "Zaległe"
+                due == today -> "Dzisiaj"
+                due == today + 1 -> "Jutro"
+                else -> LocalDate.ofEpochDay(due).format(shortFmt)
+            }
+        }
+    }
+    task.durationMinutes?.let { m ->
+        parts += if (m >= 60) {
+            if (m % 60 == 0) "${m / 60}h" else "${m / 60}h ${m % 60}min"
+        } else "$m min"
+    }
+    if (task.recurrence != null) parts += "🔁"
+    task.deadline?.let { parts += "do " + LocalDate.ofEpochDay(it).format(shortFmt) }
+    if (task.priority != Priority.P4) parts += "P${task.priority.ordinal + 1}"
+    if (uiState.view !is AppView.ProjectView) {
+        projects.firstOrNull { it.id == task.projectId }?.let { parts += "#${it.name}" }
+    }
+    labels.filter { task.labelIds.contains(it.id) }.forEach { parts += "@${it.name}" }
+    if (node.subtasks.isNotEmpty()) {
+        parts += "${node.subtasks.count { it.isCompleted }}/${node.subtasks.size}"
+    }
+    return parts.joinToString(" · ")
+}
+
+@Composable
+private fun metaColorFor(task: Task): Color {
+    val today = LocalDate.now().toEpochDay()
+    val overdue = !task.isCompleted && task.dueDate != null && task.dueDate < today
+    return if (overdue) Color(0xFFE0564A) else GlassTextSecondary
+}
+
+// ---- Panel „Tydzień" -----------------------------------------------------------
+
+@Composable
+private fun WeekSheetContent(uiState: TodoUiState, weekTasks: List<Task>) {
+    val today = LocalDate.now()
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Tydzień", style = MaterialTheme.typography.titleLarge, color = GlassTextPrimary)
+        }
+        Spacer(Modifier.height(12.dp))
+        GoalRow("Dzisiaj", uiState.doneToday, uiState.goalDaily)
+        Spacer(Modifier.height(6.dp))
+        GoalRow("Tydzień", uiState.doneWeek, uiState.goalWeekly)
+        Spacer(Modifier.height(16.dp))
+
+        Column(
+            Modifier.fillMaxWidth().glass(RoundedCornerShape(24.dp)).padding(horizontal = 14.dp, vertical = 6.dp)
+        ) {
+            (0..6).forEach { offset ->
+                val date = today.plusDays(offset.toLong())
+                val epoch = date.toEpochDay()
+                val dayTasks = weekTasks.filter {
+                    it.parentId == null && !it.isCompleted && it.dueDate == epoch
+                }
+                if (offset > 0) HorizontalDivider(color = GlassPanelTint.copy(alpha = 0.14f), thickness = 1.dp)
+                Row(Modifier.padding(vertical = 10.dp), verticalAlignment = Alignment.Top) {
+                    Text(
+                        when (offset) {
+                            0 -> "Dzisiaj"
+                            1 -> "Jutro"
+                            else -> date.format(dayFmt).replaceFirstChar { it.uppercase() }
+                        },
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = GlassTextPrimary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        if (dayTasks.isEmpty()) "wolne" else "${dayTasks.size}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (dayTasks.isEmpty()) GlassTextSecondary.copy(alpha = 0.6f) else GlassAccent
+                    )
+                }
+                dayTasks.take(2).forEach { t ->
+                    Text(
+                        "• ${t.title}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = GlassTextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ---- Szuflada ------------------------------------------------------------------
 
 @Composable
 private fun DrawerContent(
@@ -381,12 +743,10 @@ private fun DrawerContent(
     projects: List<Project>,
     labels: List<Label>,
     uiState: TodoUiState,
-    isDarkTheme: Boolean,
     onSelect: (AppView) -> Unit,
     onAddProject: () -> Unit,
     onAddLabel: () -> Unit,
-    onGoalsClick: () -> Unit,
-    onToggleTheme: () -> Unit
+    onGoalsClick: () -> Unit
 ) {
     val activeProjects = projects.filter { !it.isArchived }
     val archived = projects.filter { it.isArchived }
@@ -406,21 +766,8 @@ private fun DrawerContent(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "Todoisto",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = GlassTextPrimary,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = onToggleTheme) {
-                    Icon(
-                        if (isDarkTheme) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
-                        contentDescription = "Zmień motyw",
-                        tint = GlassTextSecondary
-                    )
-                }
-            }
+            Text("Todoisto", style = MaterialTheme.typography.headlineSmall, color = GlassTextPrimary)
+            Spacer(Modifier.height(14.dp))
 
             GoalsCard(uiState, onClick = onGoalsClick)
             Spacer(Modifier.height(12.dp))
@@ -472,14 +819,12 @@ private fun GoalsCard(uiState: TodoUiState, onClick: () -> Unit) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
             .background(GlassPanelTint.copy(alpha = 0.10f))
-            .border(1.dp, GlassPanelTint.copy(alpha = 0.25f), RoundedCornerShape(20.dp))
             .bouncy(scaleDown = 0.97f, onClick = onClick)
             .padding(14.dp)
     ) {
         Text(
-            "Cele produktywności",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
+            "CELE PRODUKTYWNOŚCI",
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
             color = GlassTextSecondary
         )
         Spacer(Modifier.height(8.dp))
@@ -555,7 +900,7 @@ private fun DrawerDot(color: Color, label: String, selected: Boolean, icon: Imag
 private fun DrawerHeader(title: String, onAdd: (() -> Unit)?) {
     Spacer(Modifier.height(18.dp))
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 12.dp)) {
-        Text(title, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = GlassTextSecondary, modifier = Modifier.weight(1f))
+        Text(title.uppercase(), style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = GlassTextSecondary, modifier = Modifier.weight(1f))
         if (onAdd != null) {
             IconButton(onClick = onAdd) { Icon(Icons.Filled.Add, "Dodaj", tint = GlassTextSecondary, modifier = Modifier.size(20.dp)) }
         }
@@ -596,12 +941,11 @@ internal fun QuickAddContent(
 ) {
     var text by remember { mutableStateOf(initialText) }
     val parsed = remember(text) { QuickAddParser().parse(text) }
-    val fmt = remember { DateTimeFormatter.ofPattern("d MMM", Locale.forLanguageTag("pl")) }
 
     var manualDue by remember { mutableStateOf<Long?>(null) }
-    var manualPriority by remember { mutableStateOf<pl.media30.todoisto.data.Priority?>(null) }
+    var manualPriority by remember { mutableStateOf<Priority?>(null) }
     var manualProject by remember { mutableStateOf<Project?>(null) }
-    var manualRecurrence by remember { mutableStateOf<pl.media30.todoisto.data.Recurrence?>(null) }
+    var manualRecurrence by remember { mutableStateOf<Recurrence?>(null) }
     var projectMenu by remember { mutableStateOf(false) }
     var recurrenceMenu by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -632,7 +976,6 @@ internal fun QuickAddContent(
             colors = glassFieldColors()
         )
 
-        // Termin: Dzisiaj / Jutro / konkretna data
         Spacer(Modifier.height(14.dp))
         androidx.compose.foundation.layout.FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -646,18 +989,17 @@ internal fun QuickAddContent(
             }
             val customDate = effDue?.takeIf { it != today && it != today + 1 }
             ChoiceChip(
-                text = customDate?.let { "📅 " + LocalDate.ofEpochDay(it).format(fmt) } ?: "📅 Data",
+                text = customDate?.let { "📅 " + LocalDate.ofEpochDay(it).format(shortFmt) } ?: "📅 Data",
                 selected = customDate != null
             ) { showDatePicker = true }
         }
 
-        // Priorytet
         Spacer(Modifier.height(10.dp))
         androidx.compose.foundation.layout.FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            pl.media30.todoisto.data.Priority.entries.forEach { p ->
+            Priority.entries.forEach { p ->
                 ChoiceChip(
                     text = "P${p.ordinal + 1}",
                     selected = effPriority == p,
@@ -666,7 +1008,6 @@ internal fun QuickAddContent(
             }
         }
 
-        // Projekt + cykliczność
         Spacer(Modifier.height(10.dp))
         androidx.compose.foundation.layout.FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -700,7 +1041,7 @@ internal fun QuickAddContent(
                         text = { Text("Nie powtarzaj") },
                         onClick = { manualRecurrence = null; recurrenceMenu = false }
                     )
-                    pl.media30.todoisto.data.Recurrence.entries.forEach { r ->
+                    Recurrence.entries.forEach { r ->
                         DropdownMenuItem(
                             text = { Text(r.label) },
                             onClick = { manualRecurrence = r; recurrenceMenu = false }
@@ -710,7 +1051,6 @@ internal fun QuickAddContent(
             }
         }
 
-        // Reszta rozpoznana z tekstu (godzina, czas trwania, etykiety, deadline)
         val extras = parsed.dueTimeMinutes != null || parsed.durationMinutes != null ||
             parsed.labelNames.isNotEmpty() || parsed.deadline != null
         if (extras) {
@@ -721,22 +1061,26 @@ internal fun QuickAddContent(
                 modifier = Modifier.fillMaxWidth().animateContentSize()
             ) {
                 parsed.dueTimeMinutes?.let { PreviewChip("🕒 %02d:%02d".format(it / 60, it % 60)) }
-                parsed.durationMinutes?.let { PreviewChip("⏱ " + durationText(it)) }
+                parsed.durationMinutes?.let { PreviewChip("⏱ $it min") }
                 parsed.labelNames.forEach { PreviewChip("@ $it") }
-                parsed.deadline?.let { PreviewChip("⏳ do " + dueText(it, fmt)) }
+                parsed.deadline?.let { PreviewChip("⏳ do " + LocalDate.ofEpochDay(it).format(shortFmt)) }
             }
         }
 
         Spacer(Modifier.height(16.dp))
-        ExtendedFloatingActionButton(
-            onClick = { if (text.isNotBlank()) onAdd(text, overrides()) },
-            shape = RoundedCornerShape(50),
-            containerColor = GlassAccent,
-            contentColor = Color.White,
-            modifier = Modifier.fillMaxWidth(),
-            icon = { Icon(Icons.Filled.Add, null) },
-            text = { Text("Dodaj", fontWeight = FontWeight.SemiBold) }
-        )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .background(GlassAccent, RoundedCornerShape(26.dp))
+                .bouncy(0.96f) { if (text.isNotBlank()) onAdd(text, overrides()) },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(Icons.Filled.Add, null, tint = Color.White, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Dodaj", color = Color.White, style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+        }
     }
 
     if (showDatePicker) {
@@ -768,20 +1112,13 @@ private fun ChoiceChip(
     tint: Color = GlassAccent,
     onClick: () -> Unit
 ) {
-    val shape = RoundedCornerShape(50)
     val bg by animateColorAsState(
-        targetValue = when {
-            !selected -> GlassPanelTint.copy(alpha = 0.10f)
-            GlassTheme.dark -> Color.White
-            else -> tint.copy(alpha = 0.16f)
-        },
+        targetValue = if (selected) tint.copy(alpha = 0.16f) else GlassPanelTint.copy(alpha = 0.07f),
         label = "choiceBg"
     )
     Row(
         modifier = Modifier
-            .clip(shape)
-            .background(bg)
-            .border(1.dp, if (selected) tint else GlassPanelTint.copy(alpha = 0.30f), shape)
+            .background(bg, RoundedCornerShape(50))
             .bouncy(scaleDown = 0.9f, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -794,16 +1131,6 @@ private fun ChoiceChip(
     }
 }
 
-private fun durationText(minutes: Int): String {
-    val h = minutes / 60
-    val m = minutes % 60
-    return when {
-        h > 0 && m > 0 -> "${h}h ${m}min"
-        h > 0 -> "${h}h"
-        else -> "${m}min"
-    }
-}
-
 @Composable
 private fun PreviewChip(text: String) {
     Text(
@@ -812,21 +1139,12 @@ private fun PreviewChip(text: String) {
         color = GlassTextPrimary,
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(GlassPanelTint.copy(alpha = 0.12f))
+            .background(GlassPanelTint.copy(alpha = 0.10f))
             .padding(horizontal = 12.dp, vertical = 6.dp)
     )
 }
 
-private fun dueText(epochDay: Long, fmt: DateTimeFormatter): String {
-    val today = LocalDate.now().toEpochDay()
-    return when (epochDay) {
-        today -> "Dzisiaj"
-        today + 1 -> "Jutro"
-        else -> LocalDate.ofEpochDay(epochDay).format(fmt)
-    }
-}
-
-// ---- Dialogs ---------------------------------------------------------------
+// ---- Dialogi -------------------------------------------------------------------
 
 @Composable
 private fun NameColorDialog(title: String, onDismiss: () -> Unit, onConfirm: (String, Long) -> Unit) {
@@ -855,9 +1173,21 @@ private fun NameColorDialog(title: String, onDismiss: () -> Unit, onConfirm: (St
                                 .size(28.dp)
                                 .clip(CircleShape)
                                 .background(Color(c))
-                                .border(if (c == color) 3.dp else 0.dp, GlassTextPrimary, CircleShape)
+                                .then(
+                                    if (c == color) Modifier.padding(0.dp) else Modifier
+                                )
                                 .clickable { color = c }
-                        )
+                        ) {
+                            if (c == color) {
+                                Box(
+                                    Modifier
+                                        .align(Alignment.Center)
+                                        .size(10.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White)
+                                )
+                            }
+                        }
                     }
                 }
             }

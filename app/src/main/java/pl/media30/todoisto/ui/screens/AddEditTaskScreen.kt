@@ -46,6 +46,7 @@ import androidx.compose.material.icons.outlined.Sell
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
@@ -120,7 +121,6 @@ fun AddEditTaskScreen(
     var newSubtask by remember { mutableStateOf("") }
 
     var datePickerFor by remember { mutableStateOf<DateTarget?>(null) }
-    var projectMenu by remember { mutableStateOf(false) }
 
     val isEditing = existing != null
 
@@ -147,9 +147,6 @@ fun AddEditTaskScreen(
                 actions = {
                     if (isEditing && onDuplicate != null) {
                         IconButton(onClick = onDuplicate) { Icon(Icons.Outlined.ContentCopy, "Duplikuj", tint = GlassTextPrimary) }
-                    }
-                    if (isEditing && onDelete != null) {
-                        IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, "Usuń", tint = GlassTextPrimary) }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -183,18 +180,10 @@ fun AddEditTaskScreen(
             Spacer(Modifier.height(24.dp))
             SectionLabel(Icons.Outlined.Folder, "Projekt")
             Spacer(Modifier.height(10.dp))
-            Box {
-                Pill(onClick = { projectMenu = true }) {
-                    val current = projects.firstOrNull { it.id == projectId }
-                    Box(Modifier.size(10.dp).clip(CircleShape).background(current?.let { Color(it.colorArgb) } ?: GlassTextSecondary))
-                    Spacer(Modifier.width(8.dp))
-                    Text(current?.name ?: "Skrzynka", color = GlassTextPrimary, style = MaterialTheme.typography.bodyMedium)
-                }
-                DropdownMenu(expanded = projectMenu, onDismissRequest = { projectMenu = false }) {
-                    DropdownMenuItem(text = { Text("Skrzynka") }, onClick = { projectId = null; projectMenu = false })
-                    projects.forEach { p ->
-                        DropdownMenuItem(text = { Text(p.name) }, onClick = { projectId = p.id; projectMenu = false })
-                    }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                DotChip("Skrzynka", GlassTextSecondary, projectId == null) { projectId = null }
+                projects.filter { !it.isArchived }.forEach { pr ->
+                    DotChip(pr.name, Color(pr.colorArgb), projectId == pr.id) { projectId = pr.id }
                 }
             }
 
@@ -310,18 +299,25 @@ fun AddEditTaskScreen(
                 }
             }
 
-            Spacer(Modifier.height(32.dp))
-            Button(
-                onClick = { onSave(assemble()) },
-                enabled = title.isNotBlank(),
-                modifier = Modifier.fillMaxWidth().height(54.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = GlassAccent, contentColor = Color.White,
-                    disabledContainerColor = GlassPanelTint.copy(alpha = 0.18f),
-                    disabledContentColor = GlassTextSecondary.copy(alpha = 0.7f)
-                )
-            ) {
-                Text(if (isEditing) "Zapisz zmiany" else "Dodaj zadanie", fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(28.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (isEditing && onDelete != null) {
+                    OutlinedButton(onClick = onDelete, modifier = Modifier.weight(1f).height(52.dp)) {
+                        Text("Usuń", color = Priority.P1.color)
+                    }
+                }
+                Button(
+                    onClick = { onSave(assemble()) },
+                    enabled = title.isNotBlank(),
+                    modifier = Modifier.weight(2f).height(52.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = GlassAccent, contentColor = Color.White,
+                        disabledContainerColor = GlassPanelTint.copy(alpha = 0.18f),
+                        disabledContentColor = GlassTextSecondary.copy(alpha = 0.7f)
+                    )
+                ) {
+                    Text(if (isEditing) "Gotowe" else "Dodaj zadanie", fontWeight = FontWeight.SemiBold)
+                }
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -400,15 +396,18 @@ private fun DateRow(
 @Composable
 private fun SectionLabel(icon: ImageVector, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = GlassAccent, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(text, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold), color = GlassTextPrimary)
+        Icon(icon, null, tint = GlassAccent, modifier = Modifier.size(15.dp))
+        Spacer(Modifier.width(7.dp))
+        Text(
+            text.uppercase(),
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+            color = GlassTextSecondary
+        )
     }
 }
 
 @Composable
 private fun SelectChip(text: String, selected: Boolean, color: Color, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(50)
     val bg by animateColorAsState(
         targetValue = if (selected) color.copy(alpha = 0.16f) else GlassPanelTint.copy(alpha = 0.07f),
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
@@ -421,17 +420,37 @@ private fun SelectChip(text: String, selected: Boolean, color: Color, onClick: (
     )
     Row(
         modifier = Modifier
-            .clip(shape)
-            .background(bg)
-            .border(1.dp, if (selected) color else GlassPanelTint.copy(alpha = 0.30f), shape)
+            .background(bg, RoundedCornerShape(50))
             .bouncy(scaleDown = 0.9f, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text,
             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
             color = textColor
+        )
+    }
+}
+
+@Composable
+private fun DotChip(label: String, dot: Color, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .background(
+                if (selected) dot.copy(alpha = 0.16f) else GlassPanelTint.copy(alpha = 0.07f),
+                RoundedCornerShape(50)
+            )
+            .bouncy(0.9f, onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(8.dp).clip(CircleShape).background(dot))
+        Spacer(Modifier.width(6.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (selected) GlassTextPrimary else GlassTextSecondary
         )
     }
 }

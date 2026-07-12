@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
+import dev.chrisbanes.haze.hazeChild
 import java.time.LocalTime
 
 /**
@@ -57,6 +58,9 @@ fun dayPhaseFromClock(hour: Int = LocalTime.now().hour): DayPhase = when (hour) 
     in 11..16 -> DayPhase.NOON
     else -> DayPhase.EVENING
 }
+
+/** Wspólny stan Haze do prawdziwego rozmycia tła (backdrop blur) pod taflami. */
+val LocalHazeState = androidx.compose.runtime.staticCompositionLocalOf<dev.chrisbanes.haze.HazeState?> { null }
 
 object GlassTheme {
     var dark by mutableStateOf(false)
@@ -322,6 +326,33 @@ fun Modifier.glass(shape: Shape = RoundedCornerShape(24.dp), sheenOn: Boolean = 
             if (sheenOn) sheen(prog, if (dark) 0.09f else 0.14f)
         }
         .border(1.dp, if (dark) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.28f), shape)
+}
+
+/**
+ * Tafla szkła z PRAWDZIWYM rozmyciem tła (Haze), gdy dostępny [LocalHazeState] —
+ * treść pod spodem jest rozmyta (liquid glass). Bez stanu Haze spada do [glass].
+ */
+fun Modifier.glassBlur(shape: Shape = RoundedCornerShape(24.dp)): Modifier = composed {
+    val haze = LocalHazeState.current ?: return@composed this.then(Modifier.glass(shape))
+    val dark = GlassTheme.dark
+    // backgroundColor MUSI być podany — inaczej Haze rzuca wyjątek na ścieżce
+    // awaryjnej (brak RenderEffect: layoutlib/Paparazzi oraz API < 31).
+    // Ton zbliżony do bazy mesh-gradientu, żeby fallback ładnie się zlewał.
+    val hazeStyle = dev.chrisbanes.haze.HazeStyle(
+        backgroundColor = if (dark) Color(0xFF241E3C) else Color(0xFFF3F1FA),
+        tints = emptyList()
+    )
+    this
+        .shadow(16.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.5f))
+        .clip(shape)
+        .hazeChild(state = haze, style = hazeStyle)
+        // lekki „mleczny" nalot na rozmyciu — czytelność tekstu przy zachowaniu przezroczystości
+        .background(if (dark) Color.White.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.16f))
+        .drawWithContent {
+            drawContent()
+            specular(if (dark) 0.20f else 0.42f)
+        }
+        .border(1.dp, if (dark) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.40f), shape)
 }
 
 /**

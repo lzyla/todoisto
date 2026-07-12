@@ -92,7 +92,11 @@ private fun HeroCard(
         Text("PROPOZYCJA NA TERAZ", fontSize = 10.sp, fontWeight = FontWeight.W800, letterSpacing = 1.4.sp, color = GlassTextSecondary)
         Spacer(Modifier.height(14.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(s.activity.effortType.emoji, fontSize = 34.sp, modifier = Modifier.padding(end = 14.dp))
+            Box(
+                Modifier.size(48.dp).clip(RoundedCornerShape(15.dp)).background(effortColor(s.activity.effortType).copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center
+            ) { Icon(effortIcon(s.activity.effortType), null, tint = effortColor(s.activity.effortType), modifier = Modifier.size(26.dp)) }
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(s.activity.name, fontSize = 19.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
                 Spacer(Modifier.height(2.dp))

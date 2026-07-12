@@ -22,6 +22,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material.icons.outlined.Psychology
+import androidx.compose.material.icons.outlined.Spa
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -54,6 +57,19 @@ import pl.media30.todoisto.ui.theme.GlassTint
 import pl.media30.todoisto.ui.theme.glass
 
 private fun hm(min: Int) = "%d:%02d".format(min / 60, min % 60)
+
+/** Minimalistyczne ikony + kolory typów wysiłku (zamiast emoji). */
+fun effortIcon(t: EffortType): androidx.compose.ui.graphics.vector.ImageVector = when (t) {
+    EffortType.PHYSICAL -> Icons.Outlined.FitnessCenter
+    EffortType.MENTAL -> Icons.Outlined.Psychology
+    EffortType.RELAX -> Icons.Outlined.Spa
+}
+
+fun effortColor(t: EffortType): Color = when (t) {
+    EffortType.PHYSICAL -> Color(0xFFFB7185) // róż/energia
+    EffortType.MENTAL -> Color(0xFF6B8AFF)   // błękit
+    EffortType.RELAX -> Color(0xFF2DD4BF)    // turkus
+}
 
 private fun metaLine(a: Activity): String {
     val parts = mutableListOf("${a.durationMinutes} min", a.place.label.lowercase())
@@ -104,7 +120,11 @@ fun ActivityPoolSheet(
                             .bouncy(0.98f) { onEdit(a) }.padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(a.effortType.emoji, fontSize = 20.sp, modifier = Modifier.padding(end = 12.dp))
+                        Box(
+                            Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(effortColor(a.effortType).copy(alpha = 0.16f)).padding(end = 0.dp),
+                            contentAlignment = Alignment.Center
+                        ) { Icon(effortIcon(a.effortType), null, tint = effortColor(a.effortType), modifier = Modifier.size(18.dp)) }
+                        Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
                                 a.name, fontSize = 15.sp, fontWeight = FontWeight.W700,
@@ -164,7 +184,7 @@ fun ActivityFormSheet(
         Section("Typ wysiłku")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             EffortType.entries.forEach { t ->
-                Chip("${t.emoji} ${t.label}", effort == t, GlassAccent) { effort = t }
+                Chip(t.label, effort == t, effortColor(t)) { effort = t }
             }
         }
 

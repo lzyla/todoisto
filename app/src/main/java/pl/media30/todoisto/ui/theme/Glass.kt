@@ -366,13 +366,14 @@ fun Modifier.controlCenterGlass(shape: Shape = RoundedCornerShape(50)): Modifier
         label = "ccx"
     )
     this
-        .shadow(14.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.5f))
+        .shadow(18.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.6f))
         .clip(shape)
-        .background(Color.White.copy(alpha = if (dark) 0.12f else 0.24f))
+        // bardziej kryjąca „mleczna" tafla — czytelny tekst nad zdjęciem/gradientem
+        .background(if (dark) Color(0xE0473C63) else Color(0xF0FFFFFF))
         .drawWithContent {
             drawContent()
             // delikatny przesuwający się połysk — bez twardej, tłoczonej obwódki
             sheen(prog, if (dark) 0.08f else 0.13f)
         }
-        .border(1.dp, if (dark) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.20f), shape)
+        .border(1.dp, if (dark) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.55f), shape)
 }

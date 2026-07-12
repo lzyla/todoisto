@@ -447,7 +447,7 @@ private fun CircleGlassButton(onClick: () -> Unit, content: @Composable () -> Un
 @Composable
 private fun DockTab(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
     val bg by animateColorAsState(if (selected) GlassAccent else Color.Transparent, tween(350), label = "dockBg")
-    val fg by animateColorAsState(if (selected) Color.White else GlassTextSecondary, tween(350), label = "dockFg")
+    val fg by animateColorAsState(if (selected) Color.White else GlassTextPrimary, tween(350), label = "dockFg")
     Row(
         Modifier.clip(RoundedCornerShape(24.dp)).background(bg).bouncy(0.92f, onClick)
             .padding(horizontal = 18.dp, vertical = 10.dp),
@@ -686,43 +686,47 @@ private fun ZenRowWithSubs(
     val dlSoon = task.deadline?.let { it - todayEpoch in 0..2 } == true
     val deadlineWarn = longTask && dlSoon && !task.isCompleted
 
-    // #3 — swipe: w prawo = ukończ, w lewo = odłóż na jutro
-    val view = LocalView.current
-    val dismiss = androidx.compose.material3.rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            when (value) {
-                androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd -> {
-                    view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM); onToggle(task); true
+    // #3 — swipe: w prawo = ukończ, w lewo = odłóż na jutro.
+    // Traktujemy to jako AKCJĘ, nie „dismiss": po odpaleniu wracamy do środka
+    // (confirmValueChange = false), a lista sama zaktualizuje się z danych.
+    // key(task.id) — stabilny stan swipe'u mimo zmian listy (bez pomyłki wierszy).
+    androidx.compose.runtime.key(task.id) {
+        val view = LocalView.current
+        val dismiss = androidx.compose.material3.rememberSwipeToDismissBoxState(
+            confirmValueChange = { value ->
+                when (value) {
+                    androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd ->
+                        view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM).also { onToggle(task) }
+                    androidx.compose.material3.SwipeToDismissBoxValue.EndToStart ->
+                        view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK).also { onDefer(task) }
+                    else -> {}
                 }
-                androidx.compose.material3.SwipeToDismissBoxValue.EndToStart -> {
-                    view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK); onDefer(task); true
+                false // akcja odpalona — kafelek wraca na miejsce
+            },
+            positionalThreshold = { it * 0.45f }
+        )
+        androidx.compose.material3.SwipeToDismissBox(
+            state = dismiss,
+            modifier = Modifier.clip(RoundedCornerShape(20.dp)),
+            backgroundContent = { SwipeBg(dismiss.dismissDirection) }
+        ) {
+            Column(Modifier.fillMaxWidth().taskTile { onTaskClick(task) }) {
+                if (deadlineWarn) {
+                    Row(
+                        Modifier.padding(start = 14.dp, top = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "⏳ Napięty deadline",
+                            fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = Color(0xFFB45309),
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0x33F59E0B)).padding(horizontal = 9.dp, vertical = 3.dp)
+                        )
+                    }
                 }
-                else -> false
-            }
-        },
-        positionalThreshold = { it * 0.5f }
-    )
-    androidx.compose.material3.SwipeToDismissBox(
-        state = dismiss,
-        modifier = Modifier.clip(RoundedCornerShape(20.dp)),
-        backgroundContent = { SwipeBg(dismiss.dismissDirection) }
-    ) {
-        Column(Modifier.fillMaxWidth().taskTile { onTaskClick(task) }) {
-            if (deadlineWarn) {
-                Row(
-                    Modifier.padding(start = 14.dp, top = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "⏳ Napięty deadline",
-                        fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = Color(0xFFB45309),
-                        modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0x33F59E0B)).padding(horizontal = 9.dp, vertical = 3.dp)
-                    )
+                TaskRowZen(task, meta, { onToggle(task) }, { onTaskClick(task) })
+                node.subtasks.forEach { sub ->
+                    TaskRowZen(sub, "", { onToggle(sub) }, { onTaskClick(sub) }, compact = true)
                 }
-            }
-            TaskRowZen(task, meta, { onToggle(task) }, { onTaskClick(task) })
-            node.subtasks.forEach { sub ->
-                TaskRowZen(sub, "", { onToggle(sub) }, { onTaskClick(sub) }, compact = true)
             }
         }
     }

@@ -4,7 +4,6 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Minimalistyczny „check" w strefie bezpiecznej adaptive-icon -->
     <path
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="9"

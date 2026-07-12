@@ -84,8 +84,13 @@ fun TodoistoApp(
     val labels by viewModel.labels.collectAsState()
     val allTasks by viewModel.allTasks.collectAsState()
     val darkTheme by viewModel.darkTheme.collectAsState()
+    val activities by viewModel.activities.collectAsState()
+    val freeTime by viewModel.freeTime.collectAsState()
 
     var detailTaskId by remember { mutableStateOf<Long?>(null) }
+    var showPool by remember { mutableStateOf(false) }
+    var showForm by remember { mutableStateOf(false) }
+    var editingActivity by remember { mutableStateOf<pl.media30.todoisto.data.Activity?>(null) }
 
     TaskListScreen(
         uiState = uiState,
@@ -112,8 +117,61 @@ fun TodoistoApp(
         onSetGoals = viewModel::setGoals,
         onToggleTheme = { viewModel.setDarkTheme(!darkTheme) },
         onMoveOverdueToToday = viewModel::moveOverdueToToday,
+        onOpenActivityPool = { showPool = true },
+        onFreeTime = { viewModel.suggestFreeTime() },
         weekTasks = allTasks
     )
+
+    // Panel „Czas wolny"
+    freeTime?.let { ft ->
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.dismissFreeTime() },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = GlassSurface,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
+        ) {
+            pl.media30.todoisto.ui.screens.FreeTimePanel(
+                state = ft,
+                onAccept = viewModel::acceptSuggestion,
+                onSwap = viewModel::swapSuggestion,
+                onDismiss = viewModel::dismissSuggestion,
+                onAddFirst = { viewModel.dismissFreeTime(); editingActivity = null; showForm = true }
+            )
+        }
+    }
+
+    // Katalog puli
+    if (showPool) {
+        ModalBottomSheet(
+            onDismissRequest = { showPool = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = GlassSurface,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
+        ) {
+            pl.media30.todoisto.ui.screens.ActivityPoolSheet(
+                activities = activities,
+                onAdd = { editingActivity = null; showForm = true },
+                onEdit = { editingActivity = it; showForm = true }
+            )
+        }
+    }
+
+    // Formularz aktywności
+    if (showForm) {
+        ModalBottomSheet(
+            onDismissRequest = { showForm = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = GlassSurface,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
+        ) {
+            pl.media30.todoisto.ui.screens.ActivityFormSheet(
+                existing = editingActivity,
+                onSave = { a -> if (editingActivity == null) viewModel.addActivity(a) else viewModel.updateActivity(a) },
+                onDelete = editingActivity?.let { a -> { viewModel.deleteActivity(a.id); showForm = false } },
+                onClose = { showForm = false }
+            )
+        }
+    }
 
     val detailTask = detailTaskId?.let { id -> allTasks.firstOrNull { it.id == id } }
     if (detailTask != null) {

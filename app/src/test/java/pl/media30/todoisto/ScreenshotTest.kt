@@ -18,6 +18,16 @@ import pl.media30.todoisto.ui.AppView
 import pl.media30.todoisto.ui.SectionGroup
 import pl.media30.todoisto.ui.TaskNode
 import pl.media30.todoisto.ui.TodoUiState
+import pl.media30.todoisto.data.Activity
+import pl.media30.todoisto.data.EffortType
+import pl.media30.todoisto.data.EnergyCost
+import pl.media30.todoisto.data.FreeSlot
+import pl.media30.todoisto.data.Place
+import pl.media30.todoisto.data.Suggestion
+import pl.media30.todoisto.ui.FreeTimeState
+import pl.media30.todoisto.ui.screens.ActivityFormSheet
+import pl.media30.todoisto.ui.screens.ActivityPoolSheet
+import pl.media30.todoisto.ui.screens.FreeTimePanel
 import pl.media30.todoisto.ui.screens.TaskDetailSheet
 import pl.media30.todoisto.ui.screens.TaskListScreen
 import pl.media30.todoisto.ui.theme.GlassBackground
@@ -173,5 +183,77 @@ class ScreenshotTest {
                 }
             }
         }
+    }
+
+    private val poolActivities = listOf(
+        Activity(1, "Spacer w parku", EffortType.PHYSICAL, durationMinutes = 30, place = Place.OUTSIDE, energyCost = EnergyCost.LOW, frequencyTarget = 4),
+        Activity(2, "Czytanie książki", EffortType.RELAX, durationMinutes = 45, place = Place.HOME, energyCost = EnergyCost.LOW),
+        Activity(3, "Nauka hiszpańskiego", EffortType.MENTAL, durationMinutes = 20, place = Place.HOME, energyCost = EnergyCost.MED, frequencyTarget = 3),
+        Activity(4, "Trening siłowy", EffortType.PHYSICAL, durationMinutes = 60, place = Place.OUTSIDE, windowStartMin = 17 * 60, windowEndMin = 21 * 60, energyCost = EnergyCost.HIGH)
+    )
+
+    @Composable
+    private fun sheet(content: @Composable () -> Unit) {
+        GlassBackground {
+            androidx.compose.foundation.layout.Box(
+                modifier = androidx.compose.ui.Modifier
+                    .fillMaxWidth()
+                    .background(GlassSurface, androidx.compose.foundation.shape.RoundedCornerShape(34.dp))
+                    .padding(top = 14.dp)
+            ) { content() }
+        }
+    }
+
+    @Test
+    fun freeTimePanel() {
+        GlassTheme.dark = false
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.NOON
+        val suggestions = listOf(
+            Suggestion(poolActivities[0], FreeSlot(15 * 60, 16 * 60 + 30), 15 * 60),
+            Suggestion(poolActivities[2], FreeSlot(15 * 60, 16 * 60 + 30), 15 * 60 + 30)
+        )
+        paparazzi.snapshot {
+            TodoistoTheme {
+                sheet {
+                    FreeTimePanel(
+                        state = FreeTimeState(freeMinutes = 90, suggestions = suggestions, poolEmpty = false, noWindows = false),
+                        onAccept = {}, onSwap = {}, onDismiss = {}, onAddFirst = {}
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun activityPoolSheet() {
+        GlassTheme.dark = false
+        paparazzi.snapshot {
+            TodoistoTheme {
+                sheet { ActivityPoolSheet(activities = poolActivities, onAdd = {}, onEdit = {}) }
+            }
+        }
+    }
+
+    @Test
+    fun activityFormSheet() {
+        GlassTheme.dark = false
+        paparazzi.snapshot {
+            TodoistoTheme {
+                sheet {
+                    ActivityFormSheet(existing = poolActivities[0], onSave = {}, onDelete = {}, onClose = {})
+                }
+            }
+        }
+    }
+
+    @Test
+    fun freeTimePanelDark() {
+        GlassTheme.dark = true
+        paparazzi.snapshot {
+            TodoistoTheme {
+                sheet { ActivityPoolSheet(activities = poolActivities, onAdd = {}, onEdit = {}) }
+            }
+        }
+        GlassTheme.dark = false
     }
 }

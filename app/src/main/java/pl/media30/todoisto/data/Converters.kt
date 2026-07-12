@@ -29,4 +29,26 @@ class Converters {
     @TypeConverter
     fun stringToStrings(value: String): List<String> =
         if (value.isBlank()) emptyList() else value.split("\n").filter { it.isNotBlank() }
+
+    // --- Pula aktywności ---
+    @TypeConverter
+    fun effortToString(value: EffortType?): String? = value?.name
+
+    @TypeConverter
+    fun stringToEffort(value: String?): EffortType? =
+        value?.let { runCatching { EffortType.valueOf(it) }.getOrNull() }
+
+    @TypeConverter
+    fun placeToString(value: Place): String = value.name
+
+    @TypeConverter
+    fun stringToPlace(value: String): Place =
+        runCatching { Place.valueOf(value) }.getOrDefault(Place.HOME)
+
+    @TypeConverter
+    fun energyToString(value: EnergyCost): String = value.name
+
+    @TypeConverter
+    fun stringToEnergy(value: String): EnergyCost =
+        runCatching { EnergyCost.valueOf(value) }.getOrDefault(EnergyCost.MED)
 }

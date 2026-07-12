@@ -43,6 +43,14 @@ data class QuickAddOverrides(
     val recurrence: Recurrence? = null
 )
 
+/** Stan panelu „Czas wolny". */
+data class FreeTimeState(
+    val freeMinutes: Int,
+    val suggestions: List<pl.media30.todoisto.data.Suggestion>,
+    val poolEmpty: Boolean,
+    val noWindows: Boolean
+)
+
 enum class SortMode(val label: String) {
     SMART("Sprytne"),
     PRIORITY("Priorytet"),
@@ -118,6 +126,13 @@ class TodoViewModel(
 
     val labels: StateFlow<List<Label>> =
         repository.allLabels.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val activities: StateFlow<List<pl.media30.todoisto.data.Activity>> =
+        repository.allActivities.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val _freeTime = MutableStateFlow<FreeTimeState?>(null)
+    val freeTime: StateFlow<FreeTimeState?> = _freeTime.asStateFlow()
+    private val dismissedActivityIds = mutableSetOf<Long>()
 
     private val sources = combine(
         repository.allTasks, repository.allSections, repository.allProjects, repository.allLabels
@@ -337,6 +352,85 @@ class TodoViewModel(
     }
 
     suspend fun getTask(id: Long): Task? = repository.getTaskById(id)
+
+    // --- Pula aktywności ---
+    fun addActivity(activity: pl.media30.todoisto.data.Activity) =
+        viewModelScope.launch { if (activity.name.isNotBlank()) repository.insertActivity(activity) }
+
+    fun updateActivity(activity: pl.media30.todoisto.data.Activity) =
+        viewModelScope.launch { repository.updateActivity(activity) }
+
+    fun deleteActivity(id: Long) = viewModelScope.launch { repository.deleteActivity(id) }
+
+    fun setProjectEffort(project: Project, effort: pl.media30.todoisto.data.EffortType?) =
+        viewModelScope.launch { repository.updateProject(project.copy(workEffortType = effort)) }
+
+    fun suggestFreeTime() = viewModelScope.launch {
+        dismissedActivityIds.clear()
+        _freeTime.value = computeFreeTime(emptyList())
+    }
+
+    fun dismissFreeTime() { _freeTime.value = null }
+
+    fun acceptSuggestion(s: pl.media30.todoisto.data.Suggestion) = viewModelScope.launch {
+        repository.materializeActivity(s.activity, s.startMin, LocalDate.now().toEpochDay())
+        val remaining = _freeTime.value?.suggestions?.filter { it.activity.id != s.activity.id }.orEmpty()
+        _freeTime.value = _freeTime.value?.copy(suggestions = remaining)
+    }
+
+    fun dismissSuggestion(s: pl.media30.todoisto.data.Suggestion) {
+        dismissedActivityIds += s.activity.id
+        val remaining = _freeTime.value?.suggestions?.filter { it.activity.id != s.activity.id }.orEmpty()
+        _freeTime.value = _freeTime.value?.copy(suggestions = remaining)
+    }
+
+    fun swapSuggestion(s: pl.media30.todoisto.data.Suggestion) = viewModelScope.launch {
+        dismissedActivityIds += s.activity.id
+        val shownIds = _freeTime.value?.suggestions?.map { it.activity.id }.orEmpty().toSet()
+        val exclude = dismissedActivityIds + shownIds
+        val acts = activities.value.filter { it.isActive && it.id !in exclude }
+        val ctx = currentDayContext()
+        val replacement = pl.media30.todoisto.data.ActivityPlanner
+            .plan(acts, ctx, listOf(s.slot), count = 1).firstOrNull()
+        val list = _freeTime.value?.suggestions.orEmpty().toMutableList()
+        val idx = list.indexOfFirst { it.activity.id == s.activity.id }
+        if (idx >= 0) {
+            if (replacement != null) list[idx] = replacement else list.removeAt(idx)
+            _freeTime.value = _freeTime.value?.copy(suggestions = list)
+        }
+    }
+
+    private fun currentDayContext(): pl.media30.todoisto.data.DayContext {
+        val now = java.time.LocalTime.now()
+        val today = LocalDate.now()
+        val zone = ZoneId.systemDefault()
+        val todayStart = today.atStartOfDay(zone).toInstant().toEpochMilli()
+        val weekStart = today.with(DayOfWeek.MONDAY).atStartOfDay(zone).toInstant().toEpochMilli()
+        return repository.buildDayContext(
+            tasks = allTasks.value,
+            projects = projects.value,
+            nowMinutes = now.hour * 60 + now.minute,
+            dayOfWeek = today.dayOfWeek.value,
+            nowMillis = System.currentTimeMillis(),
+            todayStartMillis = todayStart,
+            weekStartMillis = weekStart
+        )
+    }
+
+    private fun computeFreeTime(exclude: List<Long>): FreeTimeState {
+        val now = java.time.LocalTime.now()
+        val today = LocalDate.now()
+        val nowMin = now.hour * 60 + now.minute
+        val acts = activities.value.filter { it.isActive && it.id !in exclude }
+        val slots = repository.freeWindows(allTasks.value, today.toEpochDay(), nowMin)
+        val suggestions = pl.media30.todoisto.data.ActivityPlanner.plan(acts, currentDayContext(), slots, count = 2)
+        return FreeTimeState(
+            freeMinutes = slots.sumOf { it.length },
+            suggestions = suggestions,
+            poolEmpty = activities.value.none { it.isActive },
+            noWindows = slots.isEmpty()
+        )
+    }
 
     class Factory(
         private val repository: TaskRepository,

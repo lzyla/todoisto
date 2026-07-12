@@ -6,13 +6,15 @@ class TaskRepository(
     private val taskDao: TaskDao,
     private val projectDao: ProjectDao,
     private val sectionDao: SectionDao,
-    private val labelDao: LabelDao
+    private val labelDao: LabelDao,
+    private val activityDao: ActivityDao
 ) {
 
     val allTasks: Flow<List<Task>> = taskDao.getAllTasks()
     val allProjects: Flow<List<Project>> = projectDao.getAll()
     val allSections: Flow<List<Section>> = sectionDao.getAll()
     val allLabels: Flow<List<Label>> = labelDao.getAll()
+    val allActivities: Flow<List<Activity>> = activityDao.getAll()
 
     // --- tasks ---
     suspend fun getTaskById(id: Long): Task? = taskDao.getTaskById(id)
@@ -29,12 +31,17 @@ class TaskRepository(
      */
     suspend fun toggleCompleted(task: Task) {
         val rec = task.recurrence
+        val now = System.currentTimeMillis()
         if (rec != null && !task.isCompleted && task.dueDate != null) {
-            taskDao.update(task.copy(dueDate = rec.next(task.dueDate), completedAt = System.currentTimeMillis()))
+            taskDao.update(task.copy(dueDate = rec.next(task.dueDate), completedAt = now))
         } else if (!task.isCompleted) {
-            taskDao.update(task.copy(isCompleted = true, completedAt = System.currentTimeMillis()))
+            taskDao.update(task.copy(isCompleted = true, completedAt = now))
         } else {
             taskDao.update(task.copy(isCompleted = false, completedAt = null))
+        }
+        // Domknięcie pętli częstotliwości: ślad "activity:<id>" w notatce.
+        if (!task.isCompleted) activityIdFromNotes(task.notes)?.let { aid ->
+            activityDao.findById(aid)?.let { activityDao.update(it.copy(lastCompletedAt = now)) }
         }
     }
 
@@ -114,5 +121,115 @@ class TaskRepository(
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return 0
         return labelDao.findByName(trimmed)?.id ?: labelDao.insert(Label(name = trimmed))
+    }
+
+    // --- Pula aktywności ---
+    suspend fun insertActivity(activity: Activity): Long =
+        activityDao.insert(activity.copy(createdAt = if (activity.createdAt == 0L) System.currentTimeMillis() else activity.createdAt))
+    suspend fun updateActivity(activity: Activity) = activityDao.update(activity)
+    suspend fun deleteActivity(id: Long) = activityDao.deleteById(id)
+
+    private suspend fun ensureActivityLabel(): Long =
+        labelDao.findByName(ACTIVITY_LABEL)?.id
+            ?: labelDao.insert(Label(name = ACTIVITY_LABEL, colorArgb = 0xFF2DD4BF))
+
+    /** Zaakceptowana propozycja → zwykły Task (z godziną, etykietą i śladem pochodzenia). */
+    suspend fun materializeActivity(activity: Activity, startMin: Int, todayEpochDay: Long): Long {
+        val labelId = ensureActivityLabel()
+        val id = taskDao.insert(
+            Task(
+                title = activity.name,
+                notes = "activity:${activity.id}",
+                priority = Priority.P4,
+                dueDate = todayEpochDay,
+                dueTimeMinutes = startMin,
+                durationMinutes = activity.durationMinutes,
+                labelIds = listOf(labelId),
+                createdAt = System.currentTimeMillis()
+            )
+        )
+        activityDao.update(activity.copy(lastScheduledAt = System.currentTimeMillis()))
+        return id
+    }
+
+    /**
+     * DayContext z istniejących zadań. [projects] i [tasks] podawane ze snapshotów,
+     * żeby uniknąć dodatkowych zapytań. [now] = LocalDateTime „teraz".
+     */
+    fun buildDayContext(
+        tasks: List<Task>,
+        projects: List<Project>,
+        nowMinutes: Int,
+        dayOfWeek: Int,
+        nowMillis: Long,
+        todayStartMillis: Long,
+        weekStartMillis: Long
+    ): DayContext {
+        val projEffort = projects.associate { it.id to (it.workEffortType ?: EffortType.MENTAL) }
+        val doneToday = tasks.filter { it.isCompleted && (it.completedAt ?: 0L) >= todayStartMillis }
+        var mentalMin = 0; var physMin = 0; var totalMin = 0
+        var budget = 100
+        doneToday.forEach { t ->
+            val dur = t.durationMinutes ?: 25
+            totalMin += dur
+            when (t.projectId?.let { projEffort[it] } ?: EffortType.MENTAL) {
+                EffortType.PHYSICAL -> physMin += dur
+                else -> mentalMin += dur
+            }
+            budget -= 6 + dur / 10 + when (t.priority) {
+                Priority.P1 -> 14; Priority.P2 -> 9; Priority.P3 -> 4; Priority.P4 -> 2
+            }
+        }
+        val denom = (mentalMin + physMin).coerceAtLeast(1).toFloat()
+
+        val weekCount = mutableMapOf<Long, Int>()
+        tasks.filter { it.isCompleted && (it.completedAt ?: 0L) >= weekStartMillis }.forEach { t ->
+            activityIdFromNotes(t.notes)?.let { aid -> weekCount[aid] = (weekCount[aid] ?: 0) + 1 }
+        }
+
+        return DayContext(
+            completedCount = doneToday.size,
+            totalWorkMinutes = totalMin,
+            mentalShare = mentalMin / denom,
+            physicalShare = physMin / denom,
+            energyBudget = budget.coerceIn(0, 100),
+            nowMinutes = nowMinutes,
+            dayOfWeek = dayOfWeek,
+            weekCountByActivity = weekCount,
+            nowMillis = nowMillis
+        )
+    }
+
+    /**
+     * Wolne okna dziś: luki między zadaniami z godziną w zakresie [dayStart,dayEnd],
+     * tylko od [fromMin] w przód, o długości ≥ [minLen].
+     */
+    fun freeWindows(
+        tasks: List<Task>,
+        todayEpochDay: Long,
+        fromMin: Int,
+        dayStart: Int = 6 * 60,
+        dayEnd: Int = 23 * 60,
+        minLen: Int = 15
+    ): List<FreeSlot> {
+        val busy = tasks
+            .filter { !it.isCompleted && it.dueDate == todayEpochDay && it.dueTimeMinutes != null }
+            .map { it.dueTimeMinutes!! to (it.dueTimeMinutes!! + (it.durationMinutes ?: 30)) }
+            .sortedBy { it.first }
+        val slots = mutableListOf<FreeSlot>()
+        var cursor = maxOf(dayStart, fromMin)
+        for ((s, e) in busy) {
+            if (s > cursor) slots += FreeSlot(cursor, minOf(s, dayEnd))
+            cursor = maxOf(cursor, e)
+            if (cursor >= dayEnd) break
+        }
+        if (cursor < dayEnd) slots += FreeSlot(cursor, dayEnd)
+        return slots.filter { it.length >= minLen }
+    }
+
+    companion object {
+        const val ACTIVITY_LABEL = "aktywność"
+        fun activityIdFromNotes(notes: String): Long? =
+            if (notes.startsWith("activity:")) notes.removePrefix("activity:").toLongOrNull() else null
     }
 }

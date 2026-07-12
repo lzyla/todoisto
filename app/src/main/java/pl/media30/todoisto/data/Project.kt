@@ -11,7 +11,9 @@ data class Project(
     val colorArgb: Long = 0xFF9B6BFF,
     val position: Int = 0,
     val isFavorite: Boolean = false,
-    val isArchived: Boolean = false
+    val isArchived: Boolean = false,
+    /** Typ wysiłku tego projektu — do doboru w Puli aktywności (null = nieoznaczony → MENTAL). */
+    val workEffortType: EffortType? = null
 )
 
 @Entity(tableName = "sections")

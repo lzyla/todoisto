@@ -7,8 +7,8 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
 @Database(
-    entities = [Task::class, Project::class, Section::class, Label::class],
-    version = 4,
+    entities = [Task::class, Project::class, Section::class, Label::class, Activity::class],
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -18,6 +18,7 @@ abstract class TodoDatabase : RoomDatabase() {
     abstract fun projectDao(): ProjectDao
     abstract fun sectionDao(): SectionDao
     abstract fun labelDao(): LabelDao
+    abstract fun activityDao(): ActivityDao
 
     companion object {
         @Volatile

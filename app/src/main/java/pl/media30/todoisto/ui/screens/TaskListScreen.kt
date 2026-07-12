@@ -58,6 +58,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Autorenew
+import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DarkMode
@@ -178,6 +179,8 @@ fun TaskListScreen(
     onSetGoals: (Int, Int) -> Unit,
     onToggleTheme: () -> Unit,
     onMoveOverdueToToday: () -> Unit = {},
+    onOpenActivityPool: () -> Unit = {},
+    onFreeTime: () -> Unit = {},
     routinesExpandedInitially: Boolean = false,
     weekTasks: List<Task> = emptyList()
 ) {
@@ -222,7 +225,8 @@ fun TaskListScreen(
                 onAddProject = { dialog = DialogKind.NewProject },
                 onAddLabel = { dialog = DialogKind.NewLabel },
                 onGoals = { dialog = DialogKind.Goals },
-                onToggleDark = onToggleTheme
+                onToggleDark = onToggleTheme,
+                onOpenActivityPool = { onOpenActivityPool(); scope.launch { drawerState.close() } }
             )
         }
     ) {
@@ -340,6 +344,12 @@ fun TaskListScreen(
                                 Text("${uiState.routines.size}", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.W800)
                             }
                         }
+                    }
+                    Box(
+                        Modifier.size(54.dp).controlCenterGlass(CircleShape).bouncy(0.9f, onFreeTime),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Outlined.Bolt, "Czas wolny", tint = GlassAccent, modifier = Modifier.size(20.dp))
                     }
                 }
                 Row(Modifier.controlCenterGlass(RoundedCornerShape(30.dp)).padding(6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -979,7 +989,8 @@ private fun DrawerContent(
     onAddProject: () -> Unit,
     onAddLabel: () -> Unit,
     onGoals: () -> Unit,
-    onToggleDark: () -> Unit
+    onToggleDark: () -> Unit,
+    onOpenActivityPool: () -> Unit
 ) {
     ModalDrawerSheet(
         drawerContainerColor = GlassDrawerBg,
@@ -1004,6 +1015,7 @@ private fun DrawerContent(
             DrawerRow(Icons.Outlined.DateRange, "Nadchodzące", null, current == AppView.Upcoming) { onSelect(AppView.Upcoming) }
             DrawerRow(Icons.Outlined.Inbox, "Skrzynka", uiState.inboxCount, current == AppView.Inbox) { onSelect(AppView.Inbox) }
             DrawerRow(Icons.Outlined.CheckCircle, "Ukończone", null, current == AppView.Completed) { onSelect(AppView.Completed) }
+            DrawerRow(Icons.Outlined.Bolt, "Pula aktywności", null, false, onOpenActivityPool)
 
             // Ulubione
             val favs = projects.filter { it.isFavorite && !it.isArchived }.map { Triple(AppView.ProjectView(it.id) as AppView, "#${it.name}", Color(it.colorArgb)) } +

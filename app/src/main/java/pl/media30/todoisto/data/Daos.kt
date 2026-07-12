@@ -79,6 +79,27 @@ interface SectionDao {
 }
 
 @Dao
+interface ActivityDao {
+    @Query("SELECT * FROM activities ORDER BY isActive DESC, name ASC")
+    fun getAll(): Flow<List<Activity>>
+
+    @Query("SELECT * FROM activities WHERE isActive = 1")
+    suspend fun getActive(): List<Activity>
+
+    @Query("SELECT * FROM activities WHERE id = :id LIMIT 1")
+    suspend fun findById(id: Long): Activity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(activity: Activity): Long
+
+    @Update
+    suspend fun update(activity: Activity)
+
+    @Query("DELETE FROM activities WHERE id = :id")
+    suspend fun deleteById(id: Long)
+}
+
+@Dao
 interface LabelDao {
     @Query("SELECT * FROM labels ORDER BY name ASC")
     fun getAll(): Flow<List<Label>>

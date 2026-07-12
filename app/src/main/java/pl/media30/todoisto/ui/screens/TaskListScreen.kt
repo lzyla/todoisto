@@ -662,7 +662,7 @@ private fun ZenRowWithSubs(
         subTotal = node.subtasks.size,
         linkDomains = task.attachments.map { it.removePrefix("https://").removePrefix("http://").substringBefore('/') }
     )
-    Column(Modifier.fillMaxWidth().taskTile()) {
+    Column(Modifier.fillMaxWidth().taskTile { onTaskClick(task) }) {
         TaskRowZen(task, meta, { onToggle(task) }, { onTaskClick(task) })
         node.subtasks.forEach { sub ->
             TaskRowZen(sub, "", { onToggle(sub) }, { onTaskClick(sub) }, compact = true)

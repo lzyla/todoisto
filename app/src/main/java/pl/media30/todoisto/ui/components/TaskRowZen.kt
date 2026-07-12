@@ -44,11 +44,10 @@ fun TaskRowZen(
 ) {
     val ring = if (task.priority != Priority.P4) task.priority.color else GlassAccent
     val done = task.isCompleted
+    // Kliknięcie i efekt dotyku obsługuje kafelek (taskTile); wiersz jest tylko treścią.
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .bouncy(scaleDown = 0.98f, onClick = onOpen)
             .animateContentSize(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow))
             .padding(
                 start = if (compact) 40.dp else 10.dp,

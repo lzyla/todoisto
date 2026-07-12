@@ -1,5 +1,6 @@
 package pl.media30.todoisto.ui.theme
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -8,6 +9,9 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,6 +37,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
 import java.time.LocalTime
 
@@ -228,16 +235,53 @@ fun Modifier.glass(shape: Shape = RoundedCornerShape(24.dp), sheenOn: Boolean = 
 }
 
 /**
- * Kafelek zadania (wg prototypu vC): zaokrąglony (20dp), prawie niewidoczny
- * w spoczynku — leży bezpośrednio na gradiencie, delikatny rant sugeruje taflę,
- * dotyk (bouncy) materializuje szkło.
+ * Kafelek zadania (wg prototypu vC): w spoczynku prawie niewidoczny — leży
+ * bezpośrednio na gradiencie (ledwie muśnięcie bieli + włosowy rant). Dotknięcie
+ * MATERIALIZUJE szkło: wypełnienie rośnie, pojawia się rant i miękki cień, a cała
+ * tafla delikatnie się unosi (scale 1.02, jak w prototypie: transform:scale(1.02)
+ * + inset highlight + box-shadow). Jeden impuls haptyczny.
  */
-fun Modifier.taskTile(): Modifier {
+fun Modifier.taskTile(onClick: () -> Unit): Modifier = composed {
+    val dark = GlassTheme.dark
+    val view = LocalView.current
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
     val shape = RoundedCornerShape(20.dp)
-    return this
+    val fill by animateColorAsState(
+        targetValue = if (pressed) {
+            if (dark) Color.White.copy(alpha = 0.13f) else Color.White.copy(alpha = 0.34f)
+        } else {
+            if (dark) Color.White.copy(alpha = 0.03f) else Color.White.copy(alpha = 0.05f)
+        },
+        animationSpec = tween(280), label = "tileFill"
+    )
+    val rim by animateColorAsState(
+        targetValue = if (pressed) {
+            if (dark) Color.White.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.85f)
+        } else {
+            if (dark) Color.White.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.12f)
+        },
+        animationSpec = tween(280), label = "tileRim"
+    )
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (pressed) 1.02f else 1f,
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = androidx.compose.animation.core.Spring.StiffnessMedium),
+        label = "tileScale"
+    )
+    val elev by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (pressed) 16.dp else 0.dp,
+        animationSpec = tween(280), label = "tileElev"
+    )
+    this
+        .graphicsLayer { scaleX = scale; scaleY = scale }
+        .shadow(elev, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.5f))
         .clip(shape)
-        .background(if (d) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.14f))
-        .border(1.dp, if (d) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.30f), shape)
+        .background(fill)
+        .border(1.dp, rim, shape)
+        .clickable(interactionSource = interaction, indication = null) {
+            view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            onClick()
+        }
 }
 
 /** Tafla „Control Center" (dock, Tydzień, kółko Rutyn) — gradientowa, jaśniejsza. */

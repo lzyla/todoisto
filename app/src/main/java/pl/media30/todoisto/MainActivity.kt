@@ -160,7 +160,13 @@ fun TodoistoApp(
             context.startActivity(android.content.Intent.createChooser(send, "Wyślij plan dnia"))
         },
         onDeferToTomorrow = viewModel::deferToTomorrow,
-        onOpenAutomation = { detailTaskId = it.id; detailAiExpanded = true; viewModel.dismissAi() },
+        onOpenAutomation = { task ->
+            detailTaskId = task.id
+            detailAiExpanded = true
+            // Klik w ikonę AI = od razu odpowiedź (jak „Zróbmy to z AI").
+            val tip = pl.media30.todoisto.data.AutomationAdvisor.advise(task.title, task.notes)
+            viewModel.askAi(tip.aiPrompt)
+        },
         areas = areas,
         activeAreaId = activeAreaId,
         onSelectArea = viewModel::setActiveArea,

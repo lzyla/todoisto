@@ -375,12 +375,18 @@ fun TaskListScreen(
                             }
                         }
                         if (uiState.routines.isNotEmpty()) {
+                            // Odznaka z białą obwódką (halo) — czytelnie odcina się od kółka.
                             Box(
-                                Modifier.align(Alignment.TopEnd).offset(3.dp, (-3).dp)
-                                    .size(19.dp).background(GlassAccent, CircleShape),
+                                Modifier.align(Alignment.TopEnd).offset(5.dp, (-5).dp)
+                                    .size(20.dp).background(Color.White, CircleShape).padding(2.dp)
+                                    .background(GlassAccent, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("${uiState.routines.size}", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.W800)
+                                Text(
+                                    "${uiState.routines.size}", color = Color.White, fontSize = 10.sp,
+                                    fontWeight = FontWeight.W800, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    lineHeight = 10.sp
+                                )
                             }
                         }
                     }
@@ -611,7 +617,14 @@ private fun GlassMenu(expanded: Boolean, onDismiss: () -> Unit, content: @Compos
             exit = fadeOut(tween(120))
         ) {
             Column(
-                Modifier.width(236.dp).glass(RoundedCornerShape(22.dp)).padding(vertical = 8.dp),
+                Modifier.width(236.dp)
+                    .shadow(20.dp, RoundedCornerShape(22.dp))
+                    .clip(RoundedCornerShape(22.dp))
+                    // Menu leży wprost na treści (bez przyciemnienia), więc frosted,
+                    // czytelne szkło — treść pod spodem NIE prześwituje.
+                    .background(GlassSurface)
+                    .border(1.dp, GlassRim.copy(alpha = 0.6f), RoundedCornerShape(22.dp))
+                    .padding(vertical = 8.dp),
                 content = content
             )
         }

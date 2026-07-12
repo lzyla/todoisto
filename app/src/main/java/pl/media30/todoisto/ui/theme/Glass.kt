@@ -99,8 +99,8 @@ val GlassInputBg: Color get() = if (d) Color.White.copy(alpha = 0.10f) else Colo
 /** dockBg / tafla Rutyn — w pełni kryjąca (żeby treść listy nie prześwitywała). */
 val GlassDockBg: Color get() = if (d) Color(0xFF3B3357) else Color(0xFFF1ECFB)
 
-/** Tło szuflady. */
-val GlassDrawerBg: Color get() = if (d) Color(0xF02E204E) else Color(0xF5FCFAFF)
+/** Tło szuflady — frosted glass: lekko prześwituje, ale teksty pozostają czytelne. */
+val GlassDrawerBg: Color get() = if (d) Color(0xE62A1E4A) else Color(0xE6FFFFFF)
 
 /** Pigułka rutyny. */
 val GlassRoutinePill: Color get() = if (d) Color.White.copy(alpha = 0.10f) else Color(0xFFFBF9FF)
@@ -124,24 +124,24 @@ private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
         listOf(Color(0xFF4A3A5E), Color(0xFF3E2F54), Color(0xFF32284C), Color(0xFF261E42)),
         Color(0xFFD46E4E), Color(0xFFC85C90), Color(0xFFC0982E), Color(0xFF2EA68C)
     ) else BgPalette(
-        listOf(Color(0xFFFFF3E6), Color(0xFFFFE8F0), Color(0xFFEAF0FF), Color(0xFFE6FBFF)),
-        Color(0xFFFF8A5C), Color(0xFFFF80B4), Color(0xFFFFD24D), Color(0xFF3FD9C8)
+        listOf(Color(0xFFF4EEFF), Color(0xFFFFEEEE), Color(0xFFFFF6E6), Color(0xFFF3ECFF)),
+        Color(0xFFB89CFF), Color(0xFFFF8A7A), Color(0xFFFFDD7A), Color(0xFFD48CFF)
     )
-    // Południe — dzień: turkus + róż + błękit + żółty
+    // Południe — dzień: fiolet + czerwień + żółty
     DayPhase.NOON -> if (d) BgPalette(
         listOf(Color(0xFF2A3A66), Color(0xFF2E3A60), Color(0xFF283458), Color(0xFF20294E)),
         Color(0xFF2EA69C), Color(0xFFC85CA8), Color(0xFF4E80C8), Color(0xFFC0A02E)
     ) else BgPalette(
-        listOf(Color(0xFFEAF6FF), Color(0xFFF0ECFF), Color(0xFFFCEAFF), Color(0xFFEAFBFF)),
-        Color(0xFF3FD9C8), Color(0xFFFF7FD0), Color(0xFF5FA8FF), Color(0xFFFFD24D)
+        listOf(Color(0xFFF1EBFF), Color(0xFFFFF0F0), Color(0xFFFFF8E8), Color(0xFFF4EEFF)),
+        Color(0xFFAE86FF), Color(0xFFFF7B7B), Color(0xFFFFD86B), Color(0xFFC77DFF)
     )
-    // Wieczór — zmierzch: magenta/róż + błękit + koral + złoty
+    // Wieczór — zmierzch: fiolet + czerwień/magenta + złoty
     DayPhase.EVENING -> if (d) BgPalette(
         listOf(Color(0xFF5A3A88), Color(0xFF48307E), Color(0xFF382470), Color(0xFF2C1C60)),
         Color(0xFFC24DA0), Color(0xFF5C6CD0), Color(0xFFC0664E), Color(0xFFC09A2E)
     ) else BgPalette(
-        listOf(Color(0xFFFDEAF4), Color(0xFFEFE6FF), Color(0xFFE6ECFF), Color(0xFFFFEFE2)),
-        Color(0xFFF06FB0), Color(0xFF7E86F0), Color(0xFFFF8A6E), Color(0xFFFFC24D)
+        listOf(Color(0xFFF3EAFF), Color(0xFFFFECEC), Color(0xFFFFF3E0), Color(0xFFF0E8FF)),
+        Color(0xFF9E7BFF), Color(0xFFFF6E8E), Color(0xFFFFC85E), Color(0xFFC06BE0)
     )
 }
 
@@ -245,18 +245,19 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
                 val y = (cy + ry * kotlin.math.sin(a + phase)) * h
                 drawRect(
                     Brush.radialGradient(
-                        colors = listOf(color.copy(alpha = alpha), Color.Transparent),
+                        // miękkie przejście do przezroczystości w 3 przystankach = mocno rozmyty, gładki blob
+                        colors = listOf(color.copy(alpha = alpha), color.copy(alpha = alpha * 0.35f), Color.Transparent),
                         center = Offset(x, y),
-                        radius = big * (0.62f + 0.08f * kotlin.math.sin(a + phase))  // pulsujący promień
+                        radius = big * (0.92f + 0.10f * kotlin.math.sin(a + phase))  // duży, bardzo rozmyty, pulsujący promień
                     )
                 )
             }
-            blob(pal.meshL, 0f, 0.32f, 0.40f, 0.34f, 0.40f, meshA)
-            blob(pal.meshR, 1.7f, 0.66f, 0.52f, 0.32f, 0.42f, meshA)
-            blob(pal.meshTop, 3.3f, 0.50f, 0.44f, 0.40f, 0.46f, meshA * 0.95f)
-            blob(pal.meshAccent, 4.9f, 0.48f, 0.55f, 0.36f, 0.44f, meshA * (0.75f + 0.25f * p))
+            blob(pal.meshL, 0f, 0.30f, 0.38f, 0.36f, 0.44f, meshA)
+            blob(pal.meshR, 1.7f, 0.68f, 0.54f, 0.34f, 0.46f, meshA)
+            blob(pal.meshTop, 3.3f, 0.50f, 0.42f, 0.42f, 0.48f, meshA * 0.95f)
+            blob(pal.meshAccent, 4.9f, 0.46f, 0.58f, 0.38f, 0.46f, meshA * (0.75f + 0.25f * p))
             // Mleczna zasłona — rozjaśnia i „ściszą" kolory (jaśniejsze, spokojniejsze tło).
-            if (!dark) drawRect(Color.White.copy(alpha = 0.26f))
+            if (!dark) drawRect(Color.White.copy(alpha = 0.32f))
         }
     }
 }

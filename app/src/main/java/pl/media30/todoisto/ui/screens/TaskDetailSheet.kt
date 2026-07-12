@@ -559,17 +559,21 @@ private fun AutomationCard(
                         Text(step, fontSize = 13.5.sp, lineHeight = 19.sp, color = GlassTextPrimary, modifier = Modifier.weight(1f))
                     }
                 }
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent)
-                        .bouncy(0.97f) { onAskAi(tip.aiPrompt) }
-                        .padding(vertical = 13.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Zróbmy to z AI", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
+                // Przycisk „Zróbmy to z AI" tylko zanim padnie pytanie — po kliknięciu
+                // ikony AI odpowiedź rusza od razu, więc przycisk się nie pojawia.
+                if (aiState == null) {
+                    Spacer(Modifier.height(4.dp))
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent)
+                            .bouncy(0.97f) { onAskAi(tip.aiPrompt) }
+                            .padding(vertical = 13.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Zróbmy to z AI", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
+                    }
                 }
                 // Odpowiedź AI — TUTAJ (nie na ekranie głównym)
                 if (aiState != null) {

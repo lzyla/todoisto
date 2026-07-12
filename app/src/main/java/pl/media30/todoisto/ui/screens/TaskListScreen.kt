@@ -98,6 +98,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
@@ -955,8 +956,17 @@ private fun ZenRowWithSubs(
                     trailing = if (automatable) {
                         {
                             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                // Delikatny „oddech" odznaki AI — subtelna zachęta do dotknięcia.
+                                val aiPulse = rememberInfiniteTransition(label = "aiPulse")
+                                val aiScale by aiPulse.animateFloat(
+                                    1f, 1.045f,
+                                    infiniteRepeatable(tween(1600, easing = EASE), RepeatMode.Reverse),
+                                    label = "aiScale"
+                                )
                                 Row(
-                                    Modifier.clip(RoundedCornerShape(50)).background(Color(0xFFFFC94D))
+                                    Modifier
+                                        .graphicsLayer { scaleX = aiScale; scaleY = aiScale }
+                                        .clip(RoundedCornerShape(50)).background(Color(0xFFFFC94D))
                                         .bouncy(0.9f) { onOpenAutomation(task) }.padding(horizontal = 9.dp, vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -1665,9 +1675,11 @@ private fun GoalBar(label: String, done: Int, goal: Int) {
             Text("$done / $goal", fontSize = 11.5.sp, fontWeight = FontWeight.W700, color = GlassTextSecondary)
         }
         Spacer(Modifier.height(4.dp))
+        val target = (done.toFloat() / goal).coerceIn(0f, 1f)
+        val frac by animateFloatAsState(target, spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessLow), label = "goalFrac")
         Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(GlassHair)) {
             Box(
-                Modifier.fillMaxWidth((done.toFloat() / goal).coerceIn(0f, 1f)).height(6.dp)
+                Modifier.fillMaxWidth(frac.coerceIn(0.001f, 1f)).height(6.dp)
                     .clip(RoundedCornerShape(3.dp))
                     .background(Brush.horizontalGradient(listOf(Color(0xFFA47CFF), Color(0xFF6B3FE0))))
             )

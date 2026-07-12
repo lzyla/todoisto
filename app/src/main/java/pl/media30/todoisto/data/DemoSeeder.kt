@@ -11,11 +11,19 @@ import java.time.ZoneId
  */
 object DemoSeeder {
 
+    /**
+     * Jednorazowo (na wersję klucza) dosiewa komplet danych demo — niezależnie od
+     * tego, czy w bazie coś już jest („uzupełnij, żeby przetestować wszystko").
+     * Oznacza sukces dopiero po zapisaniu, więc błąd → ponowna próba przy następnym starcie.
+     */
     suspend fun seedIfEmpty(db: TodoDatabase, settings: SettingsStore) {
         if (settings.isDemoSeeded()) return
-        if (db.taskDao().count() > 0) { settings.markDemoSeeded(); return }
-        seed(db)
-        settings.markDemoSeeded()
+        try {
+            seed(db)
+            settings.markDemoSeeded()
+        } catch (e: Exception) {
+            android.util.Log.e("DemoSeeder", "Seeding failed", e)
+        }
     }
 
     private fun millis(date: LocalDate, hour: Int = 12): Long =

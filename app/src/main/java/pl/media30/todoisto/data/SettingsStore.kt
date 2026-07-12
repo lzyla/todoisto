@@ -46,6 +46,7 @@ class SettingsStore(context: Context) {
         const val KEY_DAILY = "daily_goal"
         const val KEY_WEEKLY = "weekly_goal"
         const val KEY_PHOTO_BG = "photo_background"
-        const val KEY_SEEDED = "demo_seeded"
+        // Wersjonowany klucz — bump wymusza jednorazowe ponowne zasianie u wszystkich.
+        const val KEY_SEEDED = "demo_seeded_v3"
     }
 }

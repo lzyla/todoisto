@@ -272,9 +272,10 @@ fun TaskListScreen(
             // na pasek. Przekazujemy gotową wartość do treści.
             val statusTop = androidx.compose.foundation.layout.WindowInsets.statusBars
                 .asPaddingValues().calculateTopPadding()
-            // ── Treść — źródło rozmycia (haze); przewija się POD paskiem ──────
-            Box(Modifier.fillMaxSize().haze(hazeState)) {
-                ZenContent(uiState, projects, labels, onToggle, onTaskClick, onDeferToTomorrow, onOpenAutomation, statusTop)
+            // ── Treść — zaczyna się i PRZYCINA tuż pod paskiem pigułek, więc tekst
+            //    nigdy nie wjeżdża na przyciski (pozostaje pod nimi). ───────────
+            Box(Modifier.fillMaxSize().padding(top = statusTop + 60.dp).haze(hazeState)) {
+                ZenContent(uiState, projects, labels, onToggle, onTaskClick, onDeferToTomorrow, onOpenAutomation, 0.dp)
             }
 
             // ── ⋮ akcje widoku — nakładka pod paskiem ─────────────────────────
@@ -666,10 +667,9 @@ private fun ZenContent(
     val today = LocalDate.now()
     val collapsed = remember { mutableStateMapOf<String, Boolean>() }
 
-    // Górny zapas = status bar + wysokość paska pigułek (~62dp); wartość statusTop
-    // policzona poza Boxem z haze(), więc nagłówek zawsze ląduje POD paskiem, a
-    // treść dalej przewija się pod pigułki (liquid glass).
-    LazyColumn(contentPadding = PaddingValues(start = 18.dp, top = statusTop + 62.dp, end = 18.dp, bottom = 170.dp)) {
+    // Sam kontener treści jest już odsunięty i przycięty pod paskiem pigułek
+    // (patrz padding Boxa z haze()), więc tu wystarczy drobny zapas u góry.
+    LazyColumn(contentPadding = PaddingValues(start = 18.dp, top = statusTop + 10.dp, end = 18.dp, bottom = 170.dp)) {
         when (uiState.view) {
             AppView.Today -> {
                 item(key = "hdr") {

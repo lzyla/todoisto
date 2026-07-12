@@ -742,6 +742,10 @@ private fun ZenRowWithSubs(
     val longTask = (task.durationMinutes ?: 0) >= 60
     val dlSoon = task.deadline?.let { it - todayEpoch in 0..2 } == true
     val deadlineWarn = longTask && dlSoon && !task.isCompleted
+    // #4b — czy zadanie da się przyspieszyć/zautomatyzować (marker „⚡ AI")
+    val automatable = remember(task.title, task.notes) {
+        !task.isCompleted && pl.media30.todoisto.data.AutomationAdvisor.advise(task.title, task.notes).canAutomate
+    }
 
     // #3 — swipe: w prawo = ukończ, w lewo = odłóż na jutro.
     // Traktujemy to jako AKCJĘ, nie „dismiss": po odpaleniu wracamy do środka
@@ -768,15 +772,21 @@ private fun ZenRowWithSubs(
             backgroundContent = { SwipeBg(dismiss.dismissDirection) }
         ) {
             Column(Modifier.fillMaxWidth().taskTile { onTaskClick(task) }) {
-                if (deadlineWarn) {
+                if (deadlineWarn || automatable) {
                     Row(
                         Modifier.padding(start = 14.dp, top = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
+                        if (deadlineWarn) Text(
                             "⏳ Napięty deadline",
                             fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = Color(0xFFB45309),
                             modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0x33F59E0B)).padding(horizontal = 9.dp, vertical = 3.dp)
+                        )
+                        if (automatable) Text(
+                            "⚡ AI",
+                            fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = GlassAccent,
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(GlassAccent.copy(alpha = 0.14f)).padding(horizontal = 9.dp, vertical = 3.dp)
                         )
                     }
                 }

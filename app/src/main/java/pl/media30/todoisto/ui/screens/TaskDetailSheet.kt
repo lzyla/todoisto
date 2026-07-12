@@ -31,6 +31,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Link
@@ -54,6 +56,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -398,6 +401,10 @@ fun TaskDetailSheet(
             }
         }
 
+        // Automatyzacja / „jak zrobić to szybciej"
+        Spacer(Modifier.height(14.dp))
+        AutomationCard(task.title, task.notes)
+
         // Stopka
         Spacer(Modifier.height(14.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -430,6 +437,87 @@ fun TaskDetailSheet(
 @Composable
 private fun HairLine() {
     Box(Modifier.fillMaxWidth().height(1.dp).background(GlassHair))
+}
+
+/** #4b — samouczek „jak zrobić to szybciej / zautomatyzować" dla danego zadania. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AutomationCard(title: String, notes: String) {
+    val tip = remember(title, notes) { pl.media30.todoisto.data.AutomationAdvisor.advise(title, notes) }
+    var expanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val chev by animateFloatAsState(if (expanded) 0f else -90f, label = "autoChev")
+
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+            .background(GlassAccent.copy(alpha = if (GlassTheme.dark) 0.16f else 0.10f))
+            .border(1.dp, GlassAccent.copy(alpha = 0.30f), RoundedCornerShape(18.dp))
+    ) {
+        Row(
+            Modifier.fillMaxWidth().bouncy(0.98f) { expanded = !expanded }.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    if (tip.canAutomate) "Można przyspieszyć z AI" else "Pomoc AI",
+                    fontSize = 10.sp, fontWeight = FontWeight.W800, letterSpacing = 0.8.sp, color = GlassAccent
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(tip.headline, fontSize = 14.5.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+            }
+            Icon(Icons.Filled.KeyboardArrowDown, null, tint = GlassTextSecondary,
+                modifier = Modifier.size(20.dp).rotate(chev))
+        }
+        if (expanded) {
+            Column(Modifier.padding(start = 14.dp, end = 14.dp, bottom = 14.dp)) {
+                if (tip.tools.isNotEmpty()) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        tip.tools.forEach { t ->
+                            Text(
+                                t, fontSize = 11.sp, fontWeight = FontWeight.W800, color = GlassAccent,
+                                modifier = Modifier.clip(RoundedCornerShape(50)).background(GlassTint).padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                }
+                tip.steps.forEachIndexed { i, step ->
+                    Row(Modifier.padding(bottom = 9.dp)) {
+                        Box(
+                            Modifier.size(20.dp).clip(CircleShape).background(GlassAccent),
+                            contentAlignment = Alignment.Center
+                        ) { Text("${i + 1}", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.W800) }
+                        Spacer(Modifier.width(10.dp))
+                        Text(step, fontSize = 13.sp, lineHeight = 18.sp, color = GlassTextPrimary, modifier = Modifier.weight(1f))
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(GlassAccent)
+                        .bouncy(0.97f) {
+                            val send = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, tip.aiPrompt)
+                            }
+                            context.startActivity(Intent.createChooser(send, "Zapytaj AI"))
+                        }
+                        .padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Zapytaj AI (gotowy prompt)", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W800)
+                }
+                Text(
+                    "Otworzy udostępnianie — wyślij prompt do Claude/ChatGPT po odpowiedź na żywo.",
+                    fontSize = 10.5.sp, color = GlassTextSecondary, modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)

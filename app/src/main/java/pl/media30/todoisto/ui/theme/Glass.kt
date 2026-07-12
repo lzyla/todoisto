@@ -21,20 +21,40 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.dp
+import java.time.LocalTime
 
 /**
  * Tokeny wprost z prototypu Todoisto.dc.html (funkcja colors() + domyślne
  * props: szkloWypelnienie .20, szkloRant 1.0, szkloCien .14, tapeta szklo3d —
  * przy tapecie ≠ brak jasny motyw używa ciemniejszego atramentu #1B0A3E).
  */
-object GlassTheme { var dark by mutableStateOf(false) }
+/** Pora dnia sterująca kolorem tła (rano / południe / wieczór). */
+enum class DayPhase(val label: String) { MORNING("Rano"), NOON("Południe"), EVENING("Wieczór") }
+
+fun dayPhaseFromClock(hour: Int = LocalTime.now().hour): DayPhase = when (hour) {
+    in 5..10 -> DayPhase.MORNING
+    in 11..16 -> DayPhase.NOON
+    else -> DayPhase.EVENING
+}
+
+object GlassTheme {
+    var dark by mutableStateOf(false)
+    /** Ustawiane przy starcie z zegara; wpływa tylko na tło (nie na motyw tekstu). */
+    var phase by mutableStateOf(DayPhase.NOON)
+}
 private val d get() = GlassTheme.dark
 
 val GlassTextPrimary: Color get() = if (d) Color(0xFFFFFFFF) else Color(0xFF1B0A3E)
@@ -74,10 +94,39 @@ val GlassRoutinePill: Color get() = if (d) Color.White.copy(alpha = 0.10f) else 
 // Priorytety (PC z prototypu)
 val PrioColors = listOf(Color(0xFFD1453B), Color(0xFFEB8909), Color(0xFF246FE0), Color(0xFF9E9E9E))
 
-// Tło strony: gradient + „szkło 3D"
-private val BgTop: Color get() = if (d) Color(0xFF6E45D9) else Color(0xFFFDFBFF)
-private val BgMid: Color get() = if (d) Color(0xFF5B35C4) else Color(0xFFFAF6FE)
-private val BgBottom: Color get() = if (d) Color(0xFF3B1D8C) else Color(0xFFF7F0FE)
+// Tło strony: gradient + „szkło 3D", z paletą zależną od pory dnia.
+private class BgPalette(
+    val top: Color, val mid: Color, val bottom: Color,
+    val lobe1: Color, val lobe2: Color, val lobe3: Color,
+    val streakAlpha: Float, val glow: Color
+)
+
+private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
+    // Rano — ciepły świt: brzoskwinia, róż, delikatny błękit
+    DayPhase.MORNING -> if (d) BgPalette(
+        Color(0xFF4A3A6E), Color(0xFF3E2E5E), Color(0xFF2A1B45),
+        Color(0xFFFFC79E), Color(0xFFFF9FB8), Color(0xFFA9C8FF), 0.20f, Color(0xFFFFE0A8)
+    ) else BgPalette(
+        Color(0xFFFFF7F1), Color(0xFFFDF1EC), Color(0xFFF6EFFB),
+        Color(0xFFFFD9B0), Color(0xFFFFC2D2), Color(0xFFCFE4FF), 0.48f, Color(0xFFFFEABF)
+    )
+    // Południe — jasny, powietrzny dzień: błękit nieba, cyjan, liliowy
+    DayPhase.NOON -> if (d) BgPalette(
+        Color(0xFF34407E), Color(0xFF2C3A6E), Color(0xFF212C58),
+        Color(0xFF8FC4FF), Color(0xFFB9A6FF), Color(0xFF9EE9FF), 0.20f, Color(0xFFB4FFEB)
+    ) else BgPalette(
+        Color(0xFFFDFCFF), Color(0xFFF1F8FF), Color(0xFFEBF3FF),
+        Color(0xFFBFE0FF), Color(0xFFD6C2FF), Color(0xFFC7F5FF), 0.50f, Color(0xFFB4FFEB)
+    )
+    // Wieczór — fioletowy zmierzch (bazowy klimat prototypu)
+    DayPhase.EVENING -> if (d) BgPalette(
+        Color(0xFF6E45D9), Color(0xFF5B35C4), Color(0xFF3B1D8C),
+        Color(0xFFE0C4FF), Color(0xFFA875FF), Color(0xFF9696FF), 0.22f, Color(0xFFFFC4E8)
+    ) else BgPalette(
+        Color(0xFFFDFBFF), Color(0xFFFAF6FE), Color(0xFFF6F0FE),
+        Color(0xFFE7B6FF), Color(0xFFC9A6FF), Color(0xFFB3B0FF), 0.50f, Color(0xFFFFC4E8)
+    )
+}
 
 /**
  * Pełnoekranowe tło „szkło 3D": duże miękkie bryły szkła (biel → fiolet)
@@ -91,10 +140,11 @@ fun GlassBackground(content: @Composable () -> Unit) {
     val pB by t.animateFloat(0f, 1f, infiniteRepeatable(tween(26_000, easing = LinearEasing), RepeatMode.Reverse), label = "b")
     val pC by t.animateFloat(1f, 0f, infiniteRepeatable(tween(23_000, easing = LinearEasing), RepeatMode.Reverse), label = "c")
 
+    val pal = bgPalette()
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(BgTop, BgMid, BgBottom)))
+            .background(Brush.verticalGradient(listOf(pal.top, pal.mid, pal.bottom)))
     ) {
         val w = maxWidth
         val h = maxHeight
@@ -109,9 +159,9 @@ fun GlassBackground(content: @Composable () -> Unit) {
                     Brush.radialGradient(
                         listOf(
                             Color.White.copy(alpha = whiteA),
-                            Color(0xFFE0C4FF).copy(alpha = 0.55f),
-                            Color(0xFF9660F0).copy(alpha = 0.50f),
-                            Color(0xFF6E40D2).copy(alpha = 0.55f)
+                            pal.lobe1.copy(alpha = 0.60f),
+                            pal.lobe1.copy(alpha = 0.45f),
+                            pal.lobe2.copy(alpha = 0.50f)
                         )
                     ),
                     RoundedCornerShape(50)
@@ -128,9 +178,9 @@ fun GlassBackground(content: @Composable () -> Unit) {
                     Brush.radialGradient(
                         listOf(
                             Color.White.copy(alpha = whiteA - 0.05f),
-                            Color(0xFFD6B2FF).copy(alpha = 0.50f),
-                            Color(0xFFA875FF).copy(alpha = 0.50f),
-                            Color(0xFF7848D7).copy(alpha = 0.50f)
+                            pal.lobe2.copy(alpha = 0.55f),
+                            pal.lobe2.copy(alpha = 0.45f),
+                            pal.lobe3.copy(alpha = 0.45f)
                         )
                     ),
                     RoundedCornerShape(50)
@@ -146,9 +196,9 @@ fun GlassBackground(content: @Composable () -> Unit) {
                 .background(
                     Brush.radialGradient(
                         listOf(
-                            Color(0xFFCEF0FF).copy(alpha = 0.60f),
-                            Color(0xFF9696FF).copy(alpha = 0.45f),
-                            Color(0xFF7850DC).copy(alpha = 0.50f)
+                            pal.lobe3.copy(alpha = 0.60f),
+                            pal.lobe3.copy(alpha = 0.45f),
+                            pal.lobe1.copy(alpha = 0.40f)
                         )
                     ),
                     RoundedCornerShape(50)
@@ -163,41 +213,115 @@ fun GlassBackground(content: @Composable () -> Unit) {
                 .background(
                     Brush.linearGradient(
                         0.34f to Color.Transparent,
-                        0.50f to Color.White.copy(alpha = if (d) 0.22f else 0.50f),
+                        0.50f to Color.White.copy(alpha = pal.streakAlpha),
                         0.62f to Color.Transparent
                     )
                 )
         )
-        // miętowa poświata prawy dół
+        // poświata pory dnia prawy dół
         Box(
             Modifier
                 .align(Alignment.BottomEnd)
                 .offset(x = w * -0.12f, y = h * -0.10f + h * 0.05f * pA)
                 .size(w * 0.34f, h * 0.20f)
                 .blur(48.dp)
-                .background(Brush.radialGradient(listOf(Color(0xFFB4FFEB).copy(alpha = 0.5f), Color.Transparent)), CircleShape)
+                .background(Brush.radialGradient(listOf(pal.glow.copy(alpha = 0.5f), Color.Transparent)), CircleShape)
         )
         content()
     }
 }
 
+// Miękki, „nie-czarny" cień (spec Apple: 0 25px 60px rgba(30,30,40,.16))
+private val SoftShadow: Color get() = if (d) Color(0x59140542) else Color(0x291E1E28)
+
 /**
- * Tafla glass (karta/przycisk): fill + solid rim + cień
- * (inset-highlighty prototypu aproksymowane jasną obwódką).
+ * Górny refleks (2px pasek światła u samej krawędzi) — wspólny dla tafli.
+ * Rysowany w obrębie [shape] (po .clip), więc podąża za zaokrągleniem.
  */
-fun Modifier.glass(shape: Shape = RoundedCornerShape(24.dp)): Modifier = this
-    .shadow(10.dp, shape, spotColor = GlassShadow, ambientColor = GlassShadow)
-    .clip(shape)
-    .background(GlassFill)
-    .border(1.dp, GlassRim, shape)
+private fun DrawScope.specular(topAlpha: Float) {
+    drawRect(
+        Brush.horizontalGradient(
+            listOf(Color.Transparent, Color.White.copy(alpha = topAlpha), Color.Transparent)
+        ),
+        size = Size(size.width, 2.dp.toPx())
+    )
+}
+
+/** Powoli przesuwający się ukośny połysk (warstwa odbić światła). */
+private fun DrawScope.sheen(progress: Float, alpha: Float) {
+    val band = size.width * 0.32f
+    val x = size.width * progress
+    rotate(degrees = 18f, pivot = Offset(size.width / 2f, size.height / 2f)) {
+        drawRect(
+            brush = Brush.horizontalGradient(
+                colors = listOf(Color.Transparent, Color.White.copy(alpha = alpha), Color.Transparent),
+                startX = x - band, endX = x + band
+            ),
+            topLeft = Offset(x - band, -size.height * 0.25f),
+            size = Size(band * 2f, size.height * 1.5f)
+        )
+    }
+}
+
+/**
+ * Tafla glass (karta/tafla/przycisk) w duchu Apple Liquid Glass:
+ * miękki rozproszony cień, półprzezroczyste wypełnienie (tło prześwituje),
+ * gradientowy rant (jasny u góry → nikły u dołu), górny refleks świetlny
+ * oraz powoli dryfujący ukośny połysk. [sheenOn] wyłącza połysk dla drobnych
+ * elementów (rytm listy), by nie mnożyć animacji.
+ */
+fun Modifier.glass(shape: Shape = RoundedCornerShape(24.dp), sheenOn: Boolean = true): Modifier = composed {
+    val dark = GlassTheme.dark
+    val prog = if (sheenOn) {
+        val tr = rememberInfiniteTransition(label = "sheen")
+        tr.animateFloat(
+            initialValue = -0.35f, targetValue = 1.35f,
+            animationSpec = infiniteRepeatable(tween(7000, easing = LinearEasing), RepeatMode.Restart),
+            label = "sx"
+        ).value
+    } else -2f
+    this
+        .shadow(20.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.5f))
+        .clip(shape)
+        .background(GlassFill)
+        .drawWithContent {
+            drawContent()
+            specular(if (dark) 0.55f else 0.85f)
+            if (sheenOn) sheen(prog, if (dark) 0.10f else 0.16f)
+        }
+        .border(
+            1.dp,
+            Brush.linearGradient(
+                listOf(GlassRim, GlassRim.copy(alpha = 0.10f), GlassRim.copy(alpha = 0.30f))
+            ),
+            shape
+        )
+}
 
 /** Tafla „Control Center" (dock, Tydzień, kółko Rutyn) — gradientowa, jaśniejsza. */
-fun Modifier.controlCenterGlass(shape: Shape = RoundedCornerShape(50)): Modifier = this
-    .shadow(12.dp, shape, spotColor = Color(0x291E0A50), ambientColor = Color(0x291E0A50))
-    .clip(shape)
-    .background(
-        Brush.linearGradient(
-            listOf(Color.White.copy(alpha = if (d) 0.14f else 0.30f), Color(0xFFD2E6FA).copy(alpha = if (d) 0.05f else 0.10f))
-        )
+fun Modifier.controlCenterGlass(shape: Shape = RoundedCornerShape(50)): Modifier = composed {
+    val dark = GlassTheme.dark
+    val tr = rememberInfiniteTransition(label = "ccSheen")
+    val prog by tr.animateFloat(
+        initialValue = -0.35f, targetValue = 1.35f,
+        animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Restart),
+        label = "ccx"
     )
-    .border(1.dp, Color.White.copy(alpha = 0.5f), shape)
+    this
+        .shadow(16.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.5f))
+        .clip(shape)
+        .background(
+            Brush.linearGradient(
+                listOf(
+                    Color.White.copy(alpha = if (dark) 0.16f else 0.32f),
+                    Color(0xFFD2E6FA).copy(alpha = if (dark) 0.05f else 0.10f)
+                )
+            )
+        )
+        .drawWithContent {
+            drawContent()
+            specular(if (dark) 0.6f else 0.95f)
+            sheen(prog, if (dark) 0.10f else 0.18f)
+        }
+        .border(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = 0.6f), Color.White.copy(alpha = 0.12f))), shape)
+}

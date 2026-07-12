@@ -36,6 +36,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val dark by app.settings.darkTheme.collectAsState()
             GlassTheme.dark = dark
+            GlassTheme.phase = pl.media30.todoisto.ui.theme.dayPhaseFromClock()
             TodoistoTheme {
                 GlassBackground {
                     TodoistoApp(

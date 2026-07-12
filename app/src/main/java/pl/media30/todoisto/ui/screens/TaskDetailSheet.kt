@@ -7,6 +7,7 @@ import android.webkit.WebViewClient
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -58,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
@@ -88,6 +90,7 @@ import pl.media30.todoisto.ui.theme.GlassTextPrimary
 import pl.media30.todoisto.ui.theme.GlassTextSecondary
 import pl.media30.todoisto.ui.theme.GlassTheme
 import pl.media30.todoisto.ui.theme.GlassTint
+import pl.media30.todoisto.ui.theme.glass
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -140,6 +143,9 @@ fun TaskDetailSheet(
         Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp).padding(bottom = 24.dp)
     ) {
+        // Chmurka AI — „jak przyspieszyć" (na samej górze, po prawej)
+        AutomationCard(task.title, task.notes, onAskAi)
+
         // Nagłówek
         Row(verticalAlignment = Alignment.Top) {
             val ring = if (task.priority != Priority.P4) task.priority.color else GlassAccent
@@ -181,12 +187,22 @@ fun TaskDetailSheet(
             }
         }
 
-        Spacer(Modifier.height(14.dp))
-        HairLine()
+        Spacer(Modifier.height(10.dp))
 
-        // Priorytet — ringi kolorów
-        Row(Modifier.fillMaxWidth().padding(vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Priorytet", fontSize = 13.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary, modifier = Modifier.weight(1f))
+        // Priorytet — karta z ringami kolorów
+        val prioAccent = if (task.priority != Priority.P4) task.priority.color else GlassAccent
+        Row(
+            Modifier.fillMaxWidth().padding(top = 10.dp)
+                .shadow(5.dp, RoundedCornerShape(18.dp), spotColor = prioAccent.copy(alpha = 0.4f))
+                .clip(RoundedCornerShape(18.dp))
+                .background(GlassTint)
+                .border(1.dp, prioAccent.copy(alpha = 0.16f), RoundedCornerShape(18.dp))
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(Modifier.size(7.dp).clip(CircleShape).background(prioAccent))
+            Spacer(Modifier.width(8.dp))
+            Text("PRIORYTET", fontSize = 11.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.46.sp, color = GlassTextSecondary, modifier = Modifier.weight(1f))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Priority.entries.forEach { p ->
                     val sel = task.priority == p
@@ -202,14 +218,14 @@ fun TaskDetailSheet(
             }
         }
 
-        DetailSection("Projekt") {
+        DetailSection("Projekt", Color(0xFF4D6BFF)) {
             PresetChip("Skrzynka", task.projectId == null, Color(0xFF9E9E9E), dot = Color(0xFF9E9E9E)) { onPatch(task.copy(projectId = null)) }
             projects.filter { !it.isArchived }.forEach { pr ->
                 PresetChip(pr.name, task.projectId == pr.id, Color(pr.colorArgb), dot = Color(pr.colorArgb)) { onPatch(task.copy(projectId = pr.id)) }
             }
         }
 
-        DetailSection("Termin") {
+        DetailSection("Termin", Color(0xFF6B3FE0)) {
             val due = task.dueDate
             PresetChip("Dzisiaj", due != null && due <= today, Color(0xFF6B3FE0), calendarIcon = true) { onPatch(task.copy(dueDate = today)) }
             PresetChip("Jutro", due == today + 1, Color(0xFF6B3FE0), calendarIcon = true) { onPatch(task.copy(dueDate = today + 1)) }
@@ -219,7 +235,7 @@ fun TaskDetailSheet(
             PresetChip("Data…", due != null && due > today + 1 && due != today + 3 && due != today + 7, Color(0xFF6B3FE0)) { showDuePicker = true }
         }
 
-        DetailSection("Deadline") {
+        DetailSection("Deadline", Color(0xFFC24B1A)) {
             val friday = LocalDate.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.FRIDAY)).toEpochDay()
             val endOfMonth = LocalDate.now().with(TemporalAdjusters.lastDayOfMonth()).toEpochDay()
             PresetChip("Brak", task.deadline == null, Color(0xFFC24B1A)) { onPatch(task.copy(deadline = null)) }
@@ -229,7 +245,7 @@ fun TaskDetailSheet(
             PresetChip("Data…", task.deadline != null && task.deadline != today + 1 && task.deadline != friday && task.deadline != endOfMonth, Color(0xFFC24B1A)) { showDlPicker = true }
         }
 
-        DetailSection("Powtarzanie") {
+        DetailSection("Powtarzanie", Color(0xFF2DD4BF)) {
             PresetChip("Nie", task.recurrence == null, Color(0xFF6B3FE0)) { onPatch(task.copy(recurrence = null)) }
             Recurrence.entries.forEach { r ->
                 PresetChip(r.label, task.recurrence == r, Color(0xFF6B3FE0)) {
@@ -238,7 +254,7 @@ fun TaskDetailSheet(
             }
         }
 
-        DetailSection("Czas trwania") {
+        DetailSection("Czas trwania", Color(0xFF34D399)) {
             PresetChip("Brak", task.durationMinutes == null, Color(0xFF6B3FE0)) { onPatch(task.copy(durationMinutes = null)) }
             listOf(15 to "15 min", 30 to "30 min", 45 to "45 min", 60 to "1h", 120 to "2h").forEach { (v, t) ->
                 PresetChip(t, task.durationMinutes == v, Color(0xFF6B3FE0)) { onPatch(task.copy(durationMinutes = v)) }
@@ -246,7 +262,7 @@ fun TaskDetailSheet(
         }
 
         if (labels.isNotEmpty()) {
-            DetailSection("Etykiety") {
+            DetailSection("Etykiety", Color(0xFFC24DFF)) {
                 labels.forEach { l ->
                     val on = task.labelIds.contains(l.id)
                     PresetChip("@${l.name}", on, Color(l.colorArgb)) {
@@ -257,9 +273,19 @@ fun TaskDetailSheet(
         }
 
         // Załączniki i linki
-        Column(Modifier.padding(top = 12.dp)) {
-            Text("ZAŁĄCZNIKI I LINKI", fontSize = 11.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.46.sp, color = GlassTextSecondary)
-            Spacer(Modifier.height(8.dp))
+        Column(
+            Modifier.fillMaxWidth().padding(top = 10.dp)
+                .shadow(5.dp, RoundedCornerShape(18.dp), spotColor = Color(0xFF4D6BFF).copy(alpha = 0.4f))
+                .clip(RoundedCornerShape(18.dp)).background(GlassTint)
+                .border(1.dp, Color(0xFF4D6BFF).copy(alpha = 0.16f), RoundedCornerShape(18.dp))
+                .padding(14.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(7.dp).clip(CircleShape).background(Color(0xFF4D6BFF)))
+                Spacer(Modifier.width(8.dp))
+                Text("ZAŁĄCZNIKI I LINKI", fontSize = 11.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.46.sp, color = GlassTextSecondary)
+            }
+            Spacer(Modifier.height(10.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 task.attachments.forEach { url ->
                     if (isImageUrl(url)) {
@@ -350,15 +376,23 @@ fun TaskDetailSheet(
 
         // Podzadania
         if (task.parentId == null) {
-            Column(Modifier.padding(top = 15.dp)) {
+            Column(
+                Modifier.fillMaxWidth().padding(top = 10.dp)
+                    .shadow(5.dp, RoundedCornerShape(18.dp), spotColor = Color(0xFFA47CFF).copy(alpha = 0.4f))
+                    .clip(RoundedCornerShape(18.dp)).background(GlassTint)
+                    .border(1.dp, Color(0xFFA47CFF).copy(alpha = 0.16f), RoundedCornerShape(18.dp))
+                    .padding(14.dp)
+            ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Podzadania", fontSize = 13.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary, modifier = Modifier.weight(1f))
+                    Box(Modifier.size(7.dp).clip(CircleShape).background(Color(0xFFA47CFF)))
+                    Spacer(Modifier.width(8.dp))
+                    Text("PODZADANIA", fontSize = 11.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.46.sp, color = GlassTextSecondary, modifier = Modifier.weight(1f))
                     Text(
                         "${subtasks.count { it.isCompleted }}/${subtasks.size}",
                         fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassTextSecondary
                     )
                 }
-                Spacer(Modifier.height(9.dp))
+                Spacer(Modifier.height(10.dp))
                 Box(Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(3.dp)).background(GlassTint)) {
                     val frac = if (subtasks.isEmpty()) 0f else subtasks.count { it.isCompleted }.toFloat() / subtasks.size
                     Box(
@@ -402,10 +436,6 @@ fun TaskDetailSheet(
             }
         }
 
-        // Automatyzacja / „jak zrobić to szybciej"
-        Spacer(Modifier.height(14.dp))
-        AutomationCard(task.title, task.notes, onAskAi)
-
         // Stopka
         Spacer(Modifier.height(14.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -440,39 +470,41 @@ private fun HairLine() {
     Box(Modifier.fillMaxWidth().height(1.dp).background(GlassHair))
 }
 
-/** #4b — samouczek „jak zrobić to szybciej / zautomatyzować" dla danego zadania. */
+/** #4b — mała chmurka „AI" u góry ustawień; po kliknięciu rozwija samouczek automatyzacji. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AutomationCard(title: String, notes: String, onAskAi: (String) -> Unit) {
     val tip = remember(title, notes) { pl.media30.todoisto.data.AutomationAdvisor.advise(title, notes) }
     var expanded by remember { mutableStateOf(false) }
-    val chev by animateFloatAsState(if (expanded) 0f else -90f, label = "autoChev")
 
-    Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
-            .background(GlassAccent.copy(alpha = if (GlassTheme.dark) 0.16f else 0.10f))
-            .border(1.dp, GlassAccent.copy(alpha = 0.30f), RoundedCornerShape(18.dp))
-    ) {
-        Row(
-            Modifier.fillMaxWidth().bouncy(0.98f) { expanded = !expanded }.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
+    Column(Modifier.fillMaxWidth()) {
+        // Chmurka po prawej — zawsze widać „AI"
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Row(
+                Modifier.glass(RoundedCornerShape(50)).bouncy(0.93f) { expanded = !expanded }
+                    .padding(start = 12.dp, end = 13.dp, top = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(15.dp))
+                Spacer(Modifier.width(7.dp))
                 Text(
-                    if (tip.canAutomate) "Można przyspieszyć z AI" else "Pomoc AI",
-                    fontSize = 10.sp, fontWeight = FontWeight.W800, letterSpacing = 0.8.sp, color = GlassAccent
+                    if (expanded) "AI · zwiń" else "AI · jak przyspieszyć",
+                    fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassAccent
                 )
-                Spacer(Modifier.height(2.dp))
-                Text(tip.headline, fontSize = 14.5.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
             }
-            Icon(Icons.Filled.KeyboardArrowDown, null, tint = GlassTextSecondary,
-                modifier = Modifier.size(20.dp).rotate(chev))
         }
-        if (expanded) {
-            Column(Modifier.padding(start = 14.dp, end = 14.dp, bottom = 14.dp)) {
-                if (tip.tools.isNotEmpty()) {
+        androidx.compose.animation.AnimatedVisibility(
+            visible = expanded,
+            enter = androidx.compose.animation.expandVertically(spring(dampingRatio = 0.75f)) + androidx.compose.animation.fadeIn(tween(180)),
+            exit = androidx.compose.animation.shrinkVertically(tween(220)) + androidx.compose.animation.fadeOut(tween(140))
+        ) {
+            Column(
+                Modifier.fillMaxWidth().padding(top = 10.dp)
+                    .glass(RoundedCornerShape(20.dp)).padding(16.dp)
+            ) {
+                Text(tip.headline, fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                Spacer(Modifier.height(12.dp))
+                run {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         tip.tools.forEach { t ->
                             Text(
@@ -516,10 +548,21 @@ private fun AutomationCard(title: String, notes: String, onAskAi: (String) -> Un
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DetailSection(title: String, content: @Composable () -> Unit) {
-    Column(Modifier.padding(top = 12.dp)) {
-        Text(title.uppercase(), fontSize = 11.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.46.sp, color = GlassTextSecondary)
-        Spacer(Modifier.height(8.dp))
+private fun DetailSection(title: String, accent: Color = GlassAccent, content: @Composable () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().padding(top = 10.dp)
+            .shadow(5.dp, RoundedCornerShape(18.dp), spotColor = accent.copy(alpha = 0.4f))
+            .clip(RoundedCornerShape(18.dp))
+            .background(GlassTint)
+            .border(1.dp, accent.copy(alpha = 0.16f), RoundedCornerShape(18.dp))
+            .padding(14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(7.dp).clip(CircleShape).background(accent))
+            Spacer(Modifier.width(8.dp))
+            Text(title.uppercase(), fontSize = 11.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.46.sp, color = GlassTextSecondary)
+        }
+        Spacer(Modifier.height(10.dp))
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(7.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp),

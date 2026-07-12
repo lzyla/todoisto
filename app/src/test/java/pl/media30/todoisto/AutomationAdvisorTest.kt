@@ -11,9 +11,19 @@ class AutomationAdvisorTest {
     @Test fun reportMatchesWritingTools() {
         val t = AutomationAdvisor.advise("Przygotować raport miesięczny")
         assertTrue(t.canAutomate)
-        assertTrue(t.tools.any { it.contains("Claude") })
+        assertTrue(t.tools.any { it == "AI" })
         assertTrue(t.steps.isNotEmpty())
         assertTrue(t.aiPrompt.contains("raport", ignoreCase = true))
+    }
+
+    @Test fun neverNamesClaudeOrGpt() {
+        listOf("Przygotować raport", "Zbudować stronę", "Odpisać na maila", "Kampania NGO").forEach { title ->
+            val t = AutomationAdvisor.advise(title)
+            val all = (t.tools + t.steps + t.headline).joinToString(" ").lowercase()
+            assertFalse(all.contains("claude"))
+            assertFalse(all.contains("gpt"))
+            assertFalse(all.contains("codex"))
+        }
     }
 
     @Test fun translationMatchesDeepL() {
@@ -41,6 +51,6 @@ class AutomationAdvisorTest {
         val t = AutomationAdvisor.advise("Podlać kwiaty")
         assertFalse(t.canAutomate)
         assertTrue(t.aiPrompt.isNotBlank())
-        assertEquals(2, t.tools.size) // Claude + ChatGPT fallback
+        assertEquals(listOf("AI"), t.tools)
     }
 }

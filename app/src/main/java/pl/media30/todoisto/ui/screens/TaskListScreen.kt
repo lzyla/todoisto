@@ -297,28 +297,25 @@ fun TaskListScreen(
                         ) {
                             Icon(Icons.Filled.MoreVert, "Więcej", tint = GlassTextSecondary, modifier = Modifier.size(18.dp))
                         }
-                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            DropdownMenuItem({ Text("Sortowanie: ${uiState.sortMode.label}") }, onClick = { menuOpen = false; sortMenuOpen = true })
+                        GlassMenu(expanded = menuOpen, onDismiss = { menuOpen = false }) {
+                            GlassMenuItem("Sortowanie: ${uiState.sortMode.label}") { menuOpen = false; sortMenuOpen = true }
                             uiState.currentProject?.let { project ->
-                                DropdownMenuItem({ Text(if (project.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") }, onClick = { menuOpen = false; onToggleProjectFavorite(project.id) })
-                                DropdownMenuItem({ Text("Dodaj sekcję") }, onClick = { menuOpen = false; dialog = DialogKind.NewSection })
-                                DropdownMenuItem({ Text("Duplikuj projekt") }, onClick = { menuOpen = false; onDuplicateProject(project.id) })
-                                DropdownMenuItem({ Text(if (project.isArchived) "Przywróć z archiwum" else "Archiwizuj projekt") }, onClick = { menuOpen = false; onArchiveProject(project.id, !project.isArchived) })
-                                DropdownMenuItem({ Text("Usuń projekt") }, onClick = { menuOpen = false; onDeleteProject(project.id) })
+                                GlassMenuItem(if (project.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") { menuOpen = false; onToggleProjectFavorite(project.id) }
+                                GlassMenuItem("Dodaj sekcję") { menuOpen = false; dialog = DialogKind.NewSection }
+                                GlassMenuItem("Duplikuj projekt") { menuOpen = false; onDuplicateProject(project.id) }
+                                GlassMenuItem(if (project.isArchived) "Przywróć z archiwum" else "Archiwizuj projekt") { menuOpen = false; onArchiveProject(project.id, !project.isArchived) }
+                                GlassMenuItem("Usuń projekt") { menuOpen = false; onDeleteProject(project.id) }
                             }
                             uiState.currentLabel?.let { label ->
-                                DropdownMenuItem({ Text(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") }, onClick = { menuOpen = false; onToggleLabelFavorite(label.id) })
-                                DropdownMenuItem({ Text("Usuń etykietę") }, onClick = { menuOpen = false; onDeleteLabel(label.id) })
+                                GlassMenuItem(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") { menuOpen = false; onToggleLabelFavorite(label.id) }
+                                GlassMenuItem("Usuń etykietę") { menuOpen = false; onDeleteLabel(label.id) }
                             }
-                            DropdownMenuItem({ Text("Wyślij plan dnia") }, onClick = { menuOpen = false; onSharePlan() })
-                            DropdownMenuItem({ Text("Usuń ukończone") }, onClick = { menuOpen = false; onClearCompleted() })
+                            GlassMenuItem("Wyślij plan dnia") { menuOpen = false; onSharePlan() }
+                            GlassMenuItem("Usuń ukończone") { menuOpen = false; onClearCompleted() }
                         }
-                        DropdownMenu(expanded = sortMenuOpen, onDismissRequest = { sortMenuOpen = false }) {
+                        GlassMenu(expanded = sortMenuOpen, onDismiss = { sortMenuOpen = false }) {
                             SortMode.entries.forEach { mode ->
-                                DropdownMenuItem(
-                                    { Text((if (mode == uiState.sortMode) "✓ " else "") + mode.label) },
-                                    onClick = { sortMenuOpen = false; onSort(mode) }
-                                )
+                                GlassMenuItem((if (mode == uiState.sortMode) "✓ " else "") + mode.label) { sortMenuOpen = false; onSort(mode) }
                             }
                         }
                     }
@@ -572,6 +569,44 @@ private fun AreaMenuItem(name: String, dot: Color?, selected: Boolean, onClick: 
         Text(name, fontSize = 14.sp, fontWeight = if (selected) FontWeight.W800 else FontWeight.W600, color = GlassTextPrimary, modifier = Modifier.weight(1f))
         if (selected) Icon(Icons.Filled.Check, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
     }
+}
+
+/** Menu w stylu glass (jak pigułka „Tydzień") — zamiast kryjącego DropdownMenu. */
+@Composable
+private fun GlassMenu(expanded: Boolean, onDismiss: () -> Unit, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    if (!expanded) return
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    androidx.compose.ui.window.Popup(
+        alignment = Alignment.TopEnd,
+        offset = androidx.compose.ui.unit.IntOffset(0, with(density) { 38.dp.roundToPx() }),
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.PopupProperties(focusable = true)
+    ) {
+        val vis = remember { androidx.compose.animation.core.MutableTransitionState(false) }
+        vis.targetState = true
+        AnimatedVisibility(
+            visibleState = vis,
+            enter = fadeIn(tween(160)) + androidx.compose.animation.scaleIn(
+                tween(220, easing = EASE), initialScale = 0.85f,
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0f)
+            ) + expandVertically(tween(220, easing = EASE)),
+            exit = fadeOut(tween(120))
+        ) {
+            Column(
+                Modifier.width(236.dp).glass(RoundedCornerShape(22.dp)).padding(vertical = 8.dp),
+                content = content
+            )
+        }
+    }
+}
+
+@Composable
+private fun GlassMenuItem(text: String, onClick: () -> Unit) {
+    Text(
+        text, fontSize = 14.sp, fontWeight = FontWeight.W600, color = GlassTextPrimary,
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+            .bouncy(0.98f, onClick).padding(horizontal = 16.dp, vertical = 12.dp)
+    )
 }
 
 @Composable

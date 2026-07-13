@@ -485,7 +485,11 @@ private fun AutomationCard(
     Column(Modifier.fillMaxWidth()) {
         // Zwinięta chmurka — awatar + dymek (styl czatu)
         if (!expanded) {
-            Row(verticalAlignment = Alignment.Top) {
+            // CAŁY wiersz (awatar + dymek) jest klikalny — intuicyjnie stukasz gdziekolwiek.
+            Row(
+                Modifier.fillMaxWidth().bouncy(0.97f) { expanded = true },
+                verticalAlignment = Alignment.Top
+            ) {
                 Box(
                     Modifier.size(44.dp)
                         .shadow(10.dp, CircleShape, spotColor = GlassAccent.copy(alpha = 0.5f))
@@ -495,8 +499,7 @@ private fun AutomationCard(
                 ) { Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(23.dp)) }
                 Spacer(Modifier.width(11.dp))
                 Column(
-                    Modifier.glass(bubbleShape).bouncy(0.96f) { expanded = true }
-                        .padding(horizontal = 16.dp, vertical = 13.dp)
+                    Modifier.glass(bubbleShape).padding(horizontal = 16.dp, vertical = 13.dp)
                 ) {
                     Text("Nie wiesz jak się zabrać?", fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
                     Spacer(Modifier.height(3.dp))

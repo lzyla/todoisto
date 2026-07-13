@@ -121,6 +121,7 @@ fun SettingsScreen(
     onSetActiveCustom: (String) -> Unit,
     onRemoveCustom: (String) -> Unit,
     onGenerateAi: () -> Unit,
+    onAddPresets: () -> Unit,
     onDismissAiImages: () -> Unit,
     onBack: () -> Unit,
     onToggleDark: () -> Unit,
@@ -156,7 +157,7 @@ fun SettingsScreen(
             ) {
                 if (route == 2) BackgroundSettings(
                     dark, photo, activeCustomBg, customPhotos, aiImages,
-                    onSelectGradient, onSelectScene, onAddCustomPhoto, onSetActiveCustom, onRemoveCustom, onGenerateAi, onDismissAiImages
+                    onSelectGradient, onSelectScene, onAddCustomPhoto, onSetActiveCustom, onRemoveCustom, onGenerateAi, onAddPresets, onDismissAiImages
                 ) else if (route == 0) MainSettings(
                     dark, photo, activeCustomBg, hasApiKey, dailyGoal, weeklyGoal,
                     aiPromptTokens, aiCompletionTokens, onResetAiUsage,
@@ -344,7 +345,7 @@ private fun BackgroundSettings(
     aiImages: pl.media30.todoisto.ui.AiImagesState?,
     onSelectGradient: () -> Unit, onSelectScene: () -> Unit, onAddCustomPhoto: (String) -> Unit,
     onSetActiveCustom: (String) -> Unit, onRemoveCustom: (String) -> Unit,
-    onGenerateAi: () -> Unit, onDismissAiImages: () -> Unit
+    onGenerateAi: () -> Unit, onAddPresets: () -> Unit, onDismissAiImages: () -> Unit
 ) {
     val context = LocalContext.current
     val customActive = activeCustomBg.isNotBlank()
@@ -413,6 +414,17 @@ private fun BackgroundSettings(
                     Spacer(Modifier.width(8.dp))
                     Text("Wygeneruj 3 propozycje (AI)", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
                 }
+            }
+            Spacer(Modifier.height(10.dp))
+            // Gotowe propozycje (bez AI, bez kosztów).
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent.copy(alpha = if (dark) 0.22f else 0.12f))
+                    .bouncy(0.97f) { onAddPresets() }.padding(vertical = 13.dp),
+                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Outlined.Gradient, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Wstaw 3 gotowe tła (bez AI)", color = GlassAccent, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
             }
             if (aiImages?.needsKey == true) {
                 Spacer(Modifier.height(8.dp))

@@ -181,6 +181,22 @@ class TodoViewModel(
     val aiImages: StateFlow<AiImagesState?> = _aiImages.asStateFlow()
     fun dismissAiImages() { _aiImages.value = null }
 
+    /** Gotowe (wbudowane) propozycje tła — rysowane w kodzie, bez AI i bez kosztów. */
+    fun addPresetBackgrounds() {
+        viewModelScope.launch {
+            val palettes = listOf(
+                intArrayOf(0xFFF3E7FF.toInt(), 0xFFFFE3F1.toInt(), 0xFFFFF0D9.toInt()), // fiolet→róż→żółty
+                intArrayOf(0xFFDDF3FF.toInt(), 0xFFE7ECFF.toInt(), 0xFFF6E7FF.toInt()), // błękit→lawenda
+                intArrayOf(0xFFFFE9D6.toInt(), 0xFFFFD9E3.toInt(), 0xFFE9D9FF.toInt())  // brzoskwinia→róż→fiolet
+            )
+            val paths = palettes.mapIndexed { i, colors ->
+                val bytes = pl.media30.todoisto.data.PresetBackgrounds.gradientPng(1080, 1920, colors)
+                settings.saveBackgroundBytes(bytes, "preset_${System.currentTimeMillis()}_$i.png")
+            }
+            settings.setCustomPhotos(paths)
+        }
+    }
+
     /** Generuje 3 propozycje tła przez AI i zapisuje je jako własne zdjęcia. */
     fun generateAiBackgrounds() {
         val key = settings.openAiKey.value
@@ -370,7 +386,7 @@ class TodoViewModel(
             when (view) {
                 AppView.Today -> !t.isCompleted && t.dueDate != null && t.dueDate <= today && !inArchived(t) && !isRoutine(t)
                 AppView.Upcoming -> !t.isCompleted && t.dueDate != null && t.dueDate > today && !inArchived(t)
-                AppView.Inbox -> !t.isCompleted && t.projectId == null
+                AppView.Inbox -> !t.isCompleted && t.parentId == null && !inArchived(t)
                 AppView.Completed -> t.isCompleted && !inArchived(t)
                 is AppView.ProjectView -> !t.isCompleted && t.projectId == view.id
                 is AppView.LabelView -> !t.isCompleted && t.labelIds.contains(view.id) && !inArchived(t)

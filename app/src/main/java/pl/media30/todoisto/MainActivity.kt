@@ -231,6 +231,7 @@ fun TodoistoApp(
             onSetActiveCustom = viewModel::setActiveCustomBg,
             onRemoveCustom = viewModel::removeCustomPhoto,
             onGenerateAi = viewModel::generateAiBackgrounds,
+            onAddPresets = viewModel::addPresetBackgrounds,
             onDismissAiImages = viewModel::dismissAiImages,
             onBack = { showSettings = false },
             onToggleDark = { viewModel.setDarkTheme(!darkTheme) },

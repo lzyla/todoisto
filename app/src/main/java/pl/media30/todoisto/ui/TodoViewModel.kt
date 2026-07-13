@@ -73,8 +73,7 @@ enum class SortMode(val label: String) {
     PRIORITY("Priorytet"),
     DATE("Data"),
     ALPHA("Alfabetycznie"),
-    NEWEST("Najnowsze"),
-    MANUAL("Ręcznie")
+    NEWEST("Najnowsze")
 }
 
 /** A top-level task together with its subtasks. */
@@ -336,7 +335,6 @@ class TodoViewModel(
             SortMode.DATE -> matching.sortedWith(compareBy(nullsLast()) { it.dueDate })
             SortMode.ALPHA -> matching.sortedBy { it.title.lowercase() }
             SortMode.NEWEST -> matching.sortedByDescending { it.createdAt }
-            SortMode.MANUAL -> matching.sortedWith(compareBy({ it.position }, { it.createdAt }))
         }
 
         fun nodeOf(t: Task) = TaskNode(t, src.tasks.filter { it.parentId == t.id })

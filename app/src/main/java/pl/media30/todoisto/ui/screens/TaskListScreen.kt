@@ -697,48 +697,40 @@ private fun ZenContent(
     val today = LocalDate.now()
     val collapsed = remember { mutableStateMapOf<String, Boolean>() }
 
-    // Tryb „Ręcznie": płaska lista z przeciąganiem (long-press) i zapisem kolejności.
-    val manual = uiState.sortMode == SortMode.MANUAL
+    // Bucket pory dnia (dla widoku Dzisiaj).
+    fun bucketOf(t: Task): String {
+        val m = t.dueTimeMinutes
+        return when {
+            m == null -> "Rano"
+            m < 12 * 60 -> "Rano"
+            m < 17 * 60 -> "Po południu"
+            else -> "Wieczorem"
+        }
+    }
+
+    // Przeciąganie zadań (drag&drop) BEZ trybów — działa wprost na liście Dzisiaj.
+    // Kolejność wg position (utrzymana przez przeciąganie), grupy wg pory dnia.
     val flatNodes = uiState.groups.flatMap { it.nodes }
     val flatIds = flatNodes.map { it.task.id }
-    val reorderItems = remember { androidx.compose.runtime.mutableStateListOf<TaskNode>() }
-    androidx.compose.runtime.LaunchedEffect(flatIds, manual) {
-        if (manual) { reorderItems.clear(); reorderItems.addAll(flatNodes) }
+    val orderedNodes = remember { androidx.compose.runtime.mutableStateListOf<TaskNode>() }
+    androidx.compose.runtime.LaunchedEffect(flatIds) {
+        orderedNodes.clear()
+        orderedNodes.addAll(flatNodes.sortedBy { it.task.position })
     }
     val lazyState = rememberLazyListState()
     val reorderState = rememberReorderableLazyListState(lazyState) { from, to ->
-        val f = from.index - 1; val t = to.index - 1 // -1: pierwszy element to nagłówek
-        if (f in reorderItems.indices && t in reorderItems.indices) reorderItems.add(t, reorderItems.removeAt(f))
+        val f = orderedNodes.indexOfFirst { it.task.id == from.key }
+        val t = orderedNodes.indexOfFirst { it.task.id == to.key }
+        // Przenosimy tylko w obrębie tej samej pory dnia — bez „przeskoków" między grupami.
+        if (f in orderedNodes.indices && t in orderedNodes.indices &&
+            bucketOf(orderedNodes[f].task) == bucketOf(orderedNodes[t].task)) {
+            orderedNodes.add(t, orderedNodes.removeAt(f))
+        }
     }
 
     // Sam kontener treści jest już odsunięty i przycięty pod paskiem pigułek
     // (patrz padding Boxa z haze()), więc tu wystarczy drobny zapas u góry.
     LazyColumn(state = lazyState, contentPadding = PaddingValues(start = 18.dp, top = statusTop + 10.dp, end = 18.dp, bottom = 170.dp)) {
-        if (manual) {
-            item(key = "hdr-manual") {
-                Column(Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(uiState.title, style = MaterialTheme.typography.headlineSmall, color = GlassTextPrimary)
-                    Spacer(Modifier.height(4.dp))
-                    Text("Przytrzymaj i przeciągnij, aby zmienić kolejność", fontSize = 12.sp, color = GlassTextSecondary)
-                }
-            }
-            items(reorderItems, key = { it.task.id }) { node ->
-                ReorderableItem(reorderState, key = node.task.id) { dragging ->
-                    val scale by animateFloatAsState(if (dragging) 1.03f else 1f, tween(180), label = "dragScale")
-                    val elevation by animateDpAsState(if (dragging) 12.dp else 0.dp, tween(180), label = "dragElev")
-                    Column(
-                        Modifier
-                            .padding(vertical = 4.dp)
-                            .graphicsLayer { scaleX = scale; scaleY = scale }
-                            .shadow(elevation, RoundedCornerShape(20.dp))
-                            .longPressDraggableHandle(onDragStopped = { onReorder(reorderItems.map { it.task.id }) })
-                    ) {
-                        ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
-                    }
-                }
-            }
-            return@LazyColumn
-        }
         when (uiState.view) {
             AppView.Today -> {
                 item(key = "hdr") {
@@ -750,8 +742,7 @@ private fun ZenContent(
                         Box(Modifier.size(34.dp, 3.dp).clip(RoundedCornerShape(2.dp)).background(GlassAccent.copy(alpha = 0.5f)))
                     }
                 }
-                val nodes = uiState.groups.firstOrNull()?.nodes.orEmpty()
-                if (nodes.isEmpty()) {
+                if (orderedNodes.isEmpty()) {
                     item(key = "empty") {
                         EmptyState(
                             if (uiState.routines.isNotEmpty()) "Zostały tylko rutyny" else "Wszystko zrobione",
@@ -759,19 +750,42 @@ private fun ZenContent(
                         )
                     }
                 } else {
-                    val buckets = linkedMapOf("Rano" to mutableListOf<TaskNode>(), "Po południu" to mutableListOf(), "Wieczorem" to mutableListOf())
-                    nodes.forEach { n ->
-                        val m = n.task.dueTimeMinutes
-                        val key = when {
-                            m == null -> "Rano"
-                            m < 12 * 60 -> "Rano"
-                            m < 17 * 60 -> "Po południu"
-                            else -> "Wieczorem"
+                    // Nagłówek grupy + przeciągalne wiersze (każdy jako element listy).
+                    var lastBucket = ""
+                    orderedNodes.forEach { node ->
+                        val b = bucketOf(node.task)
+                        if (b != lastBucket) {
+                            lastBucket = b
+                            item(key = "sec-$b") {
+                                val isCol = collapsed[b] == true
+                                val chev by animateFloatAsState(if (isCol) -90f else 0f, tween(400, easing = EASE), label = "chev")
+                                Row(
+                                    Modifier.fillMaxWidth().padding(top = 14.dp).clip(RoundedCornerShape(12.dp))
+                                        .bouncy(0.98f) { collapsed[b] = !isCol }.padding(horizontal = 6.dp, vertical = 5.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(b.uppercase(), fontSize = 11.sp, fontWeight = FontWeight.W800, letterSpacing = 1.54.sp, color = GlassTextSecondary, modifier = Modifier.weight(1f))
+                                    Icon(Icons.Filled.KeyboardArrowDown, null, tint = GlassTextSecondary, modifier = Modifier.size(13.dp).rotate(chev))
+                                }
+                            }
                         }
-                        buckets.getValue(key).add(n)
-                    }
-                    buckets.filterValues { it.isNotEmpty() }.forEach { (name, secNodes) ->
-                        zenSection(name, secNodes, collapsed, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
+                        if (collapsed[b] != true) {
+                            item(key = node.task.id) {
+                                ReorderableItem(reorderState, key = node.task.id) { dragging ->
+                                    val scale by animateFloatAsState(if (dragging) 1.03f else 1f, tween(180), label = "dragScale")
+                                    val elevation by animateDpAsState(if (dragging) 12.dp else 0.dp, tween(180), label = "dragElev")
+                                    Column(
+                                        Modifier
+                                            .padding(vertical = 4.dp)
+                                            .graphicsLayer { scaleX = scale; scaleY = scale }
+                                            .shadow(elevation, RoundedCornerShape(20.dp))
+                                            .longPressDraggableHandle(onDragStopped = { onReorder(orderedNodes.map { it.task.id }) })
+                                    ) {
+                                        ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

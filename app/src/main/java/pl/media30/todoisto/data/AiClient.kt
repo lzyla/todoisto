@@ -69,6 +69,50 @@ object AiClient {
     }
 
     /**
+     * Generuje [count] propozycji tła (OpenAI Images, dall-e-3) — zwraca listę
+     * obrazów jako bajty PNG. Woła się kluczem użytkownika; każdy obraz to
+     * osobne żądanie (dall-e-3 obsługuje n=1). Uwaga: to operacja płatna.
+     */
+    suspend fun generateBackgrounds(apiKey: String, count: Int = 3): List<ByteArray> = withContext(Dispatchers.IO) {
+        require(apiKey.isNotBlank()) { "Brak klucza API" }
+        val prompt =
+            "Minimalistyczne, spokojne pionowe tło (wallpaper na telefon) do aplikacji z zadaniami. " +
+            "Miękki, rozmyty gradient, delikatne organiczne kształty, paleta fiolet-róż-żółty, dużo wolnej przestrzeni. " +
+            "Bez tekstu, bez logo, bez ludzi."
+        val out = mutableListOf<ByteArray>()
+        var lastError: String? = null
+        repeat(count) {
+            val body = JSONObject().apply {
+                put("model", "dall-e-3")
+                put("prompt", prompt)
+                put("n", 1)
+                put("size", "1024x1792")
+                put("response_format", "b64_json")
+            }.toString()
+            val conn = (URL("https://api.openai.com/v1/images/generations").openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 20000
+                readTimeout = 90000
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Authorization", "Bearer $apiKey")
+            }
+            conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+            val code = conn.responseCode
+            val text = (if (code in 200..299) conn.inputStream else conn.errorStream)
+                ?.bufferedReader()?.use { it.readText() }.orEmpty()
+            if (code !in 200..299) {
+                lastError = runCatching { JSONObject(text).getJSONObject("error").getString("message") }.getOrDefault("Błąd $code")
+                return@repeat
+            }
+            val b64 = JSONObject(text).getJSONArray("data").getJSONObject(0).getString("b64_json")
+            out.add(android.util.Base64.decode(b64, android.util.Base64.DEFAULT))
+        }
+        if (out.isEmpty()) throw RuntimeException(lastError ?: "Nie udało się wygenerować obrazów")
+        out
+    }
+
+    /**
      * Realny koszt z panelu OpenAI (Costs API) — wymaga klucza ADMIN (sk-admin-…),
      * bo zwykły klucz nie ma dostępu do rozliczeń. Sumuje dzienne kubełki od
      * [startTimeUnix] (sekundy) do teraz. Zwraca kwotę w USD.

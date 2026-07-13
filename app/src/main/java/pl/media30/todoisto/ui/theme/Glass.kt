@@ -68,6 +68,8 @@ object GlassTheme {
     var phase by mutableStateOf(DayPhase.NOON)
     /** Tryb tła: false = gradient „mesh", true = malarska scena „foto" zależna od pory dnia. */
     var photo by mutableStateOf(false)
+    /** Własne tło (ścieżka pliku); gdy ustawione, ma priorytet nad gradientem/sceną. */
+    var customBg by mutableStateOf<String?>(null)
 }
 private val d get() = GlassTheme.dark
 
@@ -184,8 +186,28 @@ private fun photoScene(): PhotoScene = when (GlassTheme.phase) {
  */
 @Composable
 fun GlassBackground(content: @Composable () -> Unit) {
+    val custom = GlassTheme.customBg
+    val dark = GlassTheme.dark
     Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().glassBackdrop())
+        if (custom != null) {
+            // Własne zdjęcie jako tło + delikatna zasłona dla czytelności szkła/tekstu.
+            coil.compose.AsyncImage(
+                model = java.io.File(custom),
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(
+                        if (dark) listOf(Color(0x662A2140), Color(0x99140A2E))
+                        else listOf(Color(0x33FFFFFF), Color(0x59FFFFFF))
+                    )
+                )
+            )
+        } else {
+            Box(Modifier.fillMaxSize().glassBackdrop())
+        }
         content()
     }
 }

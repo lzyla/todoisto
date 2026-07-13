@@ -43,8 +43,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             val dark by app.settings.darkTheme.collectAsState()
             val photoBg by app.settings.photoBackground.collectAsState()
+            val activeCustomBg by app.settings.activeCustomBg.collectAsState()
             GlassTheme.dark = dark
             GlassTheme.photo = photoBg
+            GlassTheme.customBg = activeCustomBg.ifBlank { null }
             GlassTheme.phase = pl.media30.todoisto.ui.theme.dayPhaseFromClock()
             TodoistoTheme {
                 GlassBackground {
@@ -110,6 +112,9 @@ fun TodoistoApp(
     val aiCompletionTokens by viewModel.aiCompletionTokens.collectAsState()
     val adminKey by viewModel.openAiAdminKey.collectAsState()
     val aiCost by viewModel.aiCost.collectAsState()
+    val customPhotos by viewModel.customPhotos.collectAsState()
+    val activeCustomBg by viewModel.activeCustomBg.collectAsState()
+    val aiImages by viewModel.aiImages.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     var detailTaskId by remember { mutableStateOf<Long?>(null) }
@@ -217,6 +222,16 @@ fun TodoistoApp(
             aiCost = aiCost,
             onSetAdminKey = viewModel::setOpenAiAdminKey,
             onRefreshCost = viewModel::refreshAiCost,
+            customPhotos = customPhotos,
+            activeCustomBg = activeCustomBg,
+            aiImages = aiImages,
+            onSelectGradient = { viewModel.setActiveCustomBg(""); viewModel.setPhotoBackground(false) },
+            onSelectScene = { viewModel.setActiveCustomBg(""); viewModel.setPhotoBackground(true) },
+            onAddCustomPhoto = viewModel::addCustomPhoto,
+            onSetActiveCustom = viewModel::setActiveCustomBg,
+            onRemoveCustom = viewModel::removeCustomPhoto,
+            onGenerateAi = viewModel::generateAiBackgrounds,
+            onDismissAiImages = viewModel::dismissAiImages,
             onBack = { showSettings = false },
             onToggleDark = { viewModel.setDarkTheme(!darkTheme) },
             onTogglePhoto = { viewModel.setPhotoBackground(!photoBg) },

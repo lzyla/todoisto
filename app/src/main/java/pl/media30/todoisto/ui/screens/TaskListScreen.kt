@@ -1523,61 +1523,7 @@ private fun DrawerContent(
                 GoalBar("Tydzień", uiState.doneWeek, uiState.goalWeekly)
             }
 
-            // Tło: gradient / foto
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(GlassTint)
-                    .bouncy(0.98f, onClick = onTogglePhotoBackground).padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("Tło zdjęciowe", fontSize = 13.5.sp, fontWeight = FontWeight.W700, color = GlassTextPrimary)
-                    Text(if (isPhotoBackground) "Scena wg pory dnia" else "Gradient", fontSize = 11.sp, color = GlassTextSecondary)
-                }
-                val knob2 by animateDpAsState(if (isPhotoBackground) 19.dp else 3.dp, spring(dampingRatio = 0.6f), label = "knob2")
-                Box(
-                    Modifier.size(40.dp, 24.dp).clip(RoundedCornerShape(12.dp))
-                        .background(if (isPhotoBackground) GlassAccent else GlassTextSecondary.copy(alpha = 0.35f))
-                ) {
-                    Box(Modifier.offset(x = knob2, y = 3.dp).size(18.dp).clip(CircleShape).background(Color.White))
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-
-            // Klucz AI (OpenAI)
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(GlassTint)
-                    .bouncy(0.98f, onClick = onOpenApiKey).padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("Klucz AI (OpenAI)", fontSize = 13.5.sp, fontWeight = FontWeight.W700, color = GlassTextPrimary)
-                    Text(if (hasApiKey) "Ustawiony — Zapytaj AI działa" else "Nie ustawiony", fontSize = 11.sp, color = GlassTextSecondary)
-                }
-                Box(Modifier.size(9.dp).clip(CircleShape).background(if (hasApiKey) Color(0xFF34D399) else GlassTextSecondary.copy(alpha = 0.4f)))
-            }
-            Spacer(Modifier.height(10.dp))
-
-            // Tryb ciemny
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(GlassTint)
-                    .bouncy(0.98f, onClick = onToggleDark).padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Outlined.DarkMode, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(12.dp))
-                Text("Tryb ciemny", fontSize = 13.5.sp, fontWeight = FontWeight.W700, color = GlassTextPrimary, modifier = Modifier.weight(1f))
-                val knob by animateDpAsState(if (isDark) 19.dp else 3.dp, spring(dampingRatio = 0.6f), label = "knob")
-                Box(
-                    Modifier.size(40.dp, 24.dp).clip(RoundedCornerShape(12.dp))
-                        .background(if (isDark) GlassAccent else GlassTextSecondary.copy(alpha = 0.35f))
-                ) {
-                    Box(Modifier.offset(x = knob, y = 3.dp).size(18.dp).clip(CircleShape).background(Color.White))
-                }
-            }
+            // Motyw, tło i klucz AI przeniesione do Ustawień (☰ → Ustawienia).
         }
     }
 }

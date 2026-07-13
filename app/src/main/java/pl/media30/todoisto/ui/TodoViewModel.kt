@@ -61,6 +61,14 @@ data class AiAskState(
     val needsKey: Boolean = false
 )
 
+/** Generowanie propozycji tła przez AI (OpenAI Images). */
+data class AiImagesState(
+    val loading: Boolean = false,
+    val done: Boolean = false,
+    val error: String? = null,
+    val needsKey: Boolean = false
+)
+
 /** Realny koszt z OpenAI Costs API (klucz Admin). */
 data class AiCostState(
     val loading: Boolean = false,
@@ -151,6 +159,46 @@ class TodoViewModel(
 
     val photoBackground: StateFlow<Boolean> = settings.photoBackground
     fun setPhotoBackground(value: Boolean) = settings.setPhotoBackground(value)
+
+    // --- Własne tła (zdjęcia / AI) ---
+    val customPhotos: StateFlow<List<String>> = settings.customPhotos
+    val activeCustomBg: StateFlow<String> = settings.activeCustomBg
+    fun setCustomPhotos(paths: List<String>) = settings.setCustomPhotos(paths)
+    fun addCustomPhoto(path: String) {
+        val list = (settings.customPhotos.value + path).takeLast(3)
+        settings.setCustomPhotos(list)
+    }
+    fun setActiveCustomBg(path: String) {
+        settings.setActiveCustomBg(path)
+        if (path.isNotBlank()) settings.setPhotoBackground(false)
+    }
+    fun removeCustomPhoto(path: String) {
+        settings.setCustomPhotos(settings.customPhotos.value.filterNot { it == path })
+        if (settings.activeCustomBg.value == path) settings.setActiveCustomBg("")
+    }
+
+    private val _aiImages = MutableStateFlow<AiImagesState?>(null)
+    val aiImages: StateFlow<AiImagesState?> = _aiImages.asStateFlow()
+    fun dismissAiImages() { _aiImages.value = null }
+
+    /** Generuje 3 propozycje tła przez AI i zapisuje je jako własne zdjęcia. */
+    fun generateAiBackgrounds() {
+        val key = settings.openAiKey.value
+        if (key.isBlank()) { _aiImages.value = AiImagesState(needsKey = true); return }
+        _aiImages.value = AiImagesState(loading = true)
+        viewModelScope.launch {
+            _aiImages.value = try {
+                val imgs = pl.media30.todoisto.data.AiClient.generateBackgrounds(key, 3)
+                val paths = imgs.mapIndexed { i, bytes ->
+                    settings.saveBackgroundBytes(bytes, "ai_${System.currentTimeMillis()}_$i.png")
+                }
+                settings.setCustomPhotos(paths)
+                AiImagesState(loading = false, done = true)
+            } catch (e: Exception) {
+                AiImagesState(loading = false, error = e.message ?: "Błąd generowania")
+            }
+        }
+    }
 
     // --- Integracja AI (OpenAI) ---
     val openAiKey: StateFlow<String> = settings.openAiKey

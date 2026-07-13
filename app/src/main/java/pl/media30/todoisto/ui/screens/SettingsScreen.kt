@@ -1,11 +1,17 @@
 package pl.media30.todoisto.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,8 +32,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.Gradient
+import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.CalendarViewWeek
 import androidx.compose.material.icons.outlined.CloudDownload
@@ -46,6 +57,7 @@ import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -61,6 +73,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -98,6 +112,16 @@ fun SettingsScreen(
     aiCost: pl.media30.todoisto.ui.AiCostState?,
     onSetAdminKey: (String) -> Unit,
     onRefreshCost: () -> Unit,
+    customPhotos: List<String>,
+    activeCustomBg: String,
+    aiImages: pl.media30.todoisto.ui.AiImagesState?,
+    onSelectGradient: () -> Unit,
+    onSelectScene: () -> Unit,
+    onAddCustomPhoto: (String) -> Unit,
+    onSetActiveCustom: (String) -> Unit,
+    onRemoveCustom: (String) -> Unit,
+    onGenerateAi: () -> Unit,
+    onDismissAiImages: () -> Unit,
     onBack: () -> Unit,
     onToggleDark: () -> Unit,
     onTogglePhoto: () -> Unit,
@@ -123,19 +147,22 @@ fun SettingsScreen(
 
     GlassBackground {
         Column(Modifier.fillMaxSize()) {
-            TopBar(if (route == 0) "Ustawienia" else "Ogólne") {
+            TopBar(when (route) { 1 -> "Ogólne"; 2 -> "Tło"; else -> "Ustawienia" }) {
                 if (route != 0) route = 0 else onBack()
             }
             Column(
                 Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
                     .padding(horizontal = 18.dp).padding(top = 6.dp, bottom = 28.dp)
             ) {
-                if (route == 0) MainSettings(
-                    dark, photo, hasApiKey, dailyGoal, weeklyGoal,
+                if (route == 2) BackgroundSettings(
+                    dark, photo, activeCustomBg, customPhotos, aiImages,
+                    onSelectGradient, onSelectScene, onAddCustomPhoto, onSetActiveCustom, onRemoveCustom, onGenerateAi, onDismissAiImages
+                ) else if (route == 0) MainSettings(
+                    dark, photo, activeCustomBg, hasApiKey, dailyGoal, weeklyGoal,
                     aiPromptTokens, aiCompletionTokens, onResetAiUsage,
                     adminKeySet, aiCost, onRefreshCost, onOpenAdminKey = { showAdminKey = true },
-                    onOpenGeneral = { route = 1 },
-                    onToggleDark, onTogglePhoto,
+                    onOpenGeneral = { route = 1 }, onOpenBackground = { route = 2 },
+                    onToggleDark,
                     onOpenKey = { showKey = true }, onOpenGoals = { showGoals = true },
                     onOpenPool, onOpenImport
                 ) else GeneralSettings(
@@ -154,11 +181,11 @@ fun SettingsScreen(
 
 @Composable
 private fun MainSettings(
-    dark: Boolean, photo: Boolean, hasApiKey: Boolean, dailyGoal: Int, weeklyGoal: Int,
+    dark: Boolean, photo: Boolean, activeCustomBg: String, hasApiKey: Boolean, dailyGoal: Int, weeklyGoal: Int,
     aiPromptTokens: Long, aiCompletionTokens: Long, onResetAiUsage: () -> Unit,
     adminKeySet: Boolean, aiCost: pl.media30.todoisto.ui.AiCostState?, onRefreshCost: () -> Unit, onOpenAdminKey: () -> Unit,
-    onOpenGeneral: () -> Unit,
-    onToggleDark: () -> Unit, onTogglePhoto: () -> Unit,
+    onOpenGeneral: () -> Unit, onOpenBackground: () -> Unit,
+    onToggleDark: () -> Unit,
     onOpenKey: () -> Unit, onOpenGoals: () -> Unit,
     onOpenPool: () -> Unit, onOpenImport: () -> Unit
 ) {
@@ -175,7 +202,12 @@ private fun MainSettings(
     SettingsCard {
         ToggleRow(Icons.Outlined.DarkMode, Color(0xFF7C6BFF), "Tryb ciemny", if (dark) "Włączony" else "Wyłączony", dark, onToggleDark)
         RowDivider()
-        ToggleRow(Icons.Outlined.Wallpaper, Color(0xFF2DD4BF), "Tło zdjęciowe", if (photo) "Scena wg pory dnia" else "Gradient (mesh)", photo, onTogglePhoto)
+        val bgSub = when {
+            activeCustomBg.isNotBlank() -> "Własne zdjęcie"
+            photo -> "Scena wg pory dnia"
+            else -> "Gradient (mesh)"
+        }
+        NavRow(Icons.Outlined.Wallpaper, Color(0xFF2DD4BF), "Tło", bgSub, onClick = onOpenBackground)
     }
     Spacer(Modifier.height(22.dp))
 
@@ -305,6 +337,120 @@ private fun AdminKeyDialog(hasKey: Boolean, onDismiss: () -> Unit, onSave: (Stri
 }
 
 private fun fmt(n: Long): String = "%,d".format(n).replace(',', ' ')
+
+@Composable
+private fun BackgroundSettings(
+    dark: Boolean, photo: Boolean, activeCustomBg: String, customPhotos: List<String>,
+    aiImages: pl.media30.todoisto.ui.AiImagesState?,
+    onSelectGradient: () -> Unit, onSelectScene: () -> Unit, onAddCustomPhoto: (String) -> Unit,
+    onSetActiveCustom: (String) -> Unit, onRemoveCustom: (String) -> Unit,
+    onGenerateAi: () -> Unit, onDismissAiImages: () -> Unit
+) {
+    val context = LocalContext.current
+    val customActive = activeCustomBg.isNotBlank()
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) copyUriToBackground(context, uri)?.let(onAddCustomPhoto)
+    }
+
+    SettingsSection("Rodzaj tła")
+    SettingsCard {
+        BgOptionRow(Icons.Outlined.Gradient, Color(0xFFB99CFF), "Gradient (mesh)", "Domyślne, animowane", !photo && !customActive, onSelectGradient)
+        RowDivider()
+        BgOptionRow(Icons.Outlined.WbSunny, Color(0xFFF4B740), "Scena wg pory dnia", "Rano / dzień / wieczór", photo && !customActive, onSelectScene)
+    }
+    Spacer(Modifier.height(22.dp))
+
+    SettingsSection("Własne zdjęcia")
+    SettingsCard {
+        Column(Modifier.fillMaxWidth().padding(14.dp)) {
+            Text("Wrzuć do 3 zdjęć albo wygeneruj propozycje przez AI. Dotknij kafelka, aby ustawić jako tło.", fontSize = 12.5.sp, color = GlassTextSecondary)
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                (0 until 3).forEach { i ->
+                    val path = customPhotos.getOrNull(i)
+                    val isActive = path != null && path == activeCustomBg
+                    Box(
+                        Modifier.weight(1f).aspectRatio(0.62f).clip(RoundedCornerShape(16.dp))
+                            .background(GlassTextSecondary.copy(alpha = 0.12f))
+                            .then(if (isActive) Modifier.border(2.5.dp, GlassAccent, RoundedCornerShape(16.dp)) else Modifier)
+                    ) {
+                        if (path != null) {
+                            coil.compose.AsyncImage(
+                                model = java.io.File(path), contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)).bouncy(0.95f) { onSetActiveCustom(path) }
+                            )
+                            Box(
+                                Modifier.align(Alignment.TopEnd).padding(4.dp).size(22.dp).clip(CircleShape)
+                                    .background(Color(0x99000000)).bouncy(0.9f) { onRemoveCustom(path) },
+                                contentAlignment = Alignment.Center
+                            ) { Icon(Icons.Filled.Close, "Usuń", tint = Color.White, modifier = Modifier.size(13.dp)) }
+                        } else {
+                            Box(
+                                Modifier.fillMaxSize().bouncy(0.95f) {
+                                    picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                },
+                                contentAlignment = Alignment.Center
+                            ) { Icon(Icons.Filled.Add, "Dodaj zdjęcie", tint = GlassTextSecondary, modifier = Modifier.size(24.dp)) }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            // Generowanie AI
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent)
+                    .bouncy(0.97f) { if (aiImages?.loading != true) onGenerateAi() }
+                    .padding(vertical = 13.dp),
+                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (aiImages?.loading == true) {
+                    CircularProgressIndicator(color = Color.White, strokeWidth = 2.5.dp, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text("Generuję 3 tła…", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
+                } else {
+                    Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Wygeneruj 3 propozycje (AI)", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
+                }
+            }
+            if (aiImages?.needsKey == true) {
+                Spacer(Modifier.height(8.dp))
+                Text("Najpierw dodaj klucz API (sekcja Asystent AI).", fontSize = 12.sp, color = Color(0xFFEB8909), modifier = Modifier.bouncy(1f, onDismissAiImages))
+            }
+            if (aiImages?.error != null) {
+                Spacer(Modifier.height(8.dp))
+                Text(aiImages.error, fontSize = 12.sp, color = Color(0xFFEB4034), modifier = Modifier.bouncy(1f, onDismissAiImages))
+            }
+        }
+    }
+    Text(
+        "Generowanie obrazów przez AI korzysta z Twojego klucza OpenAI i jest płatne (ok. 0,04–0,12 $ za 3 obrazy). Zdjęcia zapisują się tylko na urządzeniu.",
+        fontSize = 11.5.sp, color = GlassTextSecondary.copy(alpha = 0.85f),
+        modifier = Modifier.padding(start = 6.dp, top = 8.dp, end = 6.dp)
+    )
+}
+
+@Composable
+private fun BgOptionRow(icon: ImageVector, tint: Color, title: String, subtitle: String, selected: Boolean, onClick: () -> Unit) {
+    SettingRowScaffold(
+        icon, tint, title, subtitle,
+        trailing = {
+            if (selected) Box(Modifier.size(22.dp).clip(CircleShape).background(GlassAccent), contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(14.dp))
+            } else Box(Modifier.size(22.dp).clip(CircleShape).background(GlassTextSecondary.copy(alpha = 0.18f)))
+        },
+        onClick = onClick
+    )
+}
+
+/** Kopiuje wybrane zdjęcie do wewnętrznego magazynu, zwraca ścieżkę pliku. */
+private fun copyUriToBackground(context: android.content.Context, uri: android.net.Uri): String? = runCatching {
+    val dir = java.io.File(context.filesDir, "backgrounds").apply { mkdirs() }
+    val f = java.io.File(dir, "up_${System.currentTimeMillis()}.jpg")
+    context.contentResolver.openInputStream(uri)!!.use { input -> f.outputStream().use { input.copyTo(it) } }
+    f.absolutePath
+}.getOrNull()
 
 @Composable
 private fun GeneralSettings(

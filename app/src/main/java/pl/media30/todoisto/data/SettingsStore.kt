@@ -8,7 +8,16 @@ import kotlinx.coroutines.flow.asStateFlow
 /** Simple persisted app settings (theme, productivity goals). */
 class SettingsStore(context: Context) {
 
+    private val appContext = context.applicationContext
     private val prefs = context.getSharedPreferences("todoisto_settings", Context.MODE_PRIVATE)
+
+    /** Zapisuje bajty tła do wewnętrznego magazynu i zwraca ścieżkę pliku. */
+    fun saveBackgroundBytes(bytes: ByteArray, name: String): String {
+        val dir = java.io.File(appContext.filesDir, "backgrounds").apply { mkdirs() }
+        val f = java.io.File(dir, name)
+        f.writeBytes(bytes)
+        return f.absolutePath
+    }
 
     private val _darkTheme = MutableStateFlow(prefs.getBoolean(KEY_DARK, false))
     val darkTheme: StateFlow<Boolean> = _darkTheme.asStateFlow()
@@ -65,6 +74,25 @@ class SettingsStore(context: Context) {
         prefs.edit().putInt(KEY_DAILY, daily).putInt(KEY_WEEKLY, weekly).apply()
         _dailyGoal.value = daily
         _weeklyGoal.value = weekly
+    }
+
+    // --- Własne tła (zdjęcia) ---
+    private fun readPhotos(): List<String> =
+        prefs.getString(KEY_CUSTOM_PHOTOS, "").orEmpty().split("\n").map { it.trim() }.filter { it.isNotEmpty() }
+    private val _customPhotos = MutableStateFlow(readPhotos())
+    val customPhotos: StateFlow<List<String>> = _customPhotos.asStateFlow()
+    fun setCustomPhotos(paths: List<String>) {
+        val v = paths.take(3)
+        prefs.edit().putString(KEY_CUSTOM_PHOTOS, v.joinToString("\n")).apply()
+        _customPhotos.value = v
+    }
+
+    /** Aktywne własne tło (ścieżka pliku); pusty = brak (gradient/scena). */
+    private val _activeCustomBg = MutableStateFlow(prefs.getString(KEY_ACTIVE_CUSTOM, "").orEmpty())
+    val activeCustomBg: StateFlow<String> = _activeCustomBg.asStateFlow()
+    fun setActiveCustomBg(path: String) {
+        prefs.edit().putString(KEY_ACTIVE_CUSTOM, path).apply()
+        _activeCustomBg.value = path
     }
 
     // --- Ustawienia „Ogólne" ---
@@ -147,5 +175,7 @@ class SettingsStore(context: Context) {
         const val KEY_AREA = "active_area"
         const val KEY_OPENAI = "openai_key"
         const val KEY_OPENAI_ADMIN = "openai_admin_key"
+        const val KEY_CUSTOM_PHOTOS = "custom_photos"
+        const val KEY_ACTIVE_CUSTOM = "active_custom_bg"
     }
 }

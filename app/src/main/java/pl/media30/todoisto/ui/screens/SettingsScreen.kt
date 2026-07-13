@@ -356,6 +356,27 @@ private fun BackgroundSettings(
     val picker = if (hasRegistry) rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) copyUriToBackground(context, uri)?.let(onAddCustomPhoto)
     } else null
+    // Potwierdzenie kosztu przed płatną generacją: 0=brak, 1=3 tła, 2=pory dnia.
+    var confirmGen by remember { mutableStateOf(0) }
+    if (confirmGen != 0) {
+        AlertDialog(
+            onDismissRequest = { confirmGen = 0 },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (confirmGen == 1) onGenerateAi() else onGeneratePhaseAi(); confirmGen = 0
+                }) { Text("Generuj (~0,24 $)") }
+            },
+            dismissButton = { TextButton(onClick = { confirmGen = 0 }) { Text("Anuluj") } },
+            title = { Text("Wygenerować przez AI?") },
+            text = {
+                Text(
+                    "Powstaną 3 obrazy (dall-e-3, 1024×1792). Szacowany koszt ≈ 0,24 $ (ok. 0,08 $ za obraz) " +
+                        "z Twojego konta OpenAI. Dokładne rozliczenie zobaczysz w sekcji „Zużycie AI” oraz w panelu OpenAI.",
+                    fontSize = 12.5.sp
+                )
+            }
+        )
+    }
 
     SettingsSection("Rodzaj tła")
     SettingsCard {
@@ -376,7 +397,7 @@ private fun BackgroundSettings(
             Spacer(Modifier.height(12.dp))
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent)
-                    .bouncy(0.97f) { if (aiImages?.loading != true) onGeneratePhaseAi() }.padding(vertical = 13.dp),
+                    .bouncy(0.97f) { if (aiImages?.loading != true) confirmGen = 2 }.padding(vertical = 13.dp),
                 horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
             ) {
                 if (aiImages?.loading == true) {
@@ -432,7 +453,7 @@ private fun BackgroundSettings(
             // Generowanie AI
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent)
-                    .bouncy(0.97f) { if (aiImages?.loading != true) onGenerateAi() }
+                    .bouncy(0.97f) { if (aiImages?.loading != true) confirmGen = 1 }
                     .padding(vertical = 13.dp),
                 horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
             ) {

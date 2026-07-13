@@ -243,6 +243,18 @@ fun TaskListScreen(
             onScanNote(out.toByteArray())
         }
     } else null
+    var scanConfirm by remember { mutableStateOf(false) }
+    if (scanConfirm) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { scanConfirm = false },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { scanConfirm = false; noteCamera?.launch(null) }) { Text("Zrób zdjęcie (~0,01 $)") }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { scanConfirm = false }) { Text("Anuluj") } },
+            title = { Text("Zeskanować kartkę?") },
+            text = { Text("Zdjęcie zostanie wysłane do AI (gpt-4o-mini), które odczyta zadania. Szacowany koszt ≈ 0,01 $ z Twojego konta OpenAI.", fontSize = 12.5.sp) }
+        )
+    }
 
     // Wstecz (systemowe) zamyka kolejno otwarte nakładki — intuicyjna nawigacja.
     androidx.activity.compose.BackHandler(enabled = qaOpen) { qaOpen = false }
@@ -328,7 +340,7 @@ fun TaskListScreen(
                         GlassMenuItem(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") { menuOpen = false; onToggleLabelFavorite(label.id) }
                         GlassMenuItem("Usuń etykietę") { menuOpen = false; onDeleteLabel(label.id) }
                     }
-                    GlassMenuItem("Zeskanuj kartkę (AI)") { menuOpen = false; noteCamera?.launch(null) }
+                    GlassMenuItem("Zeskanuj kartkę (AI)") { menuOpen = false; scanConfirm = true }
                     GlassMenuItem("Wyślij plan dnia") { menuOpen = false; onSharePlan() }
                     GlassMenuItem("Usuń ukończone") { menuOpen = false; onClearCompleted() }
                 }

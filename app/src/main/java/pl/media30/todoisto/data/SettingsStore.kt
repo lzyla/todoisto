@@ -95,6 +95,23 @@ class SettingsStore(context: Context) {
         _activeCustomBg.value = path
     }
 
+    /** Tła wg pory dnia (3 ścieżki: rano/dzień/wieczór) + flaga włączenia. */
+    private val _phaseBackgrounds = MutableStateFlow(
+        prefs.getString(KEY_PHASE_BG, "").orEmpty().split("\n").map { it.trim() }.filter { it.isNotEmpty() }
+    )
+    val phaseBackgrounds: StateFlow<List<String>> = _phaseBackgrounds.asStateFlow()
+    private val _usePhaseBg = MutableStateFlow(prefs.getBoolean(KEY_USE_PHASE_BG, false))
+    val usePhaseBg: StateFlow<Boolean> = _usePhaseBg.asStateFlow()
+    fun setPhaseBackgrounds(paths: List<String>) {
+        val v = paths.take(3)
+        prefs.edit().putString(KEY_PHASE_BG, v.joinToString("\n")).apply()
+        _phaseBackgrounds.value = v
+    }
+    fun setUsePhaseBg(value: Boolean) {
+        prefs.edit().putBoolean(KEY_USE_PHASE_BG, value).apply()
+        _usePhaseBg.value = value
+    }
+
     // --- Ustawienia „Ogólne" ---
 
     /** Widok główny na starcie: "today" lub "upcoming". */
@@ -177,5 +194,7 @@ class SettingsStore(context: Context) {
         const val KEY_OPENAI_ADMIN = "openai_admin_key"
         const val KEY_CUSTOM_PHOTOS = "custom_photos"
         const val KEY_ACTIVE_CUSTOM = "active_custom_bg"
+        const val KEY_PHASE_BG = "phase_backgrounds"
+        const val KEY_USE_PHASE_BG = "use_phase_bg"
     }
 }

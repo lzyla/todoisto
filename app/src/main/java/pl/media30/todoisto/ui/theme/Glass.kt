@@ -363,16 +363,18 @@ fun Modifier.glassBlur(shape: Shape = RoundedCornerShape(24.dp)): Modifier = com
     // backgroundColor MUSI być podany — inaczej Haze rzuca wyjątek na ścieżce
     // awaryjnej (brak RenderEffect: layoutlib/Paparazzi oraz API < 31).
     // Ton zbliżony do bazy mesh-gradientu, żeby fallback ładnie się zlewał.
+    // MOCNY blur (duży promień) — treść pod spodem staje się nieczytelna.
     val hazeStyle = dev.chrisbanes.haze.HazeStyle(
         backgroundColor = if (dark) Color(0xFF241E3C) else Color(0xFFF3F1FA),
-        tints = emptyList()
+        tints = emptyList(),
+        blurRadius = 34.dp
     )
     this
         .shadow(16.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.5f))
         .clip(shape)
         .hazeChild(state = haze, style = hazeStyle)
-        // lekki „mleczny" nalot na rozmyciu — bardziej przezroczysty (szklany)
-        .background(if (dark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.10f))
+        // Mocniejszy mleczny nalot — także na urządzeniach bez sprzętowego bluru nic nie prześwituje.
+        .background(if (dark) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.30f))
         .drawWithContent {
             drawContent()
             specular(if (dark) 0.20f else 0.42f)
@@ -444,8 +446,8 @@ fun Modifier.controlCenterGlass(shape: Shape = RoundedCornerShape(50)): Modifier
     this
         .shadow(18.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.6f))
         .clip(shape)
-        // szklana tafla: mocno półprzezroczysta (tło wyraźnie prześwituje jak szkło)
-        .background(if (dark) Color(0x80473C63) else Color(0x73FFFFFF))
+        // szklana tafla docka: leciutko mocniejsza (odrobinę mniej przezroczysta)
+        .background(if (dark) Color(0x99473C63) else Color(0x9EFFFFFF))
         .drawWithContent {
             drawContent()
             // refleksy: górna poświata + pasek światła + dryfujący połysk

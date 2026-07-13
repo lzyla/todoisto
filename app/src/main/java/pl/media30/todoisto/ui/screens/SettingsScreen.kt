@@ -114,6 +114,7 @@ fun SettingsScreen(
     onRefreshCost: () -> Unit,
     customPhotos: List<String>,
     activeCustomBg: String,
+    usePhaseBg: Boolean,
     aiImages: pl.media30.todoisto.ui.AiImagesState?,
     onSelectGradient: () -> Unit,
     onSelectScene: () -> Unit,
@@ -121,6 +122,7 @@ fun SettingsScreen(
     onSetActiveCustom: (String) -> Unit,
     onRemoveCustom: (String) -> Unit,
     onGenerateAi: () -> Unit,
+    onGeneratePhaseAi: () -> Unit,
     onAddPresets: () -> Unit,
     onDismissAiImages: () -> Unit,
     onBack: () -> Unit,
@@ -156,8 +158,9 @@ fun SettingsScreen(
                     .padding(horizontal = 18.dp).padding(top = 6.dp, bottom = 28.dp)
             ) {
                 if (route == 2) BackgroundSettings(
-                    dark, photo, activeCustomBg, customPhotos, aiImages,
-                    onSelectGradient, onSelectScene, onAddCustomPhoto, onSetActiveCustom, onRemoveCustom, onGenerateAi, onAddPresets, onDismissAiImages
+                    dark, photo, activeCustomBg, usePhaseBg, customPhotos, aiImages,
+                    onSelectGradient, onSelectScene, onAddCustomPhoto, onSetActiveCustom, onRemoveCustom,
+                    onGenerateAi, onGeneratePhaseAi, onAddPresets, onDismissAiImages
                 ) else if (route == 0) MainSettings(
                     dark, photo, activeCustomBg, hasApiKey, dailyGoal, weeklyGoal,
                     aiPromptTokens, aiCompletionTokens, onResetAiUsage,
@@ -341,23 +344,51 @@ private fun fmt(n: Long): String = "%,d".format(n).replace(',', ' ')
 
 @Composable
 private fun BackgroundSettings(
-    dark: Boolean, photo: Boolean, activeCustomBg: String, customPhotos: List<String>,
+    dark: Boolean, photo: Boolean, activeCustomBg: String, usePhaseBg: Boolean, customPhotos: List<String>,
     aiImages: pl.media30.todoisto.ui.AiImagesState?,
     onSelectGradient: () -> Unit, onSelectScene: () -> Unit, onAddCustomPhoto: (String) -> Unit,
     onSetActiveCustom: (String) -> Unit, onRemoveCustom: (String) -> Unit,
-    onGenerateAi: () -> Unit, onAddPresets: () -> Unit, onDismissAiImages: () -> Unit
+    onGenerateAi: () -> Unit, onGeneratePhaseAi: () -> Unit, onAddPresets: () -> Unit, onDismissAiImages: () -> Unit
 ) {
     val context = LocalContext.current
-    val customActive = activeCustomBg.isNotBlank()
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+    val customActive = activeCustomBg.isNotBlank() && !usePhaseBg
+    val hasRegistry = androidx.activity.compose.LocalActivityResultRegistryOwner.current != null
+    val picker = if (hasRegistry) rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) copyUriToBackground(context, uri)?.let(onAddCustomPhoto)
-    }
+    } else null
 
     SettingsSection("Rodzaj tła")
     SettingsCard {
-        BgOptionRow(Icons.Outlined.Gradient, Color(0xFFB99CFF), "Gradient (mesh)", "Domyślne, animowane", !photo && !customActive, onSelectGradient)
+        BgOptionRow(Icons.Outlined.Gradient, Color(0xFFB99CFF), "Gradient (mesh)", "Domyślne, animowane", !photo && !customActive && !usePhaseBg, onSelectGradient)
         RowDivider()
-        BgOptionRow(Icons.Outlined.WbSunny, Color(0xFFF4B740), "Scena wg pory dnia", "Rano / dzień / wieczór", photo && !customActive, onSelectScene)
+        BgOptionRow(Icons.Outlined.WbSunny, Color(0xFFF4B740), "Scena wg pory dnia", "Malowane: rano / dzień / wieczór", photo && !customActive && !usePhaseBg, onSelectScene)
+    }
+    Spacer(Modifier.height(22.dp))
+
+    SettingsSection("Realistyczne tło (AI, wg pory dnia)")
+    SettingsCard {
+        Column(Modifier.fillMaxWidth().padding(14.dp)) {
+            Text(
+                if (usePhaseBg) "Aktywne — tło zmienia się automatycznie: rano, w dzień i wieczorem."
+                else "AI wygeneruje 3 realistyczne zdjęcia (świt / dzień / zmierzch), a aplikacja sama przełącza je wg pory dnia.",
+                fontSize = 12.5.sp, color = if (usePhaseBg) GlassAccent else GlassTextSecondary
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent)
+                    .bouncy(0.97f) { if (aiImages?.loading != true) onGeneratePhaseAi() }.padding(vertical = 13.dp),
+                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (aiImages?.loading == true) {
+                    CircularProgressIndicator(color = Color.White, strokeWidth = 2.5.dp, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(10.dp)); Text("Generuję 3 pory dnia…", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
+                } else {
+                    Icon(Icons.Outlined.WbSunny, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (usePhaseBg) "Wygeneruj ponownie (AI)" else "Wygeneruj tło pór dnia (AI)", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
+                }
+            }
+        }
     }
     Spacer(Modifier.height(22.dp))
 
@@ -389,7 +420,7 @@ private fun BackgroundSettings(
                         } else {
                             Box(
                                 Modifier.fillMaxSize().bouncy(0.95f) {
-                                    picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                    picker?.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                                 },
                                 contentAlignment = Alignment.Center
                             ) { Icon(Icons.Filled.Add, "Dodaj zdjęcie", tint = GlassTextSecondary, modifier = Modifier.size(24.dp)) }

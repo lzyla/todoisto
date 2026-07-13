@@ -214,6 +214,7 @@ fun TaskListScreen(
     onOpenSettings: () -> Unit = {},
     swipeRightCompletes: Boolean = true,
     onReorder: (List<Long>) -> Unit = {},
+    onScanNote: (ByteArray) -> Unit = {},
     routinesExpandedInitially: Boolean = false,
     weekTasks: List<Task> = emptyList()
 ) {
@@ -230,6 +231,18 @@ fun TaskListScreen(
     var briefActionDone by remember { mutableStateOf(false) }
     var dialog by remember { mutableStateOf<DialogKind?>(null) }
     val hazeState = remember { dev.chrisbanes.haze.HazeState() }
+
+    // Skan kartki: aparat → zdjęcie → AI wyciąga zadania. (Null w podglądzie/Paparazzi.)
+    val hasRegistry = androidx.activity.compose.LocalActivityResultRegistryOwner.current != null
+    val noteCamera = if (hasRegistry) androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.TakePicturePreview()
+    ) { bmp ->
+        if (bmp != null) {
+            val out = java.io.ByteArrayOutputStream()
+            bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 88, out)
+            onScanNote(out.toByteArray())
+        }
+    } else null
 
     // Wstecz (systemowe) zamyka kolejno otwarte nakładki — intuicyjna nawigacja.
     androidx.activity.compose.BackHandler(enabled = qaOpen) { qaOpen = false }
@@ -315,6 +328,7 @@ fun TaskListScreen(
                         GlassMenuItem(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") { menuOpen = false; onToggleLabelFavorite(label.id) }
                         GlassMenuItem("Usuń etykietę") { menuOpen = false; onDeleteLabel(label.id) }
                     }
+                    GlassMenuItem("Zeskanuj kartkę (AI)") { menuOpen = false; noteCamera?.launch(null) }
                     GlassMenuItem("Wyślij plan dnia") { menuOpen = false; onSharePlan() }
                     GlassMenuItem("Usuń ukończone") { menuOpen = false; onClearCompleted() }
                 }
@@ -339,7 +353,7 @@ fun TaskListScreen(
                     Row(
                         Modifier
                             .height(42.dp)
-                            .glass(RoundedCornerShape(21.dp))
+                            .glassBlur(RoundedCornerShape(21.dp))
                             .bouncy(0.94f) { briefOpen = !briefOpen }
                             .padding(horizontal = 15.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -535,7 +549,7 @@ private fun AreaSwitcher(
         Row(
             Modifier
                 .height(42.dp)
-                .glass(RoundedCornerShape(21.dp))
+                .glassBlur(RoundedCornerShape(21.dp))
                 .bouncy(0.94f) { open = true }
                 .padding(start = 13.dp, end = 11.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -659,7 +673,7 @@ private fun GlassMenuItem(text: String, onClick: () -> Unit) {
 @Composable
 private fun CircleGlassButton(onClick: () -> Unit, content: @Composable () -> Unit) {
     Box(
-        Modifier.size(42.dp).glass(CircleShape).bouncy(0.9f, onClick),
+        Modifier.size(42.dp).glassBlur(CircleShape).bouncy(0.9f, onClick),
         contentAlignment = Alignment.Center,
         content = { content() }
     )

@@ -163,6 +163,9 @@ class TodoViewModel(
     // --- Własne tła (zdjęcia / AI) ---
     val customPhotos: StateFlow<List<String>> = settings.customPhotos
     val activeCustomBg: StateFlow<String> = settings.activeCustomBg
+    val phaseBackgrounds: StateFlow<List<String>> = settings.phaseBackgrounds
+    val usePhaseBg: StateFlow<Boolean> = settings.usePhaseBg
+    fun setUsePhaseBg(value: Boolean) = settings.setUsePhaseBg(value)
     fun setCustomPhotos(paths: List<String>) = settings.setCustomPhotos(paths)
     fun addCustomPhoto(path: String) {
         val list = (settings.customPhotos.value + path).takeLast(3)
@@ -170,7 +173,7 @@ class TodoViewModel(
     }
     fun setActiveCustomBg(path: String) {
         settings.setActiveCustomBg(path)
-        if (path.isNotBlank()) settings.setPhotoBackground(false)
+        if (path.isNotBlank()) { settings.setPhotoBackground(false); settings.setUsePhaseBg(false) }
     }
     fun removeCustomPhoto(path: String) {
         settings.setCustomPhotos(settings.customPhotos.value.filterNot { it == path })
@@ -180,6 +183,49 @@ class TodoViewModel(
     private val _aiImages = MutableStateFlow<AiImagesState?>(null)
     val aiImages: StateFlow<AiImagesState?> = _aiImages.asStateFlow()
     fun dismissAiImages() { _aiImages.value = null }
+
+    /** Realistyczne tła wg pory dnia (AI) — 3 zdjęcia, przełączane wg zegara. */
+    fun generateAiPhaseBackgrounds() {
+        val key = settings.openAiKey.value
+        if (key.isBlank()) { _aiImages.value = AiImagesState(needsKey = true); return }
+        _aiImages.value = AiImagesState(loading = true)
+        viewModelScope.launch {
+            _aiImages.value = try {
+                val imgs = pl.media30.todoisto.data.AiClient.generatePhaseBackgrounds(key)
+                val paths = imgs.mapIndexed { i, bytes ->
+                    settings.saveBackgroundBytes(bytes, "phase_${System.currentTimeMillis()}_$i.png")
+                }
+                settings.setPhaseBackgrounds(paths)
+                settings.setUsePhaseBg(true)
+                settings.setActiveCustomBg("")
+                settings.setPhotoBackground(false)
+                AiImagesState(loading = false, done = true)
+            } catch (e: Exception) {
+                AiImagesState(loading = false, error = e.message ?: "Błąd generowania")
+            }
+        }
+    }
+
+    // --- Skan kartki → zadania (Vision) ---
+    private val _scanResult = MutableStateFlow<String?>(null)
+    val scanResult: StateFlow<String?> = _scanResult.asStateFlow()
+    fun clearScanResult() { _scanResult.value = null }
+
+    /** Odczytuje zadania ze zdjęcia kartki i dodaje je do listy. */
+    fun scanNoteImage(jpegBytes: ByteArray) {
+        val key = settings.openAiKey.value
+        if (key.isBlank()) { _scanResult.value = "Dodaj klucz API w Ustawieniach, aby skanować kartki."; return }
+        _scanResult.value = "Odczytuję kartkę…"
+        viewModelScope.launch {
+            try {
+                val tasks = pl.media30.todoisto.data.AiClient.extractTasksFromImage(key, jpegBytes)
+                tasks.forEach { quickAdd(it) }
+                _scanResult.value = if (tasks.isEmpty()) "Nie znalazłem zadań na zdjęciu." else "Dodano ${tasks.size} zadań z kartki."
+            } catch (e: Exception) {
+                _scanResult.value = "Błąd skanowania: ${e.message ?: "spróbuj ponownie"}"
+            }
+        }
+    }
 
     /** Gotowe (wbudowane) propozycje tła — rysowane w kodzie, bez AI i bez kosztów. */
     fun addPresetBackgrounds() {

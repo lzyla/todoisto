@@ -44,10 +44,23 @@ class MainActivity : ComponentActivity() {
             val dark by app.settings.darkTheme.collectAsState()
             val photoBg by app.settings.photoBackground.collectAsState()
             val activeCustomBg by app.settings.activeCustomBg.collectAsState()
+            val phaseBgs by app.settings.phaseBackgrounds.collectAsState()
+            val usePhaseBg by app.settings.usePhaseBg.collectAsState()
+            val phase = pl.media30.todoisto.ui.theme.dayPhaseFromClock()
             GlassTheme.dark = dark
             GlassTheme.photo = photoBg
-            GlassTheme.customBg = activeCustomBg.ifBlank { null }
-            GlassTheme.phase = pl.media30.todoisto.ui.theme.dayPhaseFromClock()
+            GlassTheme.phase = phase
+            // Priorytet: realistyczne tło wg pory dnia (AI) → własne zdjęcie → gradient/scena.
+            val phaseIdx = when (phase) {
+                pl.media30.todoisto.ui.theme.DayPhase.MORNING -> 0
+                pl.media30.todoisto.ui.theme.DayPhase.NOON -> 1
+                pl.media30.todoisto.ui.theme.DayPhase.EVENING -> 2
+            }
+            GlassTheme.customBg = when {
+                usePhaseBg && phaseBgs.size == 3 -> phaseBgs[phaseIdx]
+                activeCustomBg.isNotBlank() -> activeCustomBg
+                else -> null
+            }
             TodoistoTheme {
                 GlassBackground {
                     TodoistoApp(
@@ -114,6 +127,7 @@ fun TodoistoApp(
     val aiCost by viewModel.aiCost.collectAsState()
     val customPhotos by viewModel.customPhotos.collectAsState()
     val activeCustomBg by viewModel.activeCustomBg.collectAsState()
+    val usePhaseBg by viewModel.usePhaseBg.collectAsState()
     val aiImages by viewModel.aiImages.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -131,6 +145,13 @@ fun TodoistoApp(
         importResult?.let {
             android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_LONG).show()
             viewModel.clearImportResult()
+        }
+    }
+    val scanResult by viewModel.scanResult.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(scanResult) {
+        scanResult?.let {
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+            if (!it.startsWith("Odczytuję")) viewModel.clearScanResult()
         }
     }
 
@@ -199,6 +220,7 @@ fun TodoistoApp(
         onOpenSettings = { showSettings = true },
         swipeRightCompletes = swipeRightCompletes,
         onReorder = viewModel::reorderTasks,
+        onScanNote = viewModel::scanNoteImage,
         weekTasks = allTasks
     )
 
@@ -225,12 +247,14 @@ fun TodoistoApp(
             customPhotos = customPhotos,
             activeCustomBg = activeCustomBg,
             aiImages = aiImages,
-            onSelectGradient = { viewModel.setActiveCustomBg(""); viewModel.setPhotoBackground(false) },
-            onSelectScene = { viewModel.setActiveCustomBg(""); viewModel.setPhotoBackground(true) },
+            usePhaseBg = usePhaseBg,
+            onSelectGradient = { viewModel.setActiveCustomBg(""); viewModel.setPhotoBackground(false); viewModel.setUsePhaseBg(false) },
+            onSelectScene = { viewModel.setActiveCustomBg(""); viewModel.setPhotoBackground(true); viewModel.setUsePhaseBg(false) },
             onAddCustomPhoto = viewModel::addCustomPhoto,
             onSetActiveCustom = viewModel::setActiveCustomBg,
             onRemoveCustom = viewModel::removeCustomPhoto,
             onGenerateAi = viewModel::generateAiBackgrounds,
+            onGeneratePhaseAi = viewModel::generateAiPhaseBackgrounds,
             onAddPresets = viewModel::addPresetBackgrounds,
             onDismissAiImages = viewModel::dismissAiImages,
             onBack = { showSettings = false },

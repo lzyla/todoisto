@@ -750,12 +750,11 @@ private fun ZenContent(
                         )
                     }
                 } else {
-                    // Nagłówek grupy + przeciągalne wiersze (każdy jako element listy).
-                    var lastBucket = ""
-                    orderedNodes.forEach { node ->
-                        val b = bucketOf(node.task)
-                        if (b != lastBucket) {
-                            lastBucket = b
+                    // Grupy w STAŁEJ kolejności (żeby nagłówki były ciągłe i miały
+                    // unikalne klucze); w obrębie grupy kolejność wg przeciągania.
+                    listOf("Rano", "Po południu", "Wieczorem").forEach { b ->
+                        val inBucket = orderedNodes.filter { bucketOf(it.task) == b }
+                        if (inBucket.isNotEmpty()) {
                             item(key = "sec-$b") {
                                 val isCol = collapsed[b] == true
                                 val chev by animateFloatAsState(if (isCol) -90f else 0f, tween(400, easing = EASE), label = "chev")
@@ -768,20 +767,22 @@ private fun ZenContent(
                                     Icon(Icons.Filled.KeyboardArrowDown, null, tint = GlassTextSecondary, modifier = Modifier.size(13.dp).rotate(chev))
                                 }
                             }
-                        }
-                        if (collapsed[b] != true) {
-                            item(key = node.task.id) {
-                                ReorderableItem(reorderState, key = node.task.id) { dragging ->
-                                    val scale by animateFloatAsState(if (dragging) 1.03f else 1f, tween(180), label = "dragScale")
-                                    val elevation by animateDpAsState(if (dragging) 12.dp else 0.dp, tween(180), label = "dragElev")
-                                    Column(
-                                        Modifier
-                                            .padding(vertical = 4.dp)
-                                            .graphicsLayer { scaleX = scale; scaleY = scale }
-                                            .shadow(elevation, RoundedCornerShape(20.dp))
-                                            .longPressDraggableHandle(onDragStopped = { onReorder(orderedNodes.map { it.task.id }) })
-                                    ) {
-                                        ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
+                            if (collapsed[b] != true) {
+                                inBucket.forEach { node ->
+                                    item(key = node.task.id) {
+                                        ReorderableItem(reorderState, key = node.task.id) { dragging ->
+                                            val scale by animateFloatAsState(if (dragging) 1.03f else 1f, tween(180), label = "dragScale")
+                                            val elevation by animateDpAsState(if (dragging) 12.dp else 0.dp, tween(180), label = "dragElev")
+                                            Column(
+                                                Modifier
+                                                    .padding(vertical = 4.dp)
+                                                    .graphicsLayer { scaleX = scale; scaleY = scale }
+                                                    .shadow(elevation, RoundedCornerShape(20.dp))
+                                                    .longPressDraggableHandle(onDragStopped = { onReorder(orderedNodes.map { it.task.id }) })
+                                            ) {
+                                                ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
+                                            }
+                                        }
                                     }
                                 }
                             }

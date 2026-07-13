@@ -73,7 +73,8 @@ enum class SortMode(val label: String) {
     PRIORITY("Priorytet"),
     DATE("Data"),
     ALPHA("Alfabetycznie"),
-    NEWEST("Najnowsze")
+    NEWEST("Najnowsze"),
+    MANUAL("Ręcznie")
 }
 
 /** A top-level task together with its subtasks. */
@@ -241,6 +242,9 @@ class TodoViewModel(
     fun setGoals(daily: Int, weekly: Int) = settings.setGoals(daily, weekly)
     fun setSort(mode: SortMode) { _sort.value = mode }
 
+    /** Ręczna kolejność (drag&drop): zapisz nowy porządek zadań po id. */
+    fun reorderTasks(orderedIds: List<Long>) = viewModelScope.launch { repository.reorderTasks(orderedIds) }
+
     val allTasks: StateFlow<List<Task>> =
         repository.allTasks.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -332,6 +336,7 @@ class TodoViewModel(
             SortMode.DATE -> matching.sortedWith(compareBy(nullsLast()) { it.dueDate })
             SortMode.ALPHA -> matching.sortedBy { it.title.lowercase() }
             SortMode.NEWEST -> matching.sortedByDescending { it.createdAt }
+            SortMode.MANUAL -> matching.sortedWith(compareBy({ it.position }, { it.createdAt }))
         }
 
         fun nodeOf(t: Task) = TaskNode(t, src.tasks.filter { it.parentId == t.id })

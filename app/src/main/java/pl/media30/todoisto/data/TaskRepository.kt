@@ -28,6 +28,10 @@ class TaskRepository(
     suspend fun getSubtasks(parentId: Long): List<Task> = taskDao.getSubtasks(parentId)
     suspend fun insert(task: Task): Long = taskDao.insert(task)
     suspend fun update(task: Task) = taskDao.update(task)
+    /** Zapisuje ręczną kolejność: pozycja = indeks na liście. */
+    suspend fun reorderTasks(orderedIds: List<Long>) {
+        orderedIds.forEachIndexed { index, id -> taskDao.updatePosition(id, index) }
+    }
     suspend fun deleteWithSubtasks(id: Long) = taskDao.deleteWithSubtasks(id)
     suspend fun deleteCompleted() = taskDao.deleteCompleted()
 

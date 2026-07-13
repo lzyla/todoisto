@@ -193,6 +193,7 @@ fun TodoistoApp(
         onSetApiKey = viewModel::setOpenAiKey,
         onOpenSettings = { showSettings = true },
         swipeRightCompletes = swipeRightCompletes,
+        onReorder = viewModel::reorderTasks,
         weekTasks = allTasks
     )
 

@@ -46,6 +46,10 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -209,6 +213,7 @@ fun TaskListScreen(
     onSetApiKey: (String) -> Unit = {},
     onOpenSettings: () -> Unit = {},
     swipeRightCompletes: Boolean = true,
+    onReorder: (List<Long>) -> Unit = {},
     routinesExpandedInitially: Boolean = false,
     weekTasks: List<Task> = emptyList()
 ) {
@@ -286,7 +291,7 @@ fun TaskListScreen(
             // ── Treść — zaczyna się i PRZYCINA tuż pod paskiem pigułek, więc tekst
             //    nigdy nie wjeżdża na przyciski (pozostaje pod nimi). ───────────
             Box(Modifier.fillMaxSize().padding(top = statusTop + 60.dp).haze(hazeState)) {
-                ZenContent(uiState, projects, labels, onToggle, onTaskClick, onDeferToTomorrow, onOpenAutomation, 0.dp)
+                ZenContent(uiState, projects, labels, onToggle, onTaskClick, onDeferToTomorrow, onOpenAutomation, 0.dp, onReorder)
             }
 
             // ── ⋮ akcje widoku — nakładka pod paskiem ─────────────────────────
@@ -686,14 +691,54 @@ private fun ZenContent(
     onTaskClick: (Task) -> Unit,
     onDefer: (Task) -> Unit,
     onOpenAutomation: (Task) -> Unit,
-    statusTop: androidx.compose.ui.unit.Dp
+    statusTop: androidx.compose.ui.unit.Dp,
+    onReorder: (List<Long>) -> Unit = {}
 ) {
     val today = LocalDate.now()
     val collapsed = remember { mutableStateMapOf<String, Boolean>() }
 
+    // Tryb „Ręcznie": płaska lista z przeciąganiem (long-press) i zapisem kolejności.
+    val manual = uiState.sortMode == SortMode.MANUAL
+    val flatNodes = uiState.groups.flatMap { it.nodes }
+    val flatIds = flatNodes.map { it.task.id }
+    val reorderItems = remember { androidx.compose.runtime.mutableStateListOf<TaskNode>() }
+    androidx.compose.runtime.LaunchedEffect(flatIds, manual) {
+        if (manual) { reorderItems.clear(); reorderItems.addAll(flatNodes) }
+    }
+    val lazyState = rememberLazyListState()
+    val reorderState = rememberReorderableLazyListState(lazyState) { from, to ->
+        val f = from.index - 1; val t = to.index - 1 // -1: pierwszy element to nagłówek
+        if (f in reorderItems.indices && t in reorderItems.indices) reorderItems.add(t, reorderItems.removeAt(f))
+    }
+
     // Sam kontener treści jest już odsunięty i przycięty pod paskiem pigułek
     // (patrz padding Boxa z haze()), więc tu wystarczy drobny zapas u góry.
-    LazyColumn(contentPadding = PaddingValues(start = 18.dp, top = statusTop + 10.dp, end = 18.dp, bottom = 170.dp)) {
+    LazyColumn(state = lazyState, contentPadding = PaddingValues(start = 18.dp, top = statusTop + 10.dp, end = 18.dp, bottom = 170.dp)) {
+        if (manual) {
+            item(key = "hdr-manual") {
+                Column(Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(uiState.title, style = MaterialTheme.typography.headlineSmall, color = GlassTextPrimary)
+                    Spacer(Modifier.height(4.dp))
+                    Text("Przytrzymaj i przeciągnij, aby zmienić kolejność", fontSize = 12.sp, color = GlassTextSecondary)
+                }
+            }
+            items(reorderItems, key = { it.task.id }) { node ->
+                ReorderableItem(reorderState, key = node.task.id) { dragging ->
+                    val scale by animateFloatAsState(if (dragging) 1.03f else 1f, tween(180), label = "dragScale")
+                    val elevation by animateDpAsState(if (dragging) 12.dp else 0.dp, tween(180), label = "dragElev")
+                    Column(
+                        Modifier
+                            .padding(vertical = 4.dp)
+                            .graphicsLayer { scaleX = scale; scaleY = scale }
+                            .shadow(elevation, RoundedCornerShape(20.dp))
+                            .longPressDraggableHandle(onDragStopped = { onReorder(reorderItems.map { it.task.id }) })
+                    ) {
+                        ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
+                    }
+                }
+            }
+            return@LazyColumn
+        }
         when (uiState.view) {
             AppView.Today -> {
                 item(key = "hdr") {

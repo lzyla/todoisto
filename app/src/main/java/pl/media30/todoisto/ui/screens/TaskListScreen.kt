@@ -95,6 +95,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -304,7 +306,30 @@ fun TaskListScreen(
             LocalSwipeRightCompletes provides swipeRightCompletes,
             LocalReschedule provides onReschedule
         ) {
-        Box(Modifier.fillMaxSize()) {
+        // Kolejność „stron" do swipowania w lewo/prawo (główne widoki).
+        val pageOrder = remember { listOf(AppView.Today, AppView.Upcoming, AppView.Inbox, AppView.Completed) }
+        var swipeAccum by remember { mutableStateOf(0f) }
+        Box(
+            Modifier.fillMaxSize().pointerInput(uiState.view) {
+                // Swipe całej strony: przeciągnięcie w lewo → następny widok,
+                // w prawo → poprzedni. Zadziała w wolnych obszarach; na kafelku
+                // pierwszeństwo ma jego własny gest (np. odhaczenie).
+                val threshold = 80.dp.toPx()
+                detectHorizontalDragGestures(
+                    onDragStart = { swipeAccum = 0f },
+                    onDragEnd = {
+                        val idx = pageOrder.indexOf(uiState.view)
+                        if (idx != -1) {
+                            if (swipeAccum <= -threshold) pageOrder.getOrNull(idx + 1)?.let(onSelectView)
+                            else if (swipeAccum >= threshold) pageOrder.getOrNull(idx - 1)?.let(onSelectView)
+                        }
+                        swipeAccum = 0f
+                    },
+                    onDragCancel = { swipeAccum = 0f },
+                    onHorizontalDrag = { _, delta -> swipeAccum += delta }
+                )
+            }
+        ) {
             // Inset status bara liczony TU (obok paska pigułek), a nie w ZenContent —
             // wewnątrz Boxa z haze() kontekst insetów się zeruje i nagłówek wjeżdżał
             // na pasek. Przekazujemy gotową wartość do treści.

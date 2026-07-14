@@ -232,16 +232,20 @@ fun TaskListScreen(
     var dialog by remember { mutableStateOf<DialogKind?>(null) }
     val hazeState = remember { dev.chrisbanes.haze.HazeState() }
 
-    // Skan kartki: aparat → zdjęcie → AI wyciąga zadania. (Null w podglądzie/Paparazzi.)
+    // Skan kartki: pełnowymiarowe zdjęcie (aparat) LUB wybór z galerii → AI wyciąga zadania.
+    val scanCtx = androidx.compose.ui.platform.LocalContext.current
     val hasRegistry = androidx.activity.compose.LocalActivityResultRegistryOwner.current != null
-    val noteCamera = if (hasRegistry) androidx.activity.compose.rememberLauncherForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.TakePicturePreview()
-    ) { bmp ->
-        if (bmp != null) {
-            val out = java.io.ByteArrayOutputStream()
-            bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 88, out)
-            onScanNote(out.toByteArray())
-        }
+    var scanUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    val takePhoto = if (hasRegistry) androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.TakePicture()
+    ) { ok ->
+        val uri = scanUri
+        if (ok && uri != null) pl.media30.todoisto.data.NoteScan.bytesFromUri(scanCtx, uri)?.let(onScanNote)
+    } else null
+    val pickPhoto = if (hasRegistry) androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) pl.media30.todoisto.data.NoteScan.bytesFromUri(scanCtx, uri)?.let(onScanNote)
     } else null
 
     // Wstecz (systemowe) zamyka kolejno otwarte nakładki — intuicyjna nawigacja.
@@ -328,7 +332,17 @@ fun TaskListScreen(
                         GlassMenuItem(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") { menuOpen = false; onToggleLabelFavorite(label.id) }
                         GlassMenuItem("Usuń etykietę") { menuOpen = false; onDeleteLabel(label.id) }
                     }
-                    GlassMenuItem("Zeskanuj kartkę (AI)") { menuOpen = false; noteCamera?.launch(null) }
+                    GlassMenuItem("Zeskanuj kartkę (aparat)") {
+                        menuOpen = false
+                        if (takePhoto != null) {
+                            val (u, _) = pl.media30.todoisto.data.NoteScan.newCaptureUri(scanCtx)
+                            scanUri = u; takePhoto.launch(u)
+                        }
+                    }
+                    GlassMenuItem("Wybierz zdjęcie kartki") {
+                        menuOpen = false
+                        pickPhoto?.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    }
                     GlassMenuItem("Wyślij plan dnia") { menuOpen = false; onSharePlan() }
                     GlassMenuItem("Usuń ukończone") { menuOpen = false; onClearCompleted() }
                 }

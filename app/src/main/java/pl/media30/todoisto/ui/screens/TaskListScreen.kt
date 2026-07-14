@@ -59,6 +59,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
@@ -1142,13 +1143,22 @@ private fun ZenRowWithSubs(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text("Przełóż do:", fontSize = 11.sp, fontWeight = FontWeight.W700, color = Color(0xFFC2410C), modifier = Modifier.align(Alignment.CenterVertically))
+                        Text(
+                            "Przełóż do:", fontSize = 11.sp, fontWeight = FontWeight.W700, color = Color(0xFFC2410C),
+                            modifier = Modifier.align(Alignment.CenterVertically).bouncy(1f) { reschedOpen = false }
+                        )
                         OverdueChip("Dziś") { onPick(todayEpoch) }
                         OverdueChip("Jutro") { onPick(todayEpoch + 1) }
                         OverdueChip("Pojutrze") { onPick(todayEpoch + 2) }
                         OverdueChip("Weekend") { onPick(nextWeekend(todayEpoch)) }
                         OverdueChip("+7 dni") { onPick(todayEpoch + 7) }
                         OverdueChip("Data…") { showDatePicker = true }
+                        // Zwiń opcje bez wybierania daty.
+                        Box(
+                            Modifier.align(Alignment.CenterVertically).size(24.dp).clip(CircleShape)
+                                .background(Color(0x22C2410C)).bouncy(0.9f) { reschedOpen = false },
+                            contentAlignment = Alignment.Center
+                        ) { Icon(Icons.Filled.Close, "Zwiń", tint = Color(0xFF9A3412), modifier = Modifier.size(13.dp)) }
                     }
                 }
                 if (showDatePicker) {

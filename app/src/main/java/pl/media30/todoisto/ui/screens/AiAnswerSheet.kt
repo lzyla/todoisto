@@ -109,7 +109,8 @@ private fun AiContent(loading: Boolean, answer: String?, error: String?, needsKe
                 Text(error, fontSize = 13.sp, lineHeight = 19.sp, color = GlassTextSecondary)
             }
             answer != null -> Box(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState())) {
-                Text(aiAnnotated(answer, GlassAccent), fontSize = 13.5.sp, lineHeight = 20.sp, color = GlassTextPrimary)
+                // Linki narzędzi na żółto, podkreślone; klik otwiera stronę w przeglądarce.
+                Text(aiAnnotated(answer, Color(0xFFC9820E)), fontSize = 13.5.sp, lineHeight = 20.sp, color = GlassTextPrimary)
             }
         }
     }

@@ -956,7 +956,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.zenSection(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun ZenRowWithSubs(
     node: TaskNode,
@@ -1078,12 +1078,12 @@ private fun ZenRowWithSubs(
                 // Zaległe: szybkie przełożenie na kolejne dni.
                 if (task.dueDate != null && task.dueDate!! < todayEpoch && !task.isCompleted) {
                     val resched = LocalReschedule.current
-                    Row(
-                        Modifier.fillMaxWidth().padding(start = 46.dp, end = 12.dp, top = 2.dp, bottom = 11.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    androidx.compose.foundation.layout.FlowRow(
+                        Modifier.fillMaxWidth().padding(start = 14.dp, end = 12.dp, top = 2.dp, bottom = 11.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text("Przełóż:", fontSize = 11.sp, fontWeight = FontWeight.W700, color = Color(0xFFC2410C))
+                        Text("Przełóż:", fontSize = 11.sp, fontWeight = FontWeight.W700, color = Color(0xFFC2410C), modifier = Modifier.align(Alignment.CenterVertically))
                         OverdueChip("Dziś") { resched(task, todayEpoch) }
                         OverdueChip("Jutro") { resched(task, todayEpoch + 1) }
                         OverdueChip("Pojutrze") { resched(task, todayEpoch + 2) }
@@ -1132,6 +1132,7 @@ val LocalReschedule = androidx.compose.runtime.staticCompositionLocalOf<(Task, L
 private fun OverdueChip(label: String, onClick: () -> Unit) {
     Text(
         label, fontSize = 11.sp, fontWeight = FontWeight.W800, color = Color(0xFF9A3412),
+        maxLines = 1, softWrap = false,
         modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0x33F59E0B))
             .bouncy(0.9f, onClick).padding(horizontal = 10.dp, vertical = 5.dp)
     )

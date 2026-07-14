@@ -73,9 +73,9 @@ object GlassTheme {
 }
 private val d get() = GlassTheme.dark
 
-val GlassTextPrimary: Color get() = if (d) Color(0xFFFFFFFF) else Color(0xFF1B0A3E)
-val GlassTextSecondary: Color get() = if (d) Color(0xFFDCD0F8) else Color(0xFF3F2A78)
-val GlassAccent: Color get() = if (d) Color(0xFFB99CFF) else Color(0xFF6B3FE0)
+val GlassTextPrimary: Color get() = if (d) Color(0xFFFFFFFF) else Color(0xFF2A1F4D)
+val GlassTextSecondary: Color get() = if (d) Color(0xFFDCD0F8) else Color(0xFF6B5F95)
+val GlassAccent: Color get() = if (d) Color(0xFFB99CFF) else Color(0xFF6E45D9)
 
 /** --fill: wypełnienie tafli glass (bardziej przezroczyste — więcej „szkła"). */
 val GlassFill: Color get() = if (d) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.14f)
@@ -126,16 +126,16 @@ private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
         listOf(Color(0xFF4A3A5E), Color(0xFF3E2F54), Color(0xFF32284C), Color(0xFF261E42)),
         Color(0xFFD46E4E), Color(0xFFC85C90), Color(0xFFC0982E), Color(0xFF2EA68C)
     ) else BgPalette(
-        listOf(Color(0xFFF4EEFF), Color(0xFFFFEEEE), Color(0xFFFFF6E6), Color(0xFFF3ECFF)),
-        Color(0xFFB89CFF), Color(0xFFFF8A7A), Color(0xFFFFDD7A), Color(0xFFD48CFF)
+        listOf(Color(0xFFFDFBFF), Color(0xFFF6F1FE), Color(0xFFEFE8FC), Color(0xFFF3ECFF)),
+        Color(0xFF9C7BF0), Color(0xFFC9A6FF), Color(0xFFA6B0FF), Color(0xFF7E5AE0)
     )
     // Południe — dzień: fiolet + czerwień + żółty
     DayPhase.NOON -> if (d) BgPalette(
         listOf(Color(0xFF2A3A66), Color(0xFF2E3A60), Color(0xFF283458), Color(0xFF20294E)),
         Color(0xFF2EA69C), Color(0xFFC85CA8), Color(0xFF4E80C8), Color(0xFFC0A02E)
     ) else BgPalette(
-        listOf(Color(0xFFF1EBFF), Color(0xFFFFF0F0), Color(0xFFFFF8E8), Color(0xFFF4EEFF)),
-        Color(0xFFAE86FF), Color(0xFFFF7B7B), Color(0xFFFFD86B), Color(0xFFC77DFF)
+        listOf(Color(0xFFFDFBFF), Color(0xFFF6F1FE), Color(0xFFEFE8FC), Color(0xFFF4EEFF)),
+        Color(0xFF8E6BEB), Color(0xFFB79CFF), Color(0xFF9AA6FF), Color(0xFF6E45D9)
     )
     // Wieczór — zmierzch: fiolet + czerwień/magenta + złoty
     DayPhase.EVENING -> if (d) BgPalette(
@@ -255,10 +255,10 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
                 )
             )
         } else {
-            val meshA = if (dark) 0.60f else 0.50f
-            // Baza — neutralna, niskokontrastowa (żaden kolor nie „siedzi" na stałe na górze).
-            val baseTop = if (dark) Color(0xFF241E3C) else Color(0xFFF3F1FA)
-            val baseBot = if (dark) Color(0xFF1B1630) else Color(0xFFF6F2FB)
+            val meshA = if (dark) 0.60f else 0.44f
+            // Baza — jasna lawenda wg palety (FDFBFF → EFE8FC).
+            val baseTop = if (dark) Color(0xFF241E3C) else Color(0xFFFDFBFF)
+            val baseBot = if (dark) Color(0xFF1B1630) else Color(0xFFEFE8FC)
             drawRect(Brush.verticalGradient(listOf(baseTop, baseBot)))
             // Wielokolorowe „bloby" krążące po SZEROKICH elipsach — cała plansza się mieni.
             val big = maxOf(w, h)
@@ -286,7 +286,7 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
 }
 
 // Miękki, „nie-czarny" cień (spec Apple: 0 25px 60px rgba(30,30,40,.16))
-private val SoftShadow: Color get() = if (d) Color(0x59140542) else Color(0x291E1E28)
+private val SoftShadow: Color get() = if (d) Color(0x59140542) else Color(0x2644239E)
 
 /**
  * Górny refleks (2px pasek światła u samej krawędzi) — wspólny dla tafli.

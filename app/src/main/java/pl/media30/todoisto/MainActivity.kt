@@ -132,6 +132,7 @@ fun TodoistoApp(
     val activeCustomBg by viewModel.activeCustomBg.collectAsState()
     val usePhaseBg by viewModel.usePhaseBg.collectAsState()
     val aiImages by viewModel.aiImages.collectAsState()
+    val bgBusy by viewModel.bgBusy.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     var detailTaskId by remember { mutableStateOf<Long?>(null) }
@@ -254,6 +255,7 @@ fun TodoistoApp(
             customPhotos = customPhotos,
             activeCustomBg = activeCustomBg,
             aiImages = aiImages,
+            bgBusy = bgBusy,
             usePhaseBg = usePhaseBg,
             onSelectGradient = { viewModel.setActiveCustomBg(""); viewModel.setPhotoBackground(false); viewModel.setUsePhaseBg(false) },
             onSelectScene = { viewModel.setActiveCustomBg(""); viewModel.setPhotoBackground(true); viewModel.setUsePhaseBg(false) },

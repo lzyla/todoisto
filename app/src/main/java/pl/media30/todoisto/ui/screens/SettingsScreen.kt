@@ -119,6 +119,7 @@ fun SettingsScreen(
     activeCustomBg: String,
     usePhaseBg: Boolean,
     aiImages: pl.media30.todoisto.ui.AiImagesState?,
+    bgBusy: Boolean,
     onSelectGradient: () -> Unit,
     onSelectScene: () -> Unit,
     onAddCustomPhoto: (String) -> Unit,
@@ -161,9 +162,9 @@ fun SettingsScreen(
                     .padding(horizontal = 18.dp).padding(top = 6.dp, bottom = 28.dp)
             ) {
                 if (route == 2) BackgroundSettings(
-                    dark, photo, activeCustomBg, usePhaseBg, customPhotos, aiImages,
+                    dark, photo, activeCustomBg, usePhaseBg, customPhotos, bgBusy,
                     onSelectGradient, onSelectScene, onAddCustomPhoto, onSetActiveCustom, onRemoveCustom,
-                    onGenerateAi, onGeneratePhaseAi, onAddPresets, onDismissAiImages
+                    onAddPresets
                 ) else if (route == 0) MainSettings(
                     dark, photo, activeCustomBg, hasApiKey, dailyGoal, weeklyGoal,
                     aiPromptTokens, aiCompletionTokens, aiImageCount, onResetAiUsage,
@@ -405,10 +406,10 @@ private fun fmt(n: Long): String = "%,d".format(n).replace(',', ' ')
 @Composable
 private fun BackgroundSettings(
     dark: Boolean, photo: Boolean, activeCustomBg: String, usePhaseBg: Boolean, customPhotos: List<String>,
-    aiImages: pl.media30.todoisto.ui.AiImagesState?,
+    bgBusy: Boolean,
     onSelectGradient: () -> Unit, onSelectScene: () -> Unit, onAddCustomPhoto: (String) -> Unit,
     onSetActiveCustom: (String) -> Unit, onRemoveCustom: (String) -> Unit,
-    onGenerateAi: () -> Unit, onGeneratePhaseAi: () -> Unit, onAddPresets: () -> Unit, onDismissAiImages: () -> Unit
+    onAddPresets: () -> Unit
 ) {
     val context = LocalContext.current
     val customActive = activeCustomBg.isNotBlank() && !usePhaseBg
@@ -425,47 +426,10 @@ private fun BackgroundSettings(
     }
     Spacer(Modifier.height(22.dp))
 
-    SettingsSection("Realistyczne tło (AI, wg pory dnia)")
+    SettingsSection("Zdjęcie w tle")
     SettingsCard {
         Column(Modifier.fillMaxWidth().padding(14.dp)) {
-            Text(
-                if (usePhaseBg) "Aktywne — tło zmienia się automatycznie: rano, w dzień i wieczorem."
-                else "AI wygeneruje 3 realistyczne zdjęcia (świt / dzień / zmierzch), a aplikacja sama przełącza je wg pory dnia.",
-                fontSize = 12.5.sp, color = if (usePhaseBg) GlassAccent else GlassTextSecondary
-            )
-            Spacer(Modifier.height(12.dp))
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent)
-                    .bouncy(0.97f) { if (aiImages?.loading != true) onGeneratePhaseAi() }.padding(vertical = 13.dp),
-                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (aiImages?.loading == true) {
-                    CircularProgressIndicator(color = Color.White, strokeWidth = 2.5.dp, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(10.dp)); Text("Generuję 3 pory dnia…", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
-                } else {
-                    Icon(Icons.Outlined.WbSunny, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (usePhaseBg) "Wygeneruj ponownie (AI)" else "Wygeneruj tło pór dnia (AI)", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            Text(
-                "Błąd o braku uprawnień do obrazów? Otwórz OpenAI → API keys i utwórz klucz z dostępem All.",
-                fontSize = 12.sp, fontWeight = FontWeight.W700, color = GlassAccent,
-                modifier = Modifier.bouncy(1f) {
-                    runCatching {
-                        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://platform.openai.com/api-keys")))
-                    }
-                }
-            )
-        }
-    }
-    Spacer(Modifier.height(22.dp))
-
-    SettingsSection("Własne zdjęcia")
-    SettingsCard {
-        Column(Modifier.fillMaxWidth().padding(14.dp)) {
-            Text("Wrzuć do 3 zdjęć albo wygeneruj propozycje przez AI. Dotknij kafelka, aby ustawić jako tło.", fontSize = 12.5.sp, color = GlassTextSecondary)
+            Text("Wrzuć do 3 własnych zdjęć lub wylosuj gotowe. Dotknij kafelka, aby ustawić jako tło.", fontSize = 12.5.sp, color = GlassTextSecondary)
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 (0 until 3).forEach { i ->
@@ -499,51 +463,31 @@ private fun BackgroundSettings(
                 }
             }
             Spacer(Modifier.height(14.dp))
-            // GŁÓWNY przycisk — losowanie: natychmiastowe, bez AI i bez kosztów.
+            // GŁÓWNY przycisk — losuje 3 prawdziwe zdjęcia z kolorową maską apki.
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent)
-                    .bouncy(0.97f) { onAddPresets() }.padding(vertical = 14.dp),
+                    .bouncy(0.97f) { if (!bgBusy) onAddPresets() }.padding(vertical = 14.dp),
                 horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Outlined.Shuffle, null, tint = Color.White, modifier = Modifier.size(17.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Losuj tło", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.W800)
+                if (bgBusy) {
+                    CircularProgressIndicator(color = Color.White, strokeWidth = 2.5.dp, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text("Losuję zdjęcia…", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.W800)
+                } else {
+                    Icon(Icons.Outlined.Shuffle, null, tint = Color.White, modifier = Modifier.size(17.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Losuj zdjęcia w tle", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.W800)
+                }
             }
             Spacer(Modifier.height(6.dp))
             Text(
-                "Natychmiast, bez internetu. Klikaj do skutku — za każdym razem inny zestaw.",
+                "Losowe zdjęcia z kolorową maską w barwach apki. Klikaj do skutku — za każdym razem inny zestaw.",
                 fontSize = 11.5.sp, color = GlassTextSecondary
             )
-            Spacer(Modifier.height(12.dp))
-            // Opcja dodatkowa (wolna, płatna) — generowanie przez AI.
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent.copy(alpha = if (dark) 0.22f else 0.12f))
-                    .bouncy(0.97f) { if (aiImages?.loading != true) onGenerateAi() }
-                    .padding(vertical = 13.dp),
-                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (aiImages?.loading == true) {
-                    CircularProgressIndicator(color = GlassAccent, strokeWidth = 2.5.dp, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(10.dp))
-                    Text("Generuję (potrwa chwilę)…", color = GlassAccent, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
-                } else {
-                    Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Wygeneruj przez AI (wolniejsze)", color = GlassAccent, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
-                }
-            }
-            if (aiImages?.needsKey == true) {
-                Spacer(Modifier.height(8.dp))
-                Text("Najpierw dodaj klucz API (sekcja Asystent AI).", fontSize = 12.sp, color = Color(0xFFEB8909), modifier = Modifier.bouncy(1f, onDismissAiImages))
-            }
-            if (aiImages?.error != null) {
-                Spacer(Modifier.height(8.dp))
-                Text(aiImages.error, fontSize = 12.sp, color = Color(0xFFEB4034), modifier = Modifier.bouncy(1f, onDismissAiImages))
-            }
         }
     }
     Text(
-        "Generowanie obrazów przez AI korzysta z Twojego klucza OpenAI i jest płatne (ok. 0,04–0,12 $ za 3 obrazy). Zdjęcia zapisują się tylko na urządzeniu.",
+        "Zdjęcia pobierają się z internetu i zapisują tylko na urządzeniu. Gdy brak sieci, losujemy gradient.",
         fontSize = 11.5.sp, color = GlassTextSecondary.copy(alpha = 0.85f),
         modifier = Modifier.padding(start = 6.dp, top = 8.dp, end = 6.dp)
     )

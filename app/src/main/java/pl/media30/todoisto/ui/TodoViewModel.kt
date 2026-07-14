@@ -170,6 +170,11 @@ class TodoViewModel(
     fun addCustomPhoto(path: String) {
         val list = (settings.customPhotos.value + path).takeLast(3)
         settings.setCustomPhotos(list)
+        // Od razu ustaw wgrane zdjęcie jako aktywne tło — widoczny efekt bez
+        // dodatkowego dotykania kafelka.
+        settings.setActiveCustomBg(path)
+        settings.setUsePhaseBg(false)
+        settings.setPhotoBackground(false)
     }
     fun setActiveCustomBg(path: String) {
         settings.setActiveCustomBg(path)
@@ -228,17 +233,34 @@ class TodoViewModel(
         }
     }
 
+    private val _bgBusy = MutableStateFlow(false)
+    val bgBusy: StateFlow<Boolean> = _bgBusy.asStateFlow()
+
     /**
-     * Losuje 3 gotowe (wbudowane) tła z banku palet — bez AI i bez kosztów.
-     * Każde kliknięcie wrzuca inny zestaw i od razu ustawia pierwsze jako tło,
-     * więc „losowanie" jest natychmiast widoczne.
+     * Losuje 3 tła — prawdziwe zdjęcia (Lorem Picsum) z nałożoną kolorową maską
+     * w barwach apki. Każde kliknięcie daje inny zestaw i od razu ustawia
+     * pierwsze jako aktywne tło. Gdy brak internetu / błąd — fallback do
+     * lokalnego gradientu, żeby zawsze coś się wydarzyło.
      */
     fun addPresetBackgrounds() {
+        if (_bgBusy.value) return
         viewModelScope.launch {
-            val palettes = pl.media30.todoisto.data.PresetBackgrounds.randomPalettes(3)
-            val paths = palettes.mapIndexed { i, colors ->
-                val bytes = pl.media30.todoisto.data.PresetBackgrounds.gradientPng(1080, 1920, colors)
-                settings.saveBackgroundBytes(bytes, "preset_${System.currentTimeMillis()}_$i.png")
+            _bgBusy.value = true
+            val paths = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                (0 until 3).map { i ->
+                    runCatching {
+                        val seed = kotlin.random.Random.nextInt(1, 1_000_000)
+                        val photo = pl.media30.todoisto.data.PhotoBackgrounds.fetchRandomPhoto(1024, 1536, seed)
+                        val maskIdx = kotlin.random.Random.nextInt(pl.media30.todoisto.data.PhotoBackgrounds.maskCount)
+                        val masked = pl.media30.todoisto.data.PhotoBackgrounds.withColorMask(photo, maskIdx)
+                        settings.saveBackgroundBytes(masked, "photo_${System.currentTimeMillis()}_$i.jpg")
+                    }.getOrElse {
+                        // offline / błąd → lokalny gradient (bez sieci)
+                        val colors = pl.media30.todoisto.data.PresetBackgrounds.randomPalettes(1).first()
+                        val bytes = pl.media30.todoisto.data.PresetBackgrounds.gradientPng(1080, 1920, colors)
+                        settings.saveBackgroundBytes(bytes, "preset_${System.currentTimeMillis()}_$i.png")
+                    }
+                }
             }
             settings.setCustomPhotos(paths)
             // Od razu ustaw pierwsze jako aktywne tło (widoczny efekt losowania).
@@ -247,6 +269,7 @@ class TodoViewModel(
                 settings.setUsePhaseBg(false)
                 settings.setPhotoBackground(false)
             }
+            _bgBusy.value = false
         }
     }
 

@@ -224,7 +224,7 @@ class ScreenshotTest {
                     aiPromptTokens = 18420, aiCompletionTokens = 7360, aiImageCount = 6, onResetAiUsage = {},
                     adminKeySet = true, aiCost = pl.media30.todoisto.ui.AiCostState(amountUsd = 0.42),
                     onSetAdminKey = {}, onRefreshCost = {},
-                    customPhotos = emptyList(), activeCustomBg = "", usePhaseBg = false, aiImages = null,
+                    customPhotos = emptyList(), activeCustomBg = "", usePhaseBg = false, aiImages = null, bgBusy = false,
                     onSelectGradient = {}, onSelectScene = {}, onAddCustomPhoto = {},
                     onSetActiveCustom = {}, onRemoveCustom = {}, onGenerateAi = {}, onGeneratePhaseAi = {}, onAddPresets = {}, onDismissAiImages = {},
                     onBack = {}, onToggleDark = {}, onTogglePhoto = {},

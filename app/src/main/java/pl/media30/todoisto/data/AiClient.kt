@@ -74,12 +74,14 @@ object AiClient {
      * osobne żądanie (dall-e-3 obsługuje n=1). Uwaga: to operacja płatna.
      */
     private fun generateOne(apiKey: String, prompt: String): ByteArray {
+        // Uwaga: NIE wysyłamy już "response_format" — nowsze API/modele obrazów je
+        // odrzucają ("Unknown parameter: 'response_format'"). Domyślnie dall-e-3
+        // zwraca URL, a gpt-image-1 zwraca b64_json — obsługujemy oba przypadki.
         val body = JSONObject().apply {
             put("model", "dall-e-3")
             put("prompt", prompt)
             put("n", 1)
             put("size", "1024x1792")
-            put("response_format", "b64_json")
         }.toString()
         val conn = (URL("https://api.openai.com/v1/images/generations").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
@@ -97,8 +99,28 @@ object AiClient {
             val msg = runCatching { JSONObject(text).getJSONObject("error").getString("message") }.getOrDefault("Błąd $code")
             throw RuntimeException(msg)
         }
-        val b64 = JSONObject(text).getJSONArray("data").getJSONObject(0).getString("b64_json")
-        return android.util.Base64.decode(b64, android.util.Base64.DEFAULT)
+        val item = JSONObject(text).getJSONArray("data").getJSONObject(0)
+        val b64 = item.optString("b64_json", "")
+        if (b64.isNotEmpty()) {
+            return android.util.Base64.decode(b64, android.util.Base64.DEFAULT)
+        }
+        val imageUrl = item.optString("url", "")
+        if (imageUrl.isNotEmpty()) {
+            return downloadBytes(imageUrl)
+        }
+        throw RuntimeException("Brak danych obrazu w odpowiedzi API")
+    }
+
+    /** Pobiera surowe bajty spod adresu URL (obraz zwrócony przez API). */
+    private fun downloadBytes(fromUrl: String): ByteArray {
+        val conn = (URL(fromUrl).openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 20000
+            readTimeout = 120000
+        }
+        val code = conn.responseCode
+        if (code !in 200..299) throw RuntimeException("Nie udało się pobrać obrazu (kod $code)")
+        return conn.inputStream.use { it.readBytes() }
     }
 
     suspend fun generateBackgrounds(apiKey: String, count: Int = 3): List<ByteArray> = withContext(Dispatchers.IO) {

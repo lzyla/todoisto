@@ -115,35 +115,43 @@ val PrioColors = listOf(Color(0xFFD1453B), Color(0xFFEB8909), Color(0xFF246FE0),
 // dająca różnicę koloru między lewą a prawą krawędzią (efekt aurory).
 private class BgPalette(
     val base: List<Color>,
-    val meshL: Color, val meshR: Color, val meshTop: Color, val meshAccent: Color
+    val meshL: Color, val meshR: Color, val meshTop: Color, val meshAccent: Color,
+    // Dwa dodatkowe „bloby" — więcej barw, bogatszy, bardziej mieniący się gradient.
+    val meshAccent2: Color, val meshAccent3: Color
 )
 
 // Wyraźnie różne barwy (żeby nie zlewały się z fioletem UI): turkus, róż/magenta,
 // błękit, żółty, koral. Cztery żywe „bloby" nad jasną bazą (light) / głęboką (dark).
 private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
-    // Rano — świt: koral + róż + żółty + turkus
+    // Rano — świt: koral + róż + żółty + turkus + brzoskwinia + złoto
     DayPhase.MORNING -> if (d) BgPalette(
         listOf(Color(0xFF4A3A5E), Color(0xFF3E2F54), Color(0xFF32284C), Color(0xFF261E42)),
-        Color(0xFFD46E4E), Color(0xFFC85C90), Color(0xFFC0982E), Color(0xFF2EA68C)
+        Color(0xFFD46E4E), Color(0xFFC85C90), Color(0xFFC0982E), Color(0xFF2EA68C),
+        Color(0xFF8E6BEB), Color(0xFFC85CA8)
     ) else BgPalette(
         listOf(Color(0xFFFDFBFF), Color(0xFFF6F1FE), Color(0xFFEFE8FC), Color(0xFFF3ECFF)),
-        Color(0xFF9C7BF0), Color(0xFFC9A6FF), Color(0xFFA6B0FF), Color(0xFF7E5AE0)
+        Color(0xFF9C7BF0), Color(0xFFC9A6FF), Color(0xFFA6B0FF), Color(0xFF7E5AE0),
+        Color(0xFFFFC1A6), Color(0xFFFFE08A)
     )
-    // Południe — dzień: fiolet + czerwień + żółty
+    // Południe — dzień: fiolet + czerwień + żółty + błękit + róż
     DayPhase.NOON -> if (d) BgPalette(
         listOf(Color(0xFF2A3A66), Color(0xFF2E3A60), Color(0xFF283458), Color(0xFF20294E)),
-        Color(0xFF2EA69C), Color(0xFFC85CA8), Color(0xFF4E80C8), Color(0xFFC0A02E)
+        Color(0xFF2EA69C), Color(0xFFC85CA8), Color(0xFF4E80C8), Color(0xFFC0A02E),
+        Color(0xFF6E45D9), Color(0xFFC0664E)
     ) else BgPalette(
         listOf(Color(0xFFFDFBFF), Color(0xFFF6F1FE), Color(0xFFEFE8FC), Color(0xFFF4EEFF)),
-        Color(0xFF8E6BEB), Color(0xFFB79CFF), Color(0xFF9AA6FF), Color(0xFF6E45D9)
+        Color(0xFF8E6BEB), Color(0xFFB79CFF), Color(0xFF9AA6FF), Color(0xFF6E45D9),
+        Color(0xFFB5E6FF), Color(0xFFFFD1E8)
     )
-    // Wieczór — zmierzch: fiolet + czerwień/magenta + złoty
+    // Wieczór — zmierzch: fiolet + czerwień/magenta + złoty + błękit + mięta
     DayPhase.EVENING -> if (d) BgPalette(
         listOf(Color(0xFF5A3A88), Color(0xFF48307E), Color(0xFF382470), Color(0xFF2C1C60)),
-        Color(0xFFC24DA0), Color(0xFF5C6CD0), Color(0xFFC0664E), Color(0xFFC09A2E)
+        Color(0xFFC24DA0), Color(0xFF5C6CD0), Color(0xFFC0664E), Color(0xFFC09A2E),
+        Color(0xFF4E80C8), Color(0xFF2EA68C)
     ) else BgPalette(
         listOf(Color(0xFFF3EAFF), Color(0xFFFFECEC), Color(0xFFFFF3E0), Color(0xFFF0E8FF)),
-        Color(0xFF9E7BFF), Color(0xFFFF6E8E), Color(0xFFFFC85E), Color(0xFFC06BE0)
+        Color(0xFF9E7BFF), Color(0xFFFF6E8E), Color(0xFFFFC85E), Color(0xFFC06BE0),
+        Color(0xFFB6F0DC), Color(0xFFFFD48A)
     )
 }
 
@@ -221,13 +229,13 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
     val tr = rememberInfiniteTransition(label = "bg")
     val t = tr.animateFloat(
         initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(13000, easing = LinearEasing), RepeatMode.Reverse),
+        animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse),
         label = "bgT"
     )
     // Obrót fazy (0..1 → 2π) — orbitujące „bloby" koloru; szybciej = tło wyraźniej się mieni.
     val ang = tr.animateFloat(
         initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(12000, easing = LinearEasing), RepeatMode.Restart),
+        animationSpec = infiniteRepeatable(tween(8000, easing = LinearEasing), RepeatMode.Restart),
         label = "bgAng"
     )
     drawBehind {
@@ -275,10 +283,12 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
                 )
             }
             // Większe amplitudy orbit = tło wyraźniej wędruje/mieni się.
-            blob(pal.meshL, 0f, 0.30f, 0.38f, 0.50f, 0.58f, meshA)
-            blob(pal.meshR, 1.7f, 0.68f, 0.54f, 0.48f, 0.60f, meshA)
-            blob(pal.meshTop, 3.3f, 0.50f, 0.42f, 0.56f, 0.62f, meshA * 0.95f)
-            blob(pal.meshAccent, 4.9f, 0.46f, 0.58f, 0.52f, 0.60f, meshA * (0.72f + 0.28f * p))
+            blob(pal.meshL, 0f, 0.30f, 0.38f, 0.52f, 0.60f, meshA)
+            blob(pal.meshR, 1.7f, 0.68f, 0.54f, 0.50f, 0.62f, meshA)
+            blob(pal.meshTop, 3.3f, 0.50f, 0.42f, 0.58f, 0.64f, meshA * 0.95f)
+            blob(pal.meshAccent, 4.9f, 0.46f, 0.58f, 0.54f, 0.62f, meshA * (0.72f + 0.28f * p))
+            blob(pal.meshAccent2, 2.5f, 0.24f, 0.66f, 0.54f, 0.58f, meshA * (0.80f + 0.20f * (1f - p)))
+            blob(pal.meshAccent3, 5.6f, 0.76f, 0.30f, 0.52f, 0.60f, meshA * 0.85f)
             // Mleczna zasłona — jaśniej (mocniejsze rozjaśnienie kolorów).
             if (!dark) drawRect(Color.White.copy(alpha = 0.40f))
         }

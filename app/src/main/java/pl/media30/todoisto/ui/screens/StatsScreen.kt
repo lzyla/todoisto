@@ -80,6 +80,20 @@ fun StatsScreen(
         "Popoł." to (12..17).sumOf { hours[it] },
         "Wiecz." to (18..23).sumOf { hours[it] }
     )
+    // Ostatnie 30 dni + passa (streak)
+    fun dayOf(ms: Long) = Instant.ofEpochMilli(ms).atZone(zone).toLocalDate().toEpochDay()
+    val today = java.time.LocalDate.now().toEpochDay()
+    val daysSet = completed.map { dayOf(it.completedAt!!) }.toHashSet()
+    val last30 = (0..29).map { off -> val d = today - 29 + off; completed.count { dayOf(it.completedAt!!) == d } }
+    var streak = 0
+    if (daysSet.contains(today) || daysSet.contains(today - 1)) {
+        var d = if (daysSet.contains(today)) today else today - 1
+        while (daysSet.contains(d)) { streak++; d-- }
+    }
+    val bestStreak = run {
+        val s = daysSet.sorted(); var b = 0; var r = 0; var prev = Long.MIN_VALUE
+        for (x in s) { r = if (x == prev + 1) r + 1 else 1; if (r > b) b = r; prev = x }; b
+    }
 
     GlassBackground {
         Column(Modifier.fillMaxSize()) {
@@ -104,7 +118,38 @@ fun StatsScreen(
                     StatTile("Przesunięcia", "$deferCount", Color(0xFFFB7185), Modifier.weight(1f))
                     StatTile("Śr. czas", if (avgDays > 0) "%.1f d".format(avgDays) else "—", Color(0xFF6B8AFF), Modifier.weight(1f))
                 }
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(14.dp))
+
+                // Passa (streak)
+                Row(
+                    Modifier.fillMaxWidth().glass(RoundedCornerShape(22.dp)).padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("🔥", fontSize = 30.sp)
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Passa ukończeń", fontSize = 13.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                        Text(
+                            if (streak > 0) "Domykasz zadania od $streak " + dni(streak) else "Zacznij dziś — domknij jedno zadanie",
+                            fontSize = 12.sp, color = GlassTextSecondary
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("$streak", fontSize = 26.sp, fontWeight = FontWeight.W800, color = GlassAccent)
+                        Text("rekord $bestStreak", fontSize = 11.sp, color = GlassTextSecondary)
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+
+                ChartCard("Ostatnie 30 dni") {
+                    MiniBars(last30.map { it.toFloat() }, Brush.verticalGradient(listOf(Color(0xFFA47CFF), Color(0xFF6B3FE0))))
+                    Spacer(Modifier.height(6.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("30 dni temu", fontSize = 10.sp, color = GlassTextSecondary)
+                        Text("dziś", fontSize = 10.sp, color = GlassTextSecondary)
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
 
                 ChartCard("Ukończone wg dnia tygodnia") {
                     VBarChart(
@@ -169,6 +214,27 @@ private fun VBarChart(entries: List<Pair<String, Float>>, brush: Brush, area: Dp
                 Spacer(Modifier.height(5.dp))
                 Text(label, fontSize = 10.5.sp, fontWeight = FontWeight.W700, color = GlassTextSecondary)
             }
+        }
+    }
+}
+
+private fun dni(n: Int): String = when {
+    n == 1 -> "dnia"
+    n % 10 in 2..4 && n % 100 !in 12..14 -> "dni"
+    else -> "dni"
+}
+
+@Composable
+private fun MiniBars(values: List<Float>, brush: Brush, area: Dp = 90.dp) {
+    val max = (values.maxOrNull() ?: 0f).coerceAtLeast(1f)
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        values.forEach { v ->
+            Box(
+                Modifier.weight(1f)
+                    .height((area.value * (v / max)).dp.coerceAtLeast(3.dp))
+                    .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                    .background(brush)
+            )
         }
     }
 }

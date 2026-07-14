@@ -124,6 +124,8 @@ fun TodoistoApp(
     val aiPromptTokens by viewModel.aiPromptTokens.collectAsState()
     val aiCompletionTokens by viewModel.aiCompletionTokens.collectAsState()
     val aiImageCount by viewModel.aiImageCount.collectAsState()
+    val deferCount by viewModel.deferCount.collectAsState()
+    val openHours by viewModel.openHours.collectAsState()
     val adminKey by viewModel.openAiAdminKey.collectAsState()
     val aiCost by viewModel.aiCost.collectAsState()
     val customPhotos by viewModel.customPhotos.collectAsState()
@@ -138,6 +140,7 @@ fun TodoistoApp(
     var showImport by remember { mutableStateOf(false) }
     var showEstimate by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    var showStats by remember { mutableStateOf(false) }
     var detailAiExpanded by remember { mutableStateOf(false) }
     var editingActivity by remember { mutableStateOf<pl.media30.todoisto.data.Activity?>(null) }
 
@@ -173,7 +176,7 @@ fun TodoistoApp(
             }
             viewModel.toggleCompleted(t)
         },
-        onTaskClick = { detailTaskId = it.id; detailAiExpanded = false; viewModel.dismissAi() },
+        onTaskClick = { detailTaskId = it.id; detailAiExpanded = false; viewModel.dismissAi(); viewModel.recordTaskOpen() },
         onQuickAdd = viewModel::quickAdd,
         onAddProject = viewModel::addProject,
         onDeleteProject = viewModel::deleteProject,
@@ -219,9 +222,11 @@ fun TodoistoApp(
         hasApiKey = openAiKey.isNotBlank(),
         onSetApiKey = viewModel::setOpenAiKey,
         onOpenSettings = { showSettings = true },
+        onOpenStats = { showStats = true },
         swipeRightCompletes = swipeRightCompletes,
         onReorder = viewModel::reorderTasks,
         onScanNote = viewModel::scanNoteImage,
+        onReschedule = viewModel::rescheduleTask,
         weekTasks = allTasks
     )
 
@@ -271,6 +276,16 @@ fun TodoistoApp(
             onSetSwipeRightCompletes = viewModel::setSwipeRightCompletes,
             onOpenPool = { showSettings = false; showPool = true },
             onOpenImport = { showSettings = false; showImport = true }
+        )
+    }
+
+    // Ekran „Statystyki"
+    if (showStats) {
+        pl.media30.todoisto.ui.screens.StatsScreen(
+            tasks = allTasks,
+            deferCount = deferCount,
+            openHours = openHours,
+            onBack = { showStats = false }
         )
     }
 

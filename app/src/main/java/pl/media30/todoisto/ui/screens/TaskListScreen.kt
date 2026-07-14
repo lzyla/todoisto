@@ -74,6 +74,7 @@ import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Inbox
+import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -212,9 +213,11 @@ fun TaskListScreen(
     hasApiKey: Boolean = false,
     onSetApiKey: (String) -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenStats: () -> Unit = {},
     swipeRightCompletes: Boolean = true,
     onReorder: (List<Long>) -> Unit = {},
     onScanNote: (ByteArray) -> Unit = {},
+    onReschedule: (Task, Long) -> Unit = { _, _ -> },
     routinesExpandedInitially: Boolean = false,
     weekTasks: List<Task> = emptyList()
 ) {
@@ -291,13 +294,15 @@ fun TaskListScreen(
                 onOpenEstimate = { onOpenEstimate(); scope.launch { drawerState.close() } },
                 hasApiKey = hasApiKey,
                 onOpenApiKey = { dialog = DialogKind.ApiKey },
-                onOpenSettings = { onOpenSettings(); scope.launch { drawerState.close() } }
+                onOpenSettings = { onOpenSettings(); scope.launch { drawerState.close() } },
+                onOpenStats = { onOpenStats(); scope.launch { drawerState.close() } }
             )
         }
     ) {
         androidx.compose.runtime.CompositionLocalProvider(
             LocalHazeState provides hazeState,
-            LocalSwipeRightCompletes provides swipeRightCompletes
+            LocalSwipeRightCompletes provides swipeRightCompletes,
+            LocalReschedule provides onReschedule
         ) {
         Box(Modifier.fillMaxSize()) {
             // Inset status bara liczony TU (obok paska pigułek), a nie w ZenContent —
@@ -1070,6 +1075,21 @@ private fun ZenRowWithSubs(
                 node.subtasks.forEach { sub ->
                     TaskRowZen(sub, "", { onToggle(sub) }, { onTaskClick(sub) }, compact = true)
                 }
+                // Zaległe: szybkie przełożenie na kolejne dni.
+                if (task.dueDate != null && task.dueDate!! < todayEpoch && !task.isCompleted) {
+                    val resched = LocalReschedule.current
+                    Row(
+                        Modifier.fillMaxWidth().padding(start = 46.dp, end = 12.dp, top = 2.dp, bottom = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("Przełóż:", fontSize = 11.sp, fontWeight = FontWeight.W700, color = Color(0xFFC2410C))
+                        OverdueChip("Dziś") { resched(task, todayEpoch) }
+                        OverdueChip("Jutro") { resched(task, todayEpoch + 1) }
+                        OverdueChip("Pojutrze") { resched(task, todayEpoch + 2) }
+                        OverdueChip("+7 dni") { resched(task, todayEpoch + 7) }
+                    }
+                }
             }
         }
     }
@@ -1104,6 +1124,18 @@ private fun SwipeBg(dir: androidx.compose.material3.SwipeToDismissBoxValue, righ
 
 /** Preferencja: przesunięcie w prawo ukańcza (true) lub odkłada (false). */
 val LocalSwipeRightCompletes = androidx.compose.runtime.staticCompositionLocalOf { true }
+
+/** Callback przełożenia zaległego zadania na konkretny dzień (epochDay). */
+val LocalReschedule = androidx.compose.runtime.staticCompositionLocalOf<(Task, Long) -> Unit> { { _, _ -> } }
+
+@Composable
+private fun OverdueChip(label: String, onClick: () -> Unit) {
+    Text(
+        label, fontSize = 11.sp, fontWeight = FontWeight.W800, color = Color(0xFF9A3412),
+        modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0x33F59E0B))
+            .bouncy(0.9f, onClick).padding(horizontal = 10.dp, vertical = 5.dp)
+    )
+}
 
 @Composable
 private fun EmptyState(head: String, sub: String) {
@@ -1423,7 +1455,8 @@ private fun DrawerContent(
     onOpenEstimate: () -> Unit,
     hasApiKey: Boolean,
     onOpenApiKey: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    onOpenStats: () -> Unit
 ) {
     ModalDrawerSheet(
         drawerContainerColor = GlassDrawerBg,
@@ -1449,6 +1482,7 @@ private fun DrawerContent(
             DrawerRow(Icons.Outlined.Inbox, "Skrzynka", uiState.inboxCount, current == AppView.Inbox) { onSelect(AppView.Inbox) }
             DrawerRow(Icons.Outlined.CheckCircle, "Ukończone", null, current == AppView.Completed) { onSelect(AppView.Completed) }
             DrawerRow(Icons.Outlined.Bolt, "Pula aktywności", null, false, onOpenActivityPool)
+            DrawerRow(Icons.Outlined.Insights, "Statystyki", null, false, onOpenStats)
             DrawerRow(Icons.Outlined.Settings, "Ustawienia", null, false, onOpenSettings)
 
             // Szacowanie: ile pracy zostało na dziś (suma czasów zadań) — klik → rozbicie

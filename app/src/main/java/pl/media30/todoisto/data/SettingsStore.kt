@@ -70,6 +70,30 @@ class SettingsStore(context: Context) {
         _openAiAdminKey.value = v
     }
 
+    // --- Statystyki: przesunięcia + histogram godzin otwierania zadań ---
+    private val _deferCount = MutableStateFlow(prefs.getLong(KEY_DEFERS, 0L))
+    val deferCount: StateFlow<Long> = _deferCount.asStateFlow()
+    fun addDefer() {
+        val v = _deferCount.value + 1
+        prefs.edit().putLong(KEY_DEFERS, v).apply()
+        _deferCount.value = v
+    }
+
+    private fun readHours(): List<Int> {
+        val raw = prefs.getString(KEY_OPEN_HOURS, "").orEmpty()
+        val parts = raw.split(",").mapNotNull { it.toIntOrNull() }
+        return if (parts.size == 24) parts else List(24) { 0 }
+    }
+    private val _openHours = MutableStateFlow(readHours())
+    val openHours: StateFlow<List<Int>> = _openHours.asStateFlow()
+    fun recordTaskOpen(hour: Int) {
+        val h = hour.coerceIn(0, 23)
+        val list = _openHours.value.toMutableList()
+        list[h] = list[h] + 1
+        prefs.edit().putString(KEY_OPEN_HOURS, list.joinToString(",")).apply()
+        _openHours.value = list
+    }
+
     fun setGoals(daily: Int, weekly: Int) {
         prefs.edit().putInt(KEY_DAILY, daily).putInt(KEY_WEEKLY, weekly).apply()
         _dailyGoal.value = daily
@@ -189,6 +213,8 @@ class SettingsStore(context: Context) {
         const val KEY_AI_IN = "ai_prompt_tokens"
         const val KEY_AI_OUT = "ai_completion_tokens"
         const val KEY_AI_IMAGES = "ai_image_count"
+        const val KEY_DEFERS = "defer_count"
+        const val KEY_OPEN_HOURS = "open_hours"
         const val KEY_DAILY = "daily_goal"
         const val KEY_WEEKLY = "weekly_goal"
         const val KEY_PHOTO_BG = "photo_background"

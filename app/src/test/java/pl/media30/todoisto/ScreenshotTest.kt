@@ -189,6 +189,28 @@ class ScreenshotTest {
     }
 
     @Test
+    fun statsScreen() {
+        GlassTheme.dark = false
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.NOON
+        val day = 86_400_000L
+        val base = 1_700_000_000_000L
+        val done = (0..11).map { i ->
+            Task(title = "z$i", isCompleted = true, completedAt = base + i * day, createdAt = base + i * day - (i % 3 + 1) * day, priority = Priority.entries[i % 4])
+        }
+        val active = (0..6).map { i -> Task(title = "a$i", priority = Priority.entries[i % 4]) }
+        paparazzi.snapshot {
+            TodoistoTheme {
+                pl.media30.todoisto.ui.screens.StatsScreen(
+                    tasks = done + active,
+                    deferCount = 14,
+                    openHours = List(24) { (it * 7 + 3) % 11 },
+                    onBack = {}
+                )
+            }
+        }
+    }
+
+    @Test
     fun settingsScreen() {
         GlassTheme.dark = false
         GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.NOON

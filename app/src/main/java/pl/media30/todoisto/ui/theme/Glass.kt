@@ -221,13 +221,13 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
     val tr = rememberInfiniteTransition(label = "bg")
     val t = tr.animateFloat(
         initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(22000, easing = LinearEasing), RepeatMode.Reverse),
+        animationSpec = infiniteRepeatable(tween(13000, easing = LinearEasing), RepeatMode.Reverse),
         label = "bgT"
     )
-    // Wolny obrót fazy (0..1 → 2π) — orbitujące „bloby" koloru dają morfizm.
+    // Obrót fazy (0..1 → 2π) — orbitujące „bloby" koloru; szybciej = tło wyraźniej się mieni.
     val ang = tr.animateFloat(
         initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(20000, easing = LinearEasing), RepeatMode.Restart),
+        animationSpec = infiniteRepeatable(tween(12000, easing = LinearEasing), RepeatMode.Restart),
         label = "bgAng"
     )
     drawBehind {
@@ -274,12 +274,13 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
                     )
                 )
             }
-            blob(pal.meshL, 0f, 0.30f, 0.38f, 0.36f, 0.44f, meshA)
-            blob(pal.meshR, 1.7f, 0.68f, 0.54f, 0.34f, 0.46f, meshA)
-            blob(pal.meshTop, 3.3f, 0.50f, 0.42f, 0.42f, 0.48f, meshA * 0.95f)
-            blob(pal.meshAccent, 4.9f, 0.46f, 0.58f, 0.38f, 0.46f, meshA * (0.75f + 0.25f * p))
-            // Mleczna zasłona — rozjaśnia i „ściszą" kolory (jaśniejsze, spokojniejsze tło).
-            if (!dark) drawRect(Color.White.copy(alpha = 0.32f))
+            // Większe amplitudy orbit = tło wyraźniej wędruje/mieni się.
+            blob(pal.meshL, 0f, 0.30f, 0.38f, 0.50f, 0.58f, meshA)
+            blob(pal.meshR, 1.7f, 0.68f, 0.54f, 0.48f, 0.60f, meshA)
+            blob(pal.meshTop, 3.3f, 0.50f, 0.42f, 0.56f, 0.62f, meshA * 0.95f)
+            blob(pal.meshAccent, 4.9f, 0.46f, 0.58f, 0.52f, 0.60f, meshA * (0.72f + 0.28f * p))
+            // Mleczna zasłona — jaśniej (mocniejsze rozjaśnienie kolorów).
+            if (!dark) drawRect(Color.White.copy(alpha = 0.40f))
         }
     }
 }
@@ -418,13 +419,10 @@ fun Modifier.taskTile(onClick: () -> Unit): Modifier = composed {
         animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = androidx.compose.animation.core.Spring.StiffnessMedium),
         label = "tileScale"
     )
-    val elev by androidx.compose.animation.core.animateDpAsState(
-        targetValue = if (pressed) 16.dp else 0.dp,
-        animationSpec = tween(280), label = "tileElev"
-    )
     this
         .graphicsLayer { scaleX = scale; scaleY = scale }
-        .shadow(elev, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.5f))
+        // Bez cienia przy dotknięciu — przezroczyste wypełnienie sprawiało, że cień
+        // „prześwitywał" jako wielki prostokąt. Sprzężenie zwrotne daje skala + rant.
         .clip(shape)
         .background(fill)
         .border(1.dp, rim, shape)

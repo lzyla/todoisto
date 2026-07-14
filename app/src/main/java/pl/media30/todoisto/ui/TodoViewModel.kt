@@ -585,8 +585,20 @@ class TodoViewModel(
 
     fun toggleCompleted(task: Task) = viewModelScope.launch { repository.toggleCompleted(task) }
 
+    // --- Statystyki ---
+    val deferCount: StateFlow<Long> = settings.deferCount
+    val openHours: StateFlow<List<Int>> = settings.openHours
+    fun recordTaskOpen() = settings.recordTaskOpen(java.time.LocalTime.now().hour)
+
+    /** Przełożenie zaległego (lub dowolnego) zadania na wskazany dzień (epochDay). */
+    fun rescheduleTask(task: Task, epochDay: Long) = viewModelScope.launch {
+        settings.addDefer()
+        repository.update(task.copy(dueDate = epochDay))
+    }
+
     /** Swipe w lewo: odłóż zadanie na jutro (zachowuje godzinę). */
     fun deferToTomorrow(task: Task) = viewModelScope.launch {
+        settings.addDefer()
         val base = maxOf(task.dueDate ?: LocalDate.now().toEpochDay(), LocalDate.now().toEpochDay())
         repository.update(task.copy(dueDate = base + 1))
     }

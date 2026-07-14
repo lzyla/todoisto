@@ -1110,11 +1110,28 @@ private fun ZenRowWithSubs(
                 node.subtasks.forEach { sub ->
                     TaskRowZen(sub, "", { onToggle(sub) }, { onTaskClick(sub) }, compact = true)
                 }
-                // Przełóż „do kiedy": rozwijane swipe'em, a dla zaległych zawsze widoczne.
-                // Po wyborze daty panel się zwija (reschedOpen = false).
+                // Zaległe: JEDEN przycisk „Przełóż" (rozwija opcje) — bez zaśmiecania listy.
                 val overdue = task.dueDate != null && task.dueDate!! < todayEpoch && !task.isCompleted
                 androidx.compose.animation.AnimatedVisibility(
-                    visible = reschedOpen || overdue,
+                    visible = overdue && !reschedOpen,
+                    enter = androidx.compose.animation.fadeIn(tween(150)),
+                    exit = androidx.compose.animation.fadeOut(tween(120))
+                ) {
+                    Row(Modifier.padding(start = 14.dp, top = 2.dp, bottom = 11.dp)) {
+                        Row(
+                            Modifier.clip(RoundedCornerShape(50)).background(Color(0x22C2410C))
+                                .bouncy(0.92f) { reschedOpen = true }.padding(horizontal = 11.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Outlined.DateRange, null, tint = Color(0xFFC2410C), modifier = Modifier.size(13.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text("Przełóż", fontSize = 11.sp, fontWeight = FontWeight.W800, color = Color(0xFF9A3412))
+                        }
+                    }
+                }
+                // Rozwinięte opcje dat (swipe albo po kliknięciu „Przełóż"); zwija po wyborze.
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = reschedOpen,
                     enter = androidx.compose.animation.expandVertically(tween(220, easing = EASE)) + androidx.compose.animation.fadeIn(tween(180)),
                     exit = androidx.compose.animation.shrinkVertically(tween(200, easing = EASE)) + androidx.compose.animation.fadeOut(tween(140))
                 ) {

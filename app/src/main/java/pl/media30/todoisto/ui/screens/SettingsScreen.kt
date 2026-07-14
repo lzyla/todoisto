@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -107,6 +108,7 @@ fun SettingsScreen(
     swipeRightCompletes: Boolean,
     aiPromptTokens: Long,
     aiCompletionTokens: Long,
+    aiImageCount: Long,
     onResetAiUsage: () -> Unit,
     adminKeySet: Boolean,
     aiCost: pl.media30.todoisto.ui.AiCostState?,
@@ -163,7 +165,7 @@ fun SettingsScreen(
                     onGenerateAi, onGeneratePhaseAi, onAddPresets, onDismissAiImages
                 ) else if (route == 0) MainSettings(
                     dark, photo, activeCustomBg, hasApiKey, dailyGoal, weeklyGoal,
-                    aiPromptTokens, aiCompletionTokens, onResetAiUsage,
+                    aiPromptTokens, aiCompletionTokens, aiImageCount, onResetAiUsage,
                     adminKeySet, aiCost, onRefreshCost, onOpenAdminKey = { showAdminKey = true },
                     onOpenGeneral = { route = 1 }, onOpenBackground = { route = 2 },
                     onToggleDark,
@@ -186,7 +188,7 @@ fun SettingsScreen(
 @Composable
 private fun MainSettings(
     dark: Boolean, photo: Boolean, activeCustomBg: String, hasApiKey: Boolean, dailyGoal: Int, weeklyGoal: Int,
-    aiPromptTokens: Long, aiCompletionTokens: Long, onResetAiUsage: () -> Unit,
+    aiPromptTokens: Long, aiCompletionTokens: Long, aiImageCount: Long, onResetAiUsage: () -> Unit,
     adminKeySet: Boolean, aiCost: pl.media30.todoisto.ui.AiCostState?, onRefreshCost: () -> Unit, onOpenAdminKey: () -> Unit,
     onOpenGeneral: () -> Unit, onOpenBackground: () -> Unit,
     onToggleDark: () -> Unit,
@@ -225,7 +227,7 @@ private fun MainSettings(
         modifier = Modifier.padding(start = 6.dp, top = 8.dp, end = 6.dp)
     )
     Spacer(Modifier.height(12.dp))
-    AiUsageCard(aiPromptTokens, aiCompletionTokens, onResetAiUsage, adminKeySet, aiCost, onRefreshCost, onOpenAdminKey)
+    AiUsageCard(aiPromptTokens, aiCompletionTokens, aiImageCount, onResetAiUsage, adminKeySet, aiCost, onRefreshCost, onOpenAdminKey)
     Spacer(Modifier.height(22.dp))
 
     SettingsSection("Produktywność")
@@ -254,14 +256,61 @@ private fun MainSettings(
 
 @Composable
 private fun AiUsageCard(
-    promptTokens: Long, completionTokens: Long, onReset: () -> Unit,
+    promptTokens: Long, completionTokens: Long, imageCount: Long, onReset: () -> Unit,
     adminKeySet: Boolean, aiCost: pl.media30.todoisto.ui.AiCostState?, onRefreshCost: () -> Unit, onOpenAdminKey: () -> Unit
 ) {
-    val total = promptTokens + completionTokens
-    val costUsd = promptTokens / 1_000_000.0 * 0.15 + completionTokens / 1_000_000.0 * 0.60
-    val costPln = costUsd * 4.0
+    val totalTokens = promptTokens + completionTokens
+    val textCost = promptTokens / 1_000_000.0 * 0.15 + completionTokens / 1_000_000.0 * 0.60
+    val imageCost = imageCount * 0.08
+    val totalCost = textCost + imageCost
+    val costPln = totalCost * 4.0
+    val blue = Color(0xFF6B8AFF); val gold = Color(0xFFF4B740); val teal = Color(0xFF2DD4BF); val violet = Color(0xFFB99CFF)
+
     SettingsSection("Zużycie AI")
     SettingsCard {
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            // Nagłówek: duży koszt + tokeny/obrazy
+            Row(verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f)) {
+                    Text("SZACOWANY KOSZT", fontSize = 10.5.sp, fontWeight = FontWeight.W800, letterSpacing = 1.2.sp, color = GlassTextSecondary)
+                    Spacer(Modifier.height(3.dp))
+                    Text("$" + "%.4f".format(totalCost), fontSize = 26.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                    Text("≈ %.2f zł".format(costPln), fontSize = 12.sp, color = GlassTextSecondary)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(fmt(totalTokens), fontSize = 18.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                    Text("tokeny", fontSize = 11.sp, color = GlassTextSecondary)
+                    Spacer(Modifier.height(4.dp))
+                    Text("$imageCount", fontSize = 18.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                    Text("obrazy AI", fontSize = 11.sp, color = GlassTextSecondary)
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+
+            // Wizualizacja 1 — rozkład kosztu: tekst vs obrazy
+            Text("ROZKŁAD KOSZTU", fontSize = 10.sp, fontWeight = FontWeight.W800, letterSpacing = 1.1.sp, color = GlassTextSecondary)
+            Spacer(Modifier.height(7.dp))
+            UsageBar(listOf(textCost.toFloat() to blue, imageCost.toFloat() to gold))
+            Spacer(Modifier.height(8.dp))
+            Row {
+                LegendItem(blue, "Tekst", "$" + "%.4f".format(textCost))
+                Spacer(Modifier.width(18.dp))
+                LegendItem(gold, "Obrazy", "$" + "%.2f".format(imageCost))
+            }
+            Spacer(Modifier.height(16.dp))
+
+            // Wizualizacja 2 — tokeny wejście vs wyjście
+            Text("TOKENY — WEJŚCIE / WYJŚCIE", fontSize = 10.sp, fontWeight = FontWeight.W800, letterSpacing = 1.1.sp, color = GlassTextSecondary)
+            Spacer(Modifier.height(7.dp))
+            UsageBar(listOf(promptTokens.toFloat() to teal, completionTokens.toFloat() to violet))
+            Spacer(Modifier.height(8.dp))
+            Row {
+                LegendItem(teal, "Wejście", fmt(promptTokens))
+                Spacer(Modifier.width(18.dp))
+                LegendItem(violet, "Wyjście", fmt(completionTokens))
+            }
+        }
+        RowDivider()
         // Realny koszt z OpenAI (Costs API) — jeśli podano klucz Admin.
         val costSub = when {
             !adminKeySet -> "Dodaj klucz Admin OpenAI, aby zobaczyć realny koszt"
@@ -270,46 +319,56 @@ private fun AiUsageCard(
             aiCost?.amountUsd != null -> "Ten miesiąc · odśwież dotknięciem"
             else -> "Dotknij, aby pobrać"
         }
-        val costVal: @Composable () -> Unit = {
-            when {
-                !adminKeySet -> Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = GlassTextSecondary.copy(alpha = 0.6f), modifier = Modifier.size(20.dp))
-                aiCost?.amountUsd != null -> Text("$" + "%.2f".format(aiCost.amountUsd), fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
-                else -> Text("—", fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextSecondary)
-            }
-        }
         SettingRowScaffold(
             Icons.Outlined.Paid, Color(0xFF34D399), "Realny koszt (OpenAI)", costSub,
-            trailing = costVal,
+            trailing = {
+                when {
+                    !adminKeySet -> Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = GlassTextSecondary.copy(alpha = 0.6f), modifier = Modifier.size(20.dp))
+                    aiCost?.amountUsd != null -> Text("$" + "%.2f".format(aiCost.amountUsd), fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                    else -> Text("—", fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextSecondary)
+                }
+            },
             onClick = if (adminKeySet) onRefreshCost else onOpenAdminKey
-        )
-        RowDivider()
-        SettingRowScaffold(
-            Icons.Outlined.DataUsage, Color(0xFF6B8AFF), "Tokeny łącznie",
-            "wejście ${fmt(promptTokens)} · wyjście ${fmt(completionTokens)}",
-            trailing = { Text(fmt(total), fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary) },
-            onClick = null
-        )
-        RowDivider()
-        SettingRowScaffold(
-            Icons.Outlined.Calculate, Color(0xFFF4B740), "Szacowany koszt (lokalnie)",
-            "≈ %.2f zł · z tokenów gpt-4o-mini".format(costPln),
-            trailing = { Text("$" + "%.4f".format(costUsd), fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary) },
-            onClick = null
         )
         if (adminKeySet) {
             RowDivider()
             NavRow(Icons.Outlined.Key, Color(0xFFB99CFF), "Klucz Admin", "Ustawiony — dotknij, aby zmienić/usunąć", trailing = { StatusDot(true) }, onClick = onOpenAdminKey)
         }
-        if (total > 0L) {
+        if (totalTokens > 0L || imageCount > 0L) {
             RowDivider()
-            NavRow(Icons.Outlined.RestartAlt, Color(0xFFFB7185), "Wyzeruj licznik tokenów", "Zeruje lokalny szacunek", trailing = {}, onClick = onReset)
+            NavRow(Icons.Outlined.RestartAlt, Color(0xFFFB7185), "Wyzeruj liczniki", "Zeruje lokalne zużycie i koszt", trailing = {}, onClick = onReset)
         }
     }
     Text(
-        "Realny koszt pochodzi z Costs API OpenAI (wymaga klucza Admin, trzymanego tylko na tym urządzeniu). Szacunek lokalny liczony z tokenów gpt-4o-mini — orientacyjnie.",
+        "Szacunek liczony lokalnie z tokenów (gpt-4o-mini) i liczby obrazów (dall-e-3, ~0,08 $/szt.). Realny koszt pochodzi z Costs API OpenAI (klucz Admin) — orientacyjnie.",
         fontSize = 11.5.sp, color = GlassTextSecondary.copy(alpha = 0.85f),
         modifier = Modifier.padding(start = 6.dp, top = 8.dp, end = 6.dp)
     )
+}
+
+@Composable
+private fun UsageBar(parts: List<Pair<Float, Color>>) {
+    Box(
+        Modifier.fillMaxWidth().height(12.dp).clip(RoundedCornerShape(6.dp))
+            .background(GlassTextSecondary.copy(alpha = 0.16f))
+    ) {
+        if (parts.any { it.first > 0f }) {
+            Row(Modifier.fillMaxWidth().fillMaxHeight()) {
+                parts.filter { it.first > 0f }.forEach { (v, c) ->
+                    Box(Modifier.weight(v).fillMaxHeight().background(c))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LegendItem(color: Color, label: String, value: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(9.dp).clip(CircleShape).background(color))
+        Spacer(Modifier.width(6.dp))
+        Text("$label · $value", fontSize = 11.5.sp, fontWeight = FontWeight.W600, color = GlassTextSecondary)
+    }
 }
 
 @Composable
@@ -356,27 +415,6 @@ private fun BackgroundSettings(
     val picker = if (hasRegistry) rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) copyUriToBackground(context, uri)?.let(onAddCustomPhoto)
     } else null
-    // Potwierdzenie kosztu przed płatną generacją: 0=brak, 1=3 tła, 2=pory dnia.
-    var confirmGen by remember { mutableStateOf(0) }
-    if (confirmGen != 0) {
-        AlertDialog(
-            onDismissRequest = { confirmGen = 0 },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (confirmGen == 1) onGenerateAi() else onGeneratePhaseAi(); confirmGen = 0
-                }) { Text("Generuj (~0,24 $)") }
-            },
-            dismissButton = { TextButton(onClick = { confirmGen = 0 }) { Text("Anuluj") } },
-            title = { Text("Wygenerować przez AI?") },
-            text = {
-                Text(
-                    "Powstaną 3 obrazy (dall-e-3, 1024×1792). Szacowany koszt ≈ 0,24 $ (ok. 0,08 $ za obraz) " +
-                        "z Twojego konta OpenAI. Dokładne rozliczenie zobaczysz w sekcji „Zużycie AI” oraz w panelu OpenAI.",
-                    fontSize = 12.5.sp
-                )
-            }
-        )
-    }
 
     SettingsSection("Rodzaj tła")
     SettingsCard {
@@ -397,7 +435,7 @@ private fun BackgroundSettings(
             Spacer(Modifier.height(12.dp))
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent)
-                    .bouncy(0.97f) { if (aiImages?.loading != true) confirmGen = 2 }.padding(vertical = 13.dp),
+                    .bouncy(0.97f) { if (aiImages?.loading != true) onGeneratePhaseAi() }.padding(vertical = 13.dp),
                 horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
             ) {
                 if (aiImages?.loading == true) {
@@ -453,7 +491,7 @@ private fun BackgroundSettings(
             // Generowanie AI
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent)
-                    .bouncy(0.97f) { if (aiImages?.loading != true) confirmGen = 1 }
+                    .bouncy(0.97f) { if (aiImages?.loading != true) onGenerateAi() }
                     .padding(vertical = 13.dp),
                 horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
             ) {

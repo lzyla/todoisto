@@ -123,6 +123,7 @@ fun TodoistoApp(
     val swipeRightCompletes by viewModel.swipeRightCompletes.collectAsState()
     val aiPromptTokens by viewModel.aiPromptTokens.collectAsState()
     val aiCompletionTokens by viewModel.aiCompletionTokens.collectAsState()
+    val aiImageCount by viewModel.aiImageCount.collectAsState()
     val adminKey by viewModel.openAiAdminKey.collectAsState()
     val aiCost by viewModel.aiCost.collectAsState()
     val customPhotos by viewModel.customPhotos.collectAsState()
@@ -239,6 +240,7 @@ fun TodoistoApp(
             swipeRightCompletes = swipeRightCompletes,
             aiPromptTokens = aiPromptTokens,
             aiCompletionTokens = aiCompletionTokens,
+            aiImageCount = aiImageCount,
             onResetAiUsage = viewModel::resetAiUsage,
             adminKeySet = adminKey.isNotBlank(),
             aiCost = aiCost,

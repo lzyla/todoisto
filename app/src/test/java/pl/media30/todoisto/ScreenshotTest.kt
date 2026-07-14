@@ -199,7 +199,7 @@ class ScreenshotTest {
                     dailyGoal = 5, weeklyGoal = 25,
                     startViewToday = true, dateRecognition = true, weekStartMonday = true,
                     completionSound = false, swipeRightCompletes = true,
-                    aiPromptTokens = 18420, aiCompletionTokens = 7360, onResetAiUsage = {},
+                    aiPromptTokens = 18420, aiCompletionTokens = 7360, aiImageCount = 6, onResetAiUsage = {},
                     adminKeySet = true, aiCost = pl.media30.todoisto.ui.AiCostState(amountUsd = 0.42),
                     onSetAdminKey = {}, onRefreshCost = {},
                     customPhotos = emptyList(), activeCustomBg = "", usePhaseBg = false, aiImages = null,

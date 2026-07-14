@@ -160,6 +160,9 @@ class SettingsStore(context: Context) {
     private val _aiCompletionTokens = MutableStateFlow(prefs.getLong(KEY_AI_OUT, 0L))
     val aiCompletionTokens: StateFlow<Long> = _aiCompletionTokens.asStateFlow()
 
+    private val _aiImageCount = MutableStateFlow(prefs.getLong(KEY_AI_IMAGES, 0L))
+    val aiImageCount: StateFlow<Long> = _aiImageCount.asStateFlow()
+
     fun addAiUsage(promptTokens: Int, completionTokens: Int) {
         val newIn = _aiPromptTokens.value + promptTokens
         val newOut = _aiCompletionTokens.value + completionTokens
@@ -168,16 +171,24 @@ class SettingsStore(context: Context) {
         _aiCompletionTokens.value = newOut
     }
 
+    fun addAiImages(count: Int) {
+        val v = _aiImageCount.value + count
+        prefs.edit().putLong(KEY_AI_IMAGES, v).apply()
+        _aiImageCount.value = v
+    }
+
     fun resetAiUsage() {
-        prefs.edit().putLong(KEY_AI_IN, 0L).putLong(KEY_AI_OUT, 0L).apply()
+        prefs.edit().putLong(KEY_AI_IN, 0L).putLong(KEY_AI_OUT, 0L).putLong(KEY_AI_IMAGES, 0L).apply()
         _aiPromptTokens.value = 0L
         _aiCompletionTokens.value = 0L
+        _aiImageCount.value = 0L
     }
 
     private companion object {
         const val KEY_DARK = "dark_theme"
         const val KEY_AI_IN = "ai_prompt_tokens"
         const val KEY_AI_OUT = "ai_completion_tokens"
+        const val KEY_AI_IMAGES = "ai_image_count"
         const val KEY_DAILY = "daily_goal"
         const val KEY_WEEKLY = "weekly_goal"
         const val KEY_PHOTO_BG = "photo_background"

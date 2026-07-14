@@ -195,6 +195,7 @@ class TodoViewModel(
                 val paths = imgs.mapIndexed { i, bytes ->
                     settings.saveBackgroundBytes(bytes, "phase_${System.currentTimeMillis()}_$i.png")
                 }
+                settings.addAiImages(imgs.size)
                 settings.setPhaseBackgrounds(paths)
                 settings.setUsePhaseBg(true)
                 settings.setActiveCustomBg("")
@@ -254,6 +255,7 @@ class TodoViewModel(
                 val paths = imgs.mapIndexed { i, bytes ->
                     settings.saveBackgroundBytes(bytes, "ai_${System.currentTimeMillis()}_$i.png")
                 }
+                settings.addAiImages(imgs.size)
                 settings.setCustomPhotos(paths)
                 AiImagesState(loading = false, done = true)
             } catch (e: Exception) {
@@ -292,6 +294,7 @@ class TodoViewModel(
     // --- Zużycie AI (tokeny + koszt) ---
     val aiPromptTokens: StateFlow<Long> = settings.aiPromptTokens
     val aiCompletionTokens: StateFlow<Long> = settings.aiCompletionTokens
+    val aiImageCount: StateFlow<Long> = settings.aiImageCount
     fun resetAiUsage() = settings.resetAiUsage()
 
     // --- Realny koszt z OpenAI (klucz Admin) ---

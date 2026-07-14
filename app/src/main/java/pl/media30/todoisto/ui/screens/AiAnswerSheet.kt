@@ -28,7 +28,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pl.media30.todoisto.ui.components.bouncy
@@ -101,8 +109,37 @@ private fun AiContent(loading: Boolean, answer: String?, error: String?, needsKe
                 Text(error, fontSize = 13.sp, lineHeight = 19.sp, color = GlassTextSecondary)
             }
             answer != null -> Box(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState())) {
-                Text(answer, fontSize = 13.5.sp, lineHeight = 20.sp, color = GlassTextPrimary)
+                Text(aiAnnotated(answer, GlassAccent), fontSize = 13.5.sp, lineHeight = 20.sp, color = GlassTextPrimary)
             }
         }
+    }
+}
+
+private val mdLinkRegex = Regex("""\[([^\]]+)]\((https?://[^\s)]+)\)""")
+private val urlRegex = Regex("""https?://[^\s)\]]+""")
+
+/**
+ * Zamienia odpowiedź AI na tekst z KLIKALNYMI linkami: rozpoznaje linki
+ * Markdown [nazwa](url) oraz gołe adresy http(s). Kliknięcie otwiera stronę
+ * narzędzia (domyślny UriHandler). Reszta tekstu bez zmian.
+ */
+private fun aiAnnotated(text: String, linkColor: Color): AnnotatedString = buildAnnotatedString {
+    val linkStyles = TextLinkStyles(
+        SpanStyle(color = linkColor, fontWeight = FontWeight.W700, textDecoration = TextDecoration.Underline)
+    )
+    var i = 0
+    while (i < text.length) {
+        val md = mdLinkRegex.find(text, i)
+        val url = urlRegex.find(text, i)
+        val useMd = md != null && (url == null || md.range.first <= url.range.first)
+        val next = if (useMd) md else url
+        if (next == null) { append(text.substring(i)); break }
+        if (next.range.first > i) append(text.substring(i, next.range.first))
+        if (useMd && md != null) {
+            withLink(LinkAnnotation.Url(md.groupValues[2], linkStyles)) { append(md.groupValues[1]) }
+        } else {
+            withLink(LinkAnnotation.Url(next.value, linkStyles)) { append(next.value) }
+        }
+        i = next.range.last + 1
     }
 }

@@ -23,9 +23,16 @@ object AiClient {
     const val PRICE_IN_PER_1M = 0.15
     const val PRICE_OUT_PER_1M = 0.60
     private const val SYSTEM =
-        "Jesteś asystentem produktywności. Odpowiadaj po polsku, zwięźle i konkretnie, " +
-        "krok po kroku. Skup się na tym, które narzędzie wybrać i jak zautomatyzować zadanie. " +
-        "Na końcu podaj jeden gotowy prompt do skopiowania."
+        "Jesteś asystentem produktywności. Odpowiadaj po polsku, konkretnie i praktycznie. " +
+        "Format odpowiedzi ZAWSZE taki: " +
+        "1) Krótkie zdanie wprowadzające (max 1 linijka). " +
+        "2) Ponumerowana lista KROK PO KROKU (1., 2., 3., ...), gdzie każdy krok to jedno konkretne działanie. " +
+        "3) Przy krokach polecaj KONKRETNE narzędzia/aplikacje i ZAWSZE podawaj pełny, prawdziwy link URL " +
+        "do strony narzędzia w formacie Markdown, np. [Notion](https://notion.so) albo [Google Calendar](https://calendar.google.com). " +
+        "Podawaj tylko prawdziwe adresy stron głównych popularnych narzędzi — nie zmyślaj adresów. " +
+        "4) Sekcja 'Narzędzia:' z listą poleconych narzędzi jako klikalne linki Markdown. " +
+        "5) Na końcu jeden gotowy prompt do skopiowania (po nagłówku 'Prompt do skopiowania:'). " +
+        "Bądź zwięzły — bez lania wody."
 
     suspend fun ask(apiKey: String, prompt: String): AiResult = withContext(Dispatchers.IO) {
         require(apiKey.isNotBlank()) { "Brak klucza API" }

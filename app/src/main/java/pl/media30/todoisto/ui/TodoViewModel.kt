@@ -202,7 +202,7 @@ class TodoViewModel(
                 settings.setPhotoBackground(false)
                 AiImagesState(loading = false, done = true)
             } catch (e: Exception) {
-                AiImagesState(loading = false, error = e.message ?: "Błąd generowania")
+                AiImagesState(loading = false, error = friendlyImageError(e.message))
             }
         }
     }
@@ -244,6 +244,15 @@ class TodoViewModel(
         }
     }
 
+    /** Zamienia surowy błąd OpenAI o brakujących uprawnieniach na czytelną podpowiedź. */
+    private fun friendlyImageError(msg: String?): String {
+        val m = msg ?: "Błąd generowania"
+        val lower = m.lowercase()
+        return if (lower.contains("scope") || lower.contains("permission") || lower.contains("images.request")) {
+            "Twój klucz OpenAI nie ma uprawnień do generowania obrazów. Użyj klucza bez ograniczeń albo z dostępem do Images (rola Writer/Owner). Na razie działa opcja Wstaw 3 gotowe tła bez AI oraz wgrywanie własnych zdjęć."
+        } else m
+    }
+
     /** Generuje 3 propozycje tła przez AI i zapisuje je jako własne zdjęcia. */
     fun generateAiBackgrounds() {
         val key = settings.openAiKey.value
@@ -259,7 +268,7 @@ class TodoViewModel(
                 settings.setCustomPhotos(paths)
                 AiImagesState(loading = false, done = true)
             } catch (e: Exception) {
-                AiImagesState(loading = false, error = e.message ?: "Błąd generowania")
+                AiImagesState(loading = false, error = friendlyImageError(e.message))
             }
         }
     }

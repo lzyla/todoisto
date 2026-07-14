@@ -77,8 +77,8 @@ val GlassTextPrimary: Color get() = if (d) Color(0xFFFFFFFF) else Color(0xFF2A1F
 val GlassTextSecondary: Color get() = if (d) Color(0xFFDCD0F8) else Color(0xFF6B5F95)
 val GlassAccent: Color get() = if (d) Color(0xFFB99CFF) else Color(0xFF6E45D9)
 
-/** --fill: wypełnienie tafli glass (bardziej przezroczyste — więcej „szkła"). */
-val GlassFill: Color get() = if (d) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.14f)
+/** --fill: wypełnienie tafli glass (mocniejsze — lepszy kontrast z tłem). */
+val GlassFill: Color get() = if (d) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.30f)
 
 /** --rim: obwódka szkła. */
 val GlassRim: Color get() = if (d) Color.White.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.95f)
@@ -289,8 +289,9 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
             blob(pal.meshAccent, 4.9f, 0.46f, 0.58f, 0.54f, 0.62f, meshA * (0.72f + 0.28f * p))
             blob(pal.meshAccent2, 2.5f, 0.24f, 0.66f, 0.54f, 0.58f, meshA * (0.80f + 0.20f * (1f - p)))
             blob(pal.meshAccent3, 5.6f, 0.76f, 0.30f, 0.52f, 0.60f, meshA * 0.85f)
-            // Mleczna zasłona — jaśniej (mocniejsze rozjaśnienie kolorów).
-            if (!dark) drawRect(Color.White.copy(alpha = 0.40f))
+            // Mleczna zasłona — nieco słabsza, żeby kolory tła były wyraźniejsze
+            // (mocniejszy kontrast z jasnymi elementami/kartami na wierzchu).
+            if (!dark) drawRect(Color.White.copy(alpha = 0.30f))
         }
     }
 }
@@ -384,13 +385,13 @@ fun Modifier.glassBlur(shape: Shape = RoundedCornerShape(24.dp)): Modifier = com
         .shadow(16.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.5f))
         .clip(shape)
         .hazeChild(state = haze, style = hazeStyle)
-        // Mocniejszy mleczny nalot — także na urządzeniach bez sprzętowego bluru nic nie prześwituje.
-        .background(if (dark) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.30f))
+        // Mocniejszy mleczny nalot — lepszy kontrast tafli z tłem; nic nie prześwituje.
+        .background(if (dark) Color.White.copy(alpha = 0.20f) else Color.White.copy(alpha = 0.46f))
         .drawWithContent {
             drawContent()
             specular(if (dark) 0.20f else 0.42f)
         }
-        .border(1.dp, if (dark) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.40f), shape)
+        .border(1.dp, if (dark) Color.White.copy(alpha = 0.20f) else Color.White.copy(alpha = 0.60f), shape)
 }
 
 /**
@@ -408,19 +409,19 @@ fun Modifier.taskTile(onClick: () -> Unit): Modifier = composed {
     val shape = RoundedCornerShape(20.dp)
     val fill by animateColorAsState(
         targetValue = if (pressed) {
-            // szkło po dotknięciu — bardzo przezroczyste, tło mocno prześwituje
-            if (dark) Color.White.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.12f)
+            // dotknięcie — jeszcze mocniejsza, prawie kryjąca karta
+            if (dark) Color.White.copy(alpha = 0.26f) else Color.White.copy(alpha = 0.74f)
         } else {
-            // spoczynek — praktycznie niewidoczny
-            if (dark) Color.White.copy(alpha = 0.015f) else Color.White.copy(alpha = 0.02f)
+            // spoczynek — wyraźna mleczna karta (dobry kontrast z tłem)
+            if (dark) Color.White.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.55f)
         },
         animationSpec = tween(280), label = "tileFill"
     )
     val rim by animateColorAsState(
         targetValue = if (pressed) {
-            if (dark) Color.White.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.40f)
+            if (dark) Color.White.copy(alpha = 0.34f) else Color.White.copy(alpha = 0.75f)
         } else {
-            if (dark) Color.White.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.07f)
+            if (dark) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.55f)
         },
         animationSpec = tween(280), label = "tileRim"
     )
@@ -429,10 +430,15 @@ fun Modifier.taskTile(onClick: () -> Unit): Modifier = composed {
         animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = androidx.compose.animation.core.Spring.StiffnessMedium),
         label = "tileScale"
     )
+    // Miękki cień unoszący kartę nad tłem — teraz wypełnienie jest kryjące, więc
+    // cień nie „prześwituje" jako prostokąt. Delikatnie rośnie przy dotknięciu.
+    val elev by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (pressed) 12.dp else 5.dp,
+        animationSpec = tween(280), label = "tileElev"
+    )
     this
         .graphicsLayer { scaleX = scale; scaleY = scale }
-        // Bez cienia przy dotknięciu — przezroczyste wypełnienie sprawiało, że cień
-        // „prześwitywał" jako wielki prostokąt. Sprzężenie zwrotne daje skala + rant.
+        .shadow(elev, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.6f))
         .clip(shape)
         .background(fill)
         .border(1.dp, rim, shape)
@@ -454,8 +460,8 @@ fun Modifier.controlCenterGlass(shape: Shape = RoundedCornerShape(50)): Modifier
     this
         .shadow(18.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.6f))
         .clip(shape)
-        // szklana tafla docka: leciutko mocniejsza (odrobinę mniej przezroczysta)
-        .background(if (dark) Color(0x99473C63) else Color(0x9EFFFFFF))
+        // szklana tafla docka: mocniejsza (lepszy kontrast z tłem)
+        .background(if (dark) Color(0xB0473C63) else Color(0xCCFFFFFF))
         .drawWithContent {
             drawContent()
             // refleksy: górna poświata + pasek światła + dryfujący połysk

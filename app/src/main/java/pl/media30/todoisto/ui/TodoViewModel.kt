@@ -134,7 +134,8 @@ private data class Prefs(
 
 class TodoViewModel(
     private val repository: TaskRepository,
-    private val settings: SettingsStore
+    private val settings: SettingsStore,
+    private val cloud: pl.media30.todoisto.data.CloudStore? = null
 ) : ViewModel() {
 
     private val _view = MutableStateFlow<AppView>(
@@ -241,6 +242,83 @@ class TodoViewModel(
             }
         }
     }
+
+    // --- Chmura (Supabase) ---
+    data class CloudState(
+        val configured: Boolean = false,
+        val signedIn: Boolean = false,
+        val email: String = "",
+        val busy: Boolean = false,
+        val message: String? = null,
+        val error: String? = null
+    )
+    private fun cloudSnapshot(busy: Boolean = false, message: String? = null, error: String? = null) = CloudState(
+        configured = cloud?.configured == true,
+        signedIn = cloud?.signedIn == true,
+        email = cloud?.cloudEmail?.value.orEmpty(),
+        busy = busy, message = message, error = error
+    )
+    private val _cloud = MutableStateFlow(cloudSnapshot())
+    val cloudState: StateFlow<CloudState> = _cloud.asStateFlow()
+
+    fun setCloudConfig(url: String, anonKey: String) {
+        cloud?.setConfig(url, anonKey)
+        _cloud.value = cloudSnapshot(message = "Zapisano konfigurację projektu.")
+    }
+
+    fun cloudSignUp(email: String, password: String) = cloudAuth(email, password, register = true)
+    fun cloudSignIn(email: String, password: String) = cloudAuth(email, password, register = false)
+
+    private fun cloudAuth(email: String, password: String, register: Boolean) {
+        val c = cloud ?: return
+        if (!c.configured) { _cloud.value = cloudSnapshot(error = "Najpierw wklej URL i klucz projektu."); return }
+        _cloud.value = cloudSnapshot(busy = true)
+        viewModelScope.launch {
+            val r = if (register) pl.media30.todoisto.data.SupabaseClient.signUp(c.url0, c.anonKey0, email, password)
+                    else pl.media30.todoisto.data.SupabaseClient.signIn(c.url0, c.anonKey0, email, password)
+            when {
+                r.token != null && r.userId != null -> {
+                    c.setSession(r.email ?: email, r.token, r.userId)
+                    _cloud.value = cloudSnapshot(message = "Zalogowano w chmurze.")
+                }
+                r.error != null -> _cloud.value = cloudSnapshot(error = r.error)
+                else -> _cloud.value = cloudSnapshot(error = "Nie udało się zalogować.")
+            }
+        }
+    }
+
+    fun cloudSignOut() {
+        cloud?.signOut()
+        _cloud.value = cloudSnapshot(message = "Wylogowano z chmury.")
+    }
+
+    /** Wysyła kopię zadań do chmury. */
+    fun cloudBackup() {
+        val c = cloud ?: return
+        if (!c.signedIn) { _cloud.value = cloudSnapshot(error = "Zaloguj się w chmurze."); return }
+        _cloud.value = cloudSnapshot(busy = true)
+        viewModelScope.launch {
+            val json = repository.exportBackupJson()
+            val err = pl.media30.todoisto.data.SupabaseClient.pushBackup(c.url0, c.anonKey0, c.token0, c.userId, json)
+            _cloud.value = if (err == null) cloudSnapshot(message = "Wysłano kopię do chmury.")
+                           else cloudSnapshot(error = err)
+        }
+    }
+
+    /** Pobiera kopię z chmury i wczytuje ją lokalnie. */
+    fun cloudRestore() {
+        val c = cloud ?: return
+        if (!c.signedIn) { _cloud.value = cloudSnapshot(error = "Zaloguj się w chmurze."); return }
+        _cloud.value = cloudSnapshot(busy = true)
+        viewModelScope.launch {
+            val json = pl.media30.todoisto.data.SupabaseClient.pullBackup(c.url0, c.anonKey0, c.token0, c.userId)
+            if (json == null) { _cloud.value = cloudSnapshot(error = "Brak kopii w chmurze albo błąd pobierania."); return@launch }
+            val count = runCatching { repository.importBackupJson(json) }.getOrDefault(0)
+            _cloud.value = cloudSnapshot(message = "Pobrano z chmury ($count zadań).")
+        }
+    }
+
+    fun clearCloudMessage() { _cloud.value = cloudSnapshot() }
 
     private val _bgBusy = MutableStateFlow(false)
     val bgBusy: StateFlow<Boolean> = _bgBusy.asStateFlow()
@@ -800,12 +878,13 @@ class TodoViewModel(
 
     class Factory(
         private val repository: TaskRepository,
-        private val settings: SettingsStore
+        private val settings: SettingsStore,
+        private val cloud: pl.media30.todoisto.data.CloudStore? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(TodoViewModel::class.java)) {
-                return TodoViewModel(repository, settings) as T
+                return TodoViewModel(repository, settings, cloud) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }

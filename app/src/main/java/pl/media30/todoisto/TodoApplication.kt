@@ -17,6 +17,7 @@ class TodoApplication : Application() {
     }
     val settings: SettingsStore by lazy { SettingsStore(this) }
     val account: pl.media30.todoisto.data.AccountStore by lazy { pl.media30.todoisto.data.AccountStore(this) }
+    val cloud: pl.media30.todoisto.data.CloudStore by lazy { pl.media30.todoisto.data.CloudStore(this) }
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

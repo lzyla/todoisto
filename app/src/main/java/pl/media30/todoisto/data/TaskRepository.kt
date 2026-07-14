@@ -1,6 +1,7 @@
 package pl.media30.todoisto.data
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 class TaskRepository(
     private val taskDao: TaskDao,
@@ -17,6 +18,19 @@ class TaskRepository(
     val allLabels: Flow<List<Label>> = labelDao.getAll()
     val allActivities: Flow<List<Activity>> = activityDao.getAll()
     val allAreas: Flow<List<Area>> = areaDao.getAll()
+
+    // --- kopia w chmurze (eksport/import JSON) ---
+    suspend fun exportBackupJson(): String =
+        CloudBackup.toJson(taskDao.getAllTasks().first(), projectDao.getAll().first(), labelDao.getAll().first())
+
+    /** Wczytuje kopię: wstawia z REPLACE (nadpisuje po id). */
+    suspend fun importBackupJson(json: String): Int {
+        val parsed = CloudBackup.fromJson(json)
+        parsed.labels.forEach { labelDao.insert(it) }
+        parsed.projects.forEach { projectDao.insert(it) }
+        parsed.tasks.forEach { taskDao.insert(it) }
+        return parsed.tasks.size
+    }
 
     // --- areas (obszary) ---
     suspend fun insertArea(area: Area): Long = areaDao.insert(area)

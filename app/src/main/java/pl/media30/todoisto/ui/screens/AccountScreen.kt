@@ -25,11 +25,21 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Logout
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pl.media30.todoisto.data.Account
 import pl.media30.todoisto.ui.components.bouncy
+import pl.media30.todoisto.ui.components.glassFieldColors
 import pl.media30.todoisto.ui.theme.GlassAccent
 import pl.media30.todoisto.ui.theme.GlassBackground
 import pl.media30.todoisto.ui.theme.GlassTextPrimary
@@ -56,6 +67,13 @@ fun AccountScreen(
     onSelectTheme: (String) -> Unit,
     onToggleDark: () -> Unit,
     onLogout: () -> Unit,
+    cloud: pl.media30.todoisto.ui.TodoViewModel.CloudState,
+    onCloudConfig: (String, String) -> Unit,
+    onCloudSignIn: (String, String) -> Unit,
+    onCloudSignUp: (String, String) -> Unit,
+    onCloudSignOut: () -> Unit,
+    onCloudBackup: () -> Unit,
+    onCloudRestore: () -> Unit,
     onBack: () -> Unit
 ) {
     BackHandler { onBack() }
@@ -141,6 +159,11 @@ fun AccountScreen(
                         colors = SwitchDefaults.colors(checkedTrackColor = GlassAccent, checkedThumbColor = Color.White)
                     )
                 }
+                Spacer(Modifier.height(24.dp))
+
+                // Chmura (Supabase) — synchronizacja między urządzeniami
+                Text("CHMURA (SYNCHRONIZACJA)", fontSize = 11.5.sp, fontWeight = FontWeight.W800, color = GlassAccent, modifier = Modifier.padding(start = 6.dp, bottom = 10.dp))
+                CloudSection(cloud, onCloudConfig, onCloudSignIn, onCloudSignUp, onCloudSignOut, onCloudBackup, onCloudRestore)
                 Spacer(Modifier.height(28.dp))
 
                 // Wyloguj
@@ -151,10 +174,95 @@ fun AccountScreen(
                 ) {
                     Icon(Icons.Outlined.Logout, null, tint = Color(0xFFEB4034), modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Wyloguj się", fontSize = 14.sp, fontWeight = FontWeight.W800, color = Color(0xFFEB4034))
+                    Text("Wyloguj się (lokalnie)", fontSize = 14.sp, fontWeight = FontWeight.W800, color = Color(0xFFEB4034))
                 }
                 Spacer(Modifier.navigationBarsPadding())
             }
         }
     }
+}
+
+/** Sekcja synchronizacji z chmurą (Supabase): konfiguracja → logowanie → kopia. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CloudSection(
+    cloud: pl.media30.todoisto.ui.TodoViewModel.CloudState,
+    onCloudConfig: (String, String) -> Unit,
+    onCloudSignIn: (String, String) -> Unit,
+    onCloudSignUp: (String, String) -> Unit,
+    onCloudSignOut: () -> Unit,
+    onCloudBackup: () -> Unit,
+    onCloudRestore: () -> Unit
+) {
+    var url by remember { mutableStateOf("") }
+    var anon by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+
+    Column(Modifier.fillMaxWidth().glass(RoundedCornerShape(24.dp)).padding(18.dp)) {
+        when {
+            // 1) Brak konfiguracji projektu → wklej URL + klucz anon.
+            !cloud.configured -> {
+                Text("Podłącz swój darmowy projekt Supabase, aby synchronizować zadania między urządzeniami.", fontSize = 12.5.sp, color = GlassTextSecondary)
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(url, { url = it }, label = { Text("URL projektu (https://…supabase.co)") }, singleLine = true, colors = glassFieldColors(), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(anon, { anon = it }, label = { Text("Klucz anon (public)") }, singleLine = true, colors = glassFieldColors(), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(14.dp))
+                CloudButton("Zapisz projekt", primary = true, enabled = !cloud.busy) { onCloudConfig(url, anon) }
+                Spacer(Modifier.height(8.dp))
+                Text("Znajdziesz je w Supabase → Project Settings → API (Project URL i anon public).", fontSize = 11.sp, color = GlassTextSecondary.copy(alpha = 0.85f))
+            }
+            // 2) Skonfigurowane, ale niezalogowane → e-mail + hasło.
+            !cloud.signedIn -> {
+                Text("Projekt podłączony. Zaloguj się lub załóż konto w chmurze.", fontSize = 12.5.sp, color = GlassTextSecondary)
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(email, { email = it }, label = { Text("E-mail") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), colors = glassFieldColors(), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(password, { password = it }, label = { Text("Hasło") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), colors = glassFieldColors(), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(14.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(Modifier.weight(1f)) { CloudButton("Zaloguj", primary = true, enabled = !cloud.busy) { onCloudSignIn(email, password) } }
+                    Box(Modifier.weight(1f)) { CloudButton("Załóż konto", primary = false, enabled = !cloud.busy) { onCloudSignUp(email, password) } }
+                }
+            }
+            // 3) Zalogowany → kopia / przywracanie.
+            else -> {
+                Text("Zalogowano w chmurze:", fontSize = 12.5.sp, color = GlassTextSecondary)
+                Text(cloud.email, fontSize = 14.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                Spacer(Modifier.height(14.dp))
+                CloudButton("Wyślij kopię do chmury", primary = true, enabled = !cloud.busy, onClick = onCloudBackup)
+                Spacer(Modifier.height(8.dp))
+                CloudButton("Pobierz z chmury", primary = false, enabled = !cloud.busy, onClick = onCloudRestore)
+                Spacer(Modifier.height(8.dp))
+                Text("Wyloguj z chmury", fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = GlassTextSecondary, modifier = Modifier.bouncy(1f, onCloudSignOut).padding(top = 4.dp))
+            }
+        }
+        if (cloud.busy) {
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(color = GlassAccent, strokeWidth = 2.5.dp, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(10.dp)); Text("Łączę z chmurą…", fontSize = 12.5.sp, color = GlassTextSecondary)
+            }
+        }
+        cloud.message?.let {
+            Spacer(Modifier.height(10.dp))
+            Text(it, fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = Color(0xFF1F8A5B))
+        }
+        cloud.error?.let {
+            Spacer(Modifier.height(10.dp))
+            Text(it, fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = Color(0xFFEB4034))
+        }
+    }
+}
+
+@Composable
+private fun CloudButton(label: String, primary: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    val bg = if (primary) GlassAccent else GlassAccent.copy(alpha = 0.14f)
+    val fg = if (primary) Color.White else GlassAccent
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(bg)
+            .bouncy(0.97f) { if (enabled) onClick() }.padding(vertical = 13.dp),
+        horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
+    ) { Text(label, color = fg, fontSize = 13.5.sp, fontWeight = FontWeight.W800) }
 }

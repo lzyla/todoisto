@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
                         )
                     } else {
                         TodoistoApp(
-                            viewModel = viewModel(factory = TodoViewModel.Factory(app.repository, app.settings)),
+                            viewModel = viewModel(factory = TodoViewModel.Factory(app.repository, app.settings, app.cloud)),
                             quickAddPrefill = sharedText,
                             onPrefillConsumed = { sharedText = null },
                             account = app.account,
@@ -166,6 +166,7 @@ fun TodoistoApp(
     var showStats by remember { mutableStateOf(false) }
     var showAccount by remember { mutableStateOf(false) }
     val accountProfile by account.account.collectAsState()
+    val cloudState by viewModel.cloudState.collectAsState()
     var detailAiExpanded by remember { mutableStateOf(false) }
     var editingActivity by remember { mutableStateOf<pl.media30.todoisto.data.Activity?>(null) }
 
@@ -319,6 +320,13 @@ fun TodoistoApp(
             onSelectTheme = onSelectTheme,
             onToggleDark = { viewModel.setDarkTheme(!darkTheme) },
             onLogout = { showAccount = false; account.logout() },
+            cloud = cloudState,
+            onCloudConfig = viewModel::setCloudConfig,
+            onCloudSignIn = viewModel::cloudSignIn,
+            onCloudSignUp = viewModel::cloudSignUp,
+            onCloudSignOut = viewModel::cloudSignOut,
+            onCloudBackup = viewModel::cloudBackup,
+            onCloudRestore = viewModel::cloudRestore,
             onBack = { showAccount = false }
         )
     }

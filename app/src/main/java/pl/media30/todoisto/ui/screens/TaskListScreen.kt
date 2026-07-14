@@ -78,6 +78,10 @@ import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -1040,6 +1044,7 @@ private fun ZenRowWithSubs(
         val rightCompletes = LocalSwipeRightCompletes.current
         // Swipe „przełóż" rozwija w dół wybór daty (do kiedy); po wyborze się zwija.
         var reschedOpen by remember { mutableStateOf(false) }
+        var showDatePicker by remember { mutableStateOf(false) }
         val dismiss = androidx.compose.material3.rememberSwipeToDismissBoxState(
             confirmValueChange = { value ->
                 val toEnd = value == androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd
@@ -1123,7 +1128,16 @@ private fun ZenRowWithSubs(
                         OverdueChip("Pojutrze") { onPick(todayEpoch + 2) }
                         OverdueChip("Weekend") { onPick(nextWeekend(todayEpoch)) }
                         OverdueChip("+7 dni") { onPick(todayEpoch + 7) }
+                        OverdueChip("Data…") { showDatePicker = true }
                     }
+                }
+                if (showDatePicker) {
+                    val resched = LocalReschedule.current
+                    ReschedDatePicker(
+                        initialEpochDay = task.dueDate ?: todayEpoch,
+                        onDismiss = { showDatePicker = false },
+                        onPick = { day -> resched(task, day); showDatePicker = false; reschedOpen = false }
+                    )
                 }
             }
         }
@@ -1162,6 +1176,24 @@ private fun nextWeekend(todayEpoch: Long): Long {
     var next = java.time.LocalDate.ofEpochDay(todayEpoch).plusDays(1)
     while (next.dayOfWeek != java.time.DayOfWeek.SATURDAY) next = next.plusDays(1)
     return next.toEpochDay()
+}
+
+/** Pełny kalendarz do przełożenia zadania na dowolny dzień. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReschedDatePicker(initialEpochDay: Long, onDismiss: () -> Unit, onPick: (Long) -> Unit) {
+    val state = rememberDatePickerState(initialSelectedDateMillis = initialEpochDay * 86_400_000L)
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                state.selectedDateMillis?.let { ms ->
+                    onPick(java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneOffset.UTC).toLocalDate().toEpochDay())
+                }
+            }) { Text("OK") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Anuluj") } }
+    ) { DatePicker(state = state) }
 }
 
 /** Preferencja: przesunięcie w prawo ukańcza (true) lub odkłada (false). */

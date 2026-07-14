@@ -259,6 +259,13 @@ fun TaskListScreen(
     ) { uri ->
         if (uri != null) pl.media30.todoisto.data.NoteScan.bytesFromUri(scanCtx, uri)?.let(onScanNote)
     } else null
+    // Dodawanie głosowe — systemowe rozpoznawanie mowy; tekst idzie przez parser.
+    val voiceInput = if (hasRegistry) androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val spoken = result.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (!spoken.isNullOrBlank()) onQuickAdd(spoken, QuickAddOverrides())
+    } else null
 
     // Wstecz (systemowe) zamyka kolejno otwarte nakładki — intuicyjna nawigacja.
     androidx.activity.compose.BackHandler(enabled = qaOpen) { qaOpen = false }
@@ -380,6 +387,18 @@ fun TaskListScreen(
                     GlassMenuItem("Wybierz zdjęcie kartki") {
                         menuOpen = false
                         pickPhoto?.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    }
+                    GlassMenuItem("Dodaj głosowo (mikrofon)") {
+                        menuOpen = false
+                        val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                            putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                            putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "pl-PL")
+                            putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Powiedz zadanie…")
+                        }
+                        val ok = runCatching { voiceInput?.launch(intent) }.isSuccess
+                        if (!ok || voiceInput == null) {
+                            android.widget.Toast.makeText(scanCtx, "Brak rozpoznawania mowy na tym urządzeniu.", android.widget.Toast.LENGTH_SHORT).show()
+                        }
                     }
                     GlassMenuItem("Wyślij plan dnia") { menuOpen = false; onSharePlan() }
                     GlassMenuItem("Usuń ukończone") { menuOpen = false; onClearCompleted() }

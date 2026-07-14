@@ -74,14 +74,15 @@ object AiClient {
      * osobne żądanie (dall-e-3 obsługuje n=1). Uwaga: to operacja płatna.
      */
     private fun generateOne(apiKey: String, prompt: String): ByteArray {
-        // Uwaga: NIE wysyłamy już "response_format" — nowsze API/modele obrazów je
-        // odrzucają ("Unknown parameter: 'response_format'"). Domyślnie dall-e-3
-        // zwraca URL, a gpt-image-1 zwraca b64_json — obsługujemy oba przypadki.
+        // Model obrazów: gpt-image-1 (aktualny). Uwaga: NIE wysyłamy
+        // "response_format" — gpt-image-1 go nie przyjmuje i zawsze zwraca b64_json.
+        // Rozmiar 1024x1536 to pionowy format wspierany przez gpt-image-1
+        // (1024x1792 było tylko dla dall-e-3, który na tym koncie nie istnieje).
         val body = JSONObject().apply {
-            put("model", "dall-e-3")
+            put("model", "gpt-image-1")
             put("prompt", prompt)
             put("n", 1)
-            put("size", "1024x1792")
+            put("size", "1024x1536")
         }.toString()
         val conn = (URL("https://api.openai.com/v1/images/generations").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"

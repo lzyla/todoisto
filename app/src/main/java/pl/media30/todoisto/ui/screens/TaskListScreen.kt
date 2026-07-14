@@ -1036,8 +1036,10 @@ private fun ZenRowWithSubs(
     // key(task.id) — stabilny stan swipe'u mimo zmian listy (bez pomyłki wierszy).
     androidx.compose.runtime.key(task.id) {
         val view = LocalView.current
-        // Konfigurowalne przesunięcia: prawe = ukończ lub odłóż (ustawienia).
+        // Konfigurowalne przesunięcia: prawe = ukończ lub przełóż (ustawienia).
         val rightCompletes = LocalSwipeRightCompletes.current
+        // Swipe „przełóż" rozwija w dół wybór daty (do kiedy); po wyborze się zwija.
+        var reschedOpen by remember { mutableStateOf(false) }
         val dismiss = androidx.compose.material3.rememberSwipeToDismissBoxState(
             confirmValueChange = { value ->
                 val toEnd = value == androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd
@@ -1046,7 +1048,7 @@ private fun ZenRowWithSubs(
                 val defer = (toStart && rightCompletes) || (toEnd && !rightCompletes)
                 when {
                     complete -> view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM).also { onToggle(task) }
-                    defer -> view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK).also { onDefer(task) }
+                    defer -> view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK).also { reschedOpen = !reschedOpen }
                 }
                 false // akcja odpalona — kafelek wraca na miejsce
             },
@@ -1100,19 +1102,27 @@ private fun ZenRowWithSubs(
                 node.subtasks.forEach { sub ->
                     TaskRowZen(sub, "", { onToggle(sub) }, { onTaskClick(sub) }, compact = true)
                 }
-                // Zaległe: szybkie przełożenie na kolejne dni.
-                if (task.dueDate != null && task.dueDate!! < todayEpoch && !task.isCompleted) {
+                // Przełóż „do kiedy": rozwijane swipe'em, a dla zaległych zawsze widoczne.
+                // Po wyborze daty panel się zwija (reschedOpen = false).
+                val overdue = task.dueDate != null && task.dueDate!! < todayEpoch && !task.isCompleted
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = reschedOpen || overdue,
+                    enter = androidx.compose.animation.expandVertically(tween(220, easing = EASE)) + androidx.compose.animation.fadeIn(tween(180)),
+                    exit = androidx.compose.animation.shrinkVertically(tween(200, easing = EASE)) + androidx.compose.animation.fadeOut(tween(140))
+                ) {
                     val resched = LocalReschedule.current
+                    val onPick: (Long) -> Unit = { day -> resched(task, day); reschedOpen = false }
                     androidx.compose.foundation.layout.FlowRow(
                         Modifier.fillMaxWidth().padding(start = 14.dp, end = 12.dp, top = 2.dp, bottom = 11.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text("Przełóż:", fontSize = 11.sp, fontWeight = FontWeight.W700, color = Color(0xFFC2410C), modifier = Modifier.align(Alignment.CenterVertically))
-                        OverdueChip("Dziś") { resched(task, todayEpoch) }
-                        OverdueChip("Jutro") { resched(task, todayEpoch + 1) }
-                        OverdueChip("Pojutrze") { resched(task, todayEpoch + 2) }
-                        OverdueChip("+7 dni") { resched(task, todayEpoch + 7) }
+                        Text("Przełóż do:", fontSize = 11.sp, fontWeight = FontWeight.W700, color = Color(0xFFC2410C), modifier = Modifier.align(Alignment.CenterVertically))
+                        OverdueChip("Dziś") { onPick(todayEpoch) }
+                        OverdueChip("Jutro") { onPick(todayEpoch + 1) }
+                        OverdueChip("Pojutrze") { onPick(todayEpoch + 2) }
+                        OverdueChip("Weekend") { onPick(nextWeekend(todayEpoch)) }
+                        OverdueChip("+7 dni") { onPick(todayEpoch + 7) }
                     }
                 }
             }
@@ -1143,8 +1153,15 @@ private fun SwipeBg(dir: androidx.compose.material3.SwipeToDismissBoxValue, righ
             null, tint = Color.White, modifier = Modifier.size(22.dp)
         )
         Spacer(Modifier.width(8.dp))
-        Text(if (isComplete) "Ukończ" else "Na jutro", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W800)
+        Text(if (isComplete) "Ukończ" else "Przełóż", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W800)
     }
+}
+
+/** Najbliższa sobota (dla chipa „Weekend"). */
+private fun nextWeekend(todayEpoch: Long): Long {
+    var next = java.time.LocalDate.ofEpochDay(todayEpoch).plusDays(1)
+    while (next.dayOfWeek != java.time.DayOfWeek.SATURDAY) next = next.plusDays(1)
+    return next.toEpochDay()
 }
 
 /** Preferencja: przesunięcie w prawo ukańcza (true) lub odkłada (false). */

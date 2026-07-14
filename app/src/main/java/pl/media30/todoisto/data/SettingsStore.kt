@@ -19,6 +19,16 @@ class SettingsStore(context: Context) {
         return f.absolutePath
     }
 
+    /**
+     * Importuje zdjęcie z [uri] (np. z galerii): dekoduje, skaluje i zapisuje
+     * jako własny plik JPEG. Zwraca ścieżkę albo null przy błędzie. Dzięki temu
+     * upload nie zależy od surowego kopiowania strumienia (które bywa zawodne).
+     */
+    fun importBackgroundFromUri(uri: android.net.Uri): String? {
+        val bytes = NoteScan.bytesFromUri(appContext, uri, 1600) ?: return null
+        return saveBackgroundBytes(bytes, "up_${System.currentTimeMillis()}.jpg")
+    }
+
     private val _darkTheme = MutableStateFlow(prefs.getBoolean(KEY_DARK, false))
     val darkTheme: StateFlow<Boolean> = _darkTheme.asStateFlow()
 

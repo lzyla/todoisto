@@ -26,6 +26,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,6 +52,8 @@ import androidx.compose.material.icons.outlined.DataUsage
 import androidx.compose.material.icons.outlined.Paid
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Shuffle
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
@@ -122,9 +128,10 @@ fun SettingsScreen(
     bgBusy: Boolean,
     onSelectGradient: () -> Unit,
     onSelectScene: () -> Unit,
-    onAddCustomPhoto: (String) -> Unit,
+    onAddCustomPhoto: (android.net.Uri) -> Unit,
     onSetActiveCustom: (String) -> Unit,
     onRemoveCustom: (String) -> Unit,
+    onReorderCustom: (List<String>) -> Unit,
     onGenerateAi: () -> Unit,
     onGeneratePhaseAi: () -> Unit,
     onAddPresets: () -> Unit,
@@ -164,7 +171,7 @@ fun SettingsScreen(
                 if (route == 2) BackgroundSettings(
                     dark, photo, activeCustomBg, usePhaseBg, customPhotos, bgBusy,
                     onSelectGradient, onSelectScene, onAddCustomPhoto, onSetActiveCustom, onRemoveCustom,
-                    onAddPresets
+                    onReorderCustom, onAddPresets
                 ) else if (route == 0) MainSettings(
                     dark, photo, activeCustomBg, hasApiKey, dailyGoal, weeklyGoal,
                     aiPromptTokens, aiCompletionTokens, aiImageCount, onResetAiUsage,
@@ -407,15 +414,15 @@ private fun fmt(n: Long): String = "%,d".format(n).replace(',', ' ')
 private fun BackgroundSettings(
     dark: Boolean, photo: Boolean, activeCustomBg: String, usePhaseBg: Boolean, customPhotos: List<String>,
     bgBusy: Boolean,
-    onSelectGradient: () -> Unit, onSelectScene: () -> Unit, onAddCustomPhoto: (String) -> Unit,
+    onSelectGradient: () -> Unit, onSelectScene: () -> Unit, onAddCustomPhoto: (android.net.Uri) -> Unit,
     onSetActiveCustom: (String) -> Unit, onRemoveCustom: (String) -> Unit,
+    onReorderCustom: (List<String>) -> Unit,
     onAddPresets: () -> Unit
 ) {
-    val context = LocalContext.current
     val customActive = activeCustomBg.isNotBlank() && !usePhaseBg
     val hasRegistry = androidx.activity.compose.LocalActivityResultRegistryOwner.current != null
     val picker = if (hasRegistry) rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) copyUriToBackground(context, uri)?.let(onAddCustomPhoto)
+        if (uri != null) onAddCustomPhoto(uri)
     } else null
 
     SettingsSection("Rodzaj tła")
@@ -429,38 +436,10 @@ private fun BackgroundSettings(
     SettingsSection("Zdjęcie w tle")
     SettingsCard {
         Column(Modifier.fillMaxWidth().padding(14.dp)) {
-            Text("Wrzuć do 3 własnych zdjęć lub wylosuj gotowe. Dotknij kafelka, aby ustawić jako tło.", fontSize = 12.5.sp, color = GlassTextSecondary)
+            Text("Wrzuć do 3 własnych zdjęć lub wylosuj gotowe. Dotknij kafelka, aby ustawić jako tło; przytrzymaj i przeciągnij, aby zmienić kolejność.", fontSize = 12.5.sp, color = GlassTextSecondary)
             Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                (0 until 3).forEach { i ->
-                    val path = customPhotos.getOrNull(i)
-                    val isActive = path != null && path == activeCustomBg
-                    Box(
-                        Modifier.weight(1f).aspectRatio(0.62f).clip(RoundedCornerShape(16.dp))
-                            .background(GlassTextSecondary.copy(alpha = 0.12f))
-                            .then(if (isActive) Modifier.border(2.5.dp, GlassAccent, RoundedCornerShape(16.dp)) else Modifier)
-                    ) {
-                        if (path != null) {
-                            coil.compose.AsyncImage(
-                                model = java.io.File(path), contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)).bouncy(0.95f) { onSetActiveCustom(path) }
-                            )
-                            Box(
-                                Modifier.align(Alignment.TopEnd).padding(4.dp).size(22.dp).clip(CircleShape)
-                                    .background(Color(0x99000000)).bouncy(0.9f) { onRemoveCustom(path) },
-                                contentAlignment = Alignment.Center
-                            ) { Icon(Icons.Filled.Close, "Usuń", tint = Color.White, modifier = Modifier.size(13.dp)) }
-                        } else {
-                            Box(
-                                Modifier.fillMaxSize().bouncy(0.95f) {
-                                    picker?.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                                },
-                                contentAlignment = Alignment.Center
-                            ) { Icon(Icons.Filled.Add, "Dodaj zdjęcie", tint = GlassTextSecondary, modifier = Modifier.size(24.dp)) }
-                        }
-                    }
-                }
+            CustomPhotoTiles(customPhotos, activeCustomBg, onSetActiveCustom, onRemoveCustom, onReorderCustom) {
+                picker?.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             }
             Spacer(Modifier.height(14.dp))
             // GŁÓWNY przycisk — losuje 3 prawdziwe zdjęcia z kolorową maską apki.
@@ -506,13 +485,76 @@ private fun BgOptionRow(icon: ImageVector, tint: Color, title: String, subtitle:
     )
 }
 
-/** Kopiuje wybrane zdjęcie do wewnętrznego magazynu, zwraca ścieżkę pliku. */
-private fun copyUriToBackground(context: android.content.Context, uri: android.net.Uri): String? = runCatching {
-    val dir = java.io.File(context.filesDir, "backgrounds").apply { mkdirs() }
-    val f = java.io.File(dir, "up_${System.currentTimeMillis()}.jpg")
-    context.contentResolver.openInputStream(uri)!!.use { input -> f.outputStream().use { input.copyTo(it) } }
-    f.absolutePath
-}.getOrNull()
+/**
+ * Kafelki własnych zdjęć z obsługą drag-and-drop (przytrzymaj i przeciągnij, by
+ * zmienić kolejność). Dotknięcie ustawia zdjęcie jako aktywne tło; „+" dodaje
+ * nowe (do 3). Kolejność podczas przeciągania trzymamy lokalnie dla płynnej
+ * animacji, a zapisujemy po puszczeniu.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun CustomPhotoTiles(
+    customPhotos: List<String>,
+    activeCustomBg: String,
+    onSetActive: (String) -> Unit,
+    onRemove: (String) -> Unit,
+    onReorder: (List<String>) -> Unit,
+    onAdd: () -> Unit
+) {
+    var order by remember(customPhotos) { mutableStateOf(customPhotos) }
+    val lazyState = rememberLazyListState()
+    val reorderState = rememberReorderableLazyListState(lazyState) { from, to ->
+        val list = order.toMutableList()
+        val f = from.index; val t = to.index
+        if (f in list.indices && t in list.indices) {
+            list.add(t, list.removeAt(f))
+            order = list
+        }
+    }
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val spacing = 10.dp
+        val tileW = (maxWidth - spacing * 2) / 3
+        LazyRow(
+            state = lazyState,
+            horizontalArrangement = Arrangement.spacedBy(spacing),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(order, key = { it }) { path ->
+                ReorderableItem(reorderState, key = path) { _ ->
+                    val isActive = path == activeCustomBg
+                    Box(
+                        Modifier.width(tileW).aspectRatio(0.62f).clip(RoundedCornerShape(16.dp))
+                            .background(GlassTextSecondary.copy(alpha = 0.12f))
+                            .then(if (isActive) Modifier.border(2.5.dp, GlassAccent, RoundedCornerShape(16.dp)) else Modifier)
+                    ) {
+                        coil.compose.AsyncImage(
+                            model = java.io.File(path), contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp))
+                                .longPressDraggableHandle(onDragStopped = { onReorder(order) })
+                                .bouncy(0.95f) { onSetActive(path) }
+                        )
+                        Box(
+                            Modifier.align(Alignment.TopEnd).padding(4.dp).size(22.dp).clip(CircleShape)
+                                .background(Color(0x99000000)).bouncy(0.9f) { onRemove(path) },
+                            contentAlignment = Alignment.Center
+                        ) { Icon(Icons.Filled.Close, "Usuń", tint = Color.White, modifier = Modifier.size(13.dp)) }
+                    }
+                }
+            }
+            if (order.size < 3) {
+                item(key = "add") {
+                    Box(
+                        Modifier.width(tileW).aspectRatio(0.62f).clip(RoundedCornerShape(16.dp))
+                            .background(GlassTextSecondary.copy(alpha = 0.12f))
+                            .bouncy(0.95f) { onAdd() },
+                        contentAlignment = Alignment.Center
+                    ) { Icon(Icons.Filled.Add, "Dodaj zdjęcie", tint = GlassTextSecondary, modifier = Modifier.size(24.dp)) }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun GeneralSettings(

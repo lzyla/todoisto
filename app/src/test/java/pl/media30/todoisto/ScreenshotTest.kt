@@ -226,7 +226,7 @@ class ScreenshotTest {
                     onSetAdminKey = {}, onRefreshCost = {},
                     customPhotos = emptyList(), activeCustomBg = "", usePhaseBg = false, aiImages = null, bgBusy = false,
                     onSelectGradient = {}, onSelectScene = {}, onAddCustomPhoto = {},
-                    onSetActiveCustom = {}, onRemoveCustom = {}, onGenerateAi = {}, onGeneratePhaseAi = {}, onAddPresets = {}, onDismissAiImages = {},
+                    onSetActiveCustom = {}, onRemoveCustom = {}, onReorderCustom = {}, onGenerateAi = {}, onGeneratePhaseAi = {}, onAddPresets = {}, onDismissAiImages = {},
                     onBack = {}, onToggleDark = {}, onTogglePhoto = {},
                     onSetApiKey = {}, onSetGoals = { _, _ -> },
                     onSetStartView = {}, onSetDateRecognition = {}, onSetWeekStartMonday = {},

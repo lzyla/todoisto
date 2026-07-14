@@ -167,15 +167,24 @@ class TodoViewModel(
     val usePhaseBg: StateFlow<Boolean> = settings.usePhaseBg
     fun setUsePhaseBg(value: Boolean) = settings.setUsePhaseBg(value)
     fun setCustomPhotos(paths: List<String>) = settings.setCustomPhotos(paths)
-    fun addCustomPhoto(path: String) {
-        val list = (settings.customPhotos.value + path).takeLast(3)
-        settings.setCustomPhotos(list)
-        // Od razu ustaw wgrane zdjęcie jako aktywne tło — widoczny efekt bez
-        // dodatkowego dotykania kafelka.
-        settings.setActiveCustomBg(path)
-        settings.setUsePhaseBg(false)
-        settings.setPhotoBackground(false)
+    /** Import wgranego zdjęcia z galerii (Uri) — dekodowanie/zapis w tle. */
+    fun addCustomPhotoFromUri(uri: android.net.Uri) {
+        viewModelScope.launch {
+            val path = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                settings.importBackgroundFromUri(uri)
+            } ?: return@launch
+            val list = (settings.customPhotos.value + path).takeLast(3)
+            settings.setCustomPhotos(list)
+            // Od razu ustaw wgrane zdjęcie jako aktywne tło — widoczny efekt bez
+            // dodatkowego dotykania kafelka.
+            settings.setActiveCustomBg(path)
+            settings.setUsePhaseBg(false)
+            settings.setPhotoBackground(false)
+        }
     }
+
+    /** Zmienia kolejność własnych zdjęć (drag and drop kafelków). */
+    fun reorderCustomPhotos(paths: List<String>) = settings.setCustomPhotos(paths)
     fun setActiveCustomBg(path: String) {
         settings.setActiveCustomBg(path)
         if (path.isNotBlank()) { settings.setPhotoBackground(false); settings.setUsePhaseBg(false) }

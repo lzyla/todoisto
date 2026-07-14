@@ -70,15 +70,20 @@ object GlassTheme {
     var photo by mutableStateOf(false)
     /** Własne tło (ścieżka pliku); gdy ustawione, ma priorytet nad gradientem/sceną. */
     var customBg by mutableStateOf<String?>(null)
+    // Kolory motywu (akcent + odcień kart) — ustawiane z wybranego ThemePalette.
+    var accentLight by mutableStateOf(Color(0xFF6E45D9))
+    var accentDark by mutableStateOf(Color(0xFFB99CFF))
+    var tintLight by mutableStateOf(Color(0xFFEAE2FB))
+    var tintDark by mutableStateOf(Color(0xFF7160B8))
 }
 private val d get() = GlassTheme.dark
 
 val GlassTextPrimary: Color get() = if (d) Color(0xFFFFFFFF) else Color(0xFF2A1F4D)
 val GlassTextSecondary: Color get() = if (d) Color(0xFFDCD0F8) else Color(0xFF6B5F95)
-val GlassAccent: Color get() = if (d) Color(0xFFB99CFF) else Color(0xFF6E45D9)
+val GlassAccent: Color get() = if (d) GlassTheme.accentDark else GlassTheme.accentLight
 
-/** Delikatny fioletowy odcień kart/tafli (zamiast czystej bieli). */
-val CardTint: Color get() = if (d) Color(0xFF7160B8) else Color(0xFFEAE2FB)
+/** Delikatny odcień kart/tafli w barwie motywu (zamiast czystej bieli). */
+val CardTint: Color get() = if (d) GlassTheme.tintDark else GlassTheme.tintLight
 
 /** --fill: wypełnienie tafli glass (delikatny fiolet, dobry kontrast z tłem). */
 val GlassFill: Color get() = if (d) CardTint.copy(alpha = 0.18f) else CardTint.copy(alpha = 0.42f)

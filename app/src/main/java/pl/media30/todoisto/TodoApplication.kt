@@ -16,6 +16,7 @@ class TodoApplication : Application() {
         TaskRepository(db.taskDao(), db.projectDao(), db.sectionDao(), db.labelDao(), db.activityDao(), db.areaDao())
     }
     val settings: SettingsStore by lazy { SettingsStore(this) }
+    val account: pl.media30.todoisto.data.AccountStore by lazy { pl.media30.todoisto.data.AccountStore(this) }
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

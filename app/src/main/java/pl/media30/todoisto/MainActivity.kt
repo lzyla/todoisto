@@ -46,10 +46,18 @@ class MainActivity : ComponentActivity() {
             val activeCustomBg by app.settings.activeCustomBg.collectAsState()
             val phaseBgs by app.settings.phaseBackgrounds.collectAsState()
             val usePhaseBg by app.settings.usePhaseBg.collectAsState()
+            val themeId by app.settings.themeId.collectAsState()
+            val loggedIn by app.account.loggedIn.collectAsState()
             val phase = pl.media30.todoisto.ui.theme.dayPhaseFromClock()
             GlassTheme.dark = dark
             GlassTheme.photo = photoBg
             GlassTheme.phase = phase
+            // Kolory motywu (akcent + odcień kart) z wybranej palety.
+            val pal = pl.media30.todoisto.ui.theme.ThemePalettes.byId(themeId)
+            GlassTheme.accentLight = pal.accentLight
+            GlassTheme.accentDark = pal.accentDark
+            GlassTheme.tintLight = pal.tintLight
+            GlassTheme.tintDark = pal.tintDark
             // Priorytet: realistyczne tło wg pory dnia (AI) → własne zdjęcie → gradient/scena.
             val phaseIdx = when (phase) {
                 pl.media30.todoisto.ui.theme.DayPhase.MORNING -> 0
@@ -63,11 +71,22 @@ class MainActivity : ComponentActivity() {
             }
             TodoistoTheme {
                 GlassBackground {
-                    TodoistoApp(
-                        viewModel = viewModel(factory = TodoViewModel.Factory(app.repository, app.settings)),
-                        quickAddPrefill = sharedText,
-                        onPrefillConsumed = { sharedText = null }
-                    )
+                    if (!loggedIn) {
+                        pl.media30.todoisto.ui.screens.AuthScreen(
+                            hasAccount = app.account.hasAccount,
+                            onLogin = { e, p -> app.account.login(e, p) },
+                            onRegister = { n, e, p -> app.account.register(n, e, p) }
+                        )
+                    } else {
+                        TodoistoApp(
+                            viewModel = viewModel(factory = TodoViewModel.Factory(app.repository, app.settings)),
+                            quickAddPrefill = sharedText,
+                            onPrefillConsumed = { sharedText = null },
+                            account = app.account,
+                            themeId = themeId,
+                            onSelectTheme = app.settings::setThemeId
+                        )
+                    }
                 }
             }
         }
@@ -101,7 +120,10 @@ class MainActivity : ComponentActivity() {
 fun TodoistoApp(
     viewModel: TodoViewModel,
     quickAddPrefill: String? = null,
-    onPrefillConsumed: () -> Unit = {}
+    onPrefillConsumed: () -> Unit = {},
+    account: pl.media30.todoisto.data.AccountStore,
+    themeId: String,
+    onSelectTheme: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val projects by viewModel.projects.collectAsState()
@@ -142,6 +164,8 @@ fun TodoistoApp(
     var showEstimate by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var showStats by remember { mutableStateOf(false) }
+    var showAccount by remember { mutableStateOf(false) }
+    val accountProfile by account.account.collectAsState()
     var detailAiExpanded by remember { mutableStateOf(false) }
     var editingActivity by remember { mutableStateOf<pl.media30.todoisto.data.Activity?>(null) }
 
@@ -224,6 +248,7 @@ fun TodoistoApp(
         onSetApiKey = viewModel::setOpenAiKey,
         onOpenSettings = { showSettings = true },
         onOpenStats = { showStats = true },
+        onOpenAccount = { showAccount = true },
         swipeRightCompletes = swipeRightCompletes,
         onReorder = viewModel::reorderTasks,
         onScanNote = viewModel::scanNoteImage,
@@ -278,7 +303,23 @@ fun TodoistoApp(
             onSetCompletionSound = viewModel::setCompletionSound,
             onSetSwipeRightCompletes = viewModel::setSwipeRightCompletes,
             onOpenPool = { showSettings = false; showPool = true },
-            onOpenImport = { showSettings = false; showImport = true }
+            onOpenImport = { showSettings = false; showImport = true },
+            themeId = themeId,
+            onSelectTheme = onSelectTheme,
+            onOpenAccount = { showSettings = false; showAccount = true }
+        )
+    }
+
+    // Ekran „Konto" — profil, motyw kolorów, tryb nocny, wylogowanie.
+    if (showAccount) {
+        pl.media30.todoisto.ui.screens.AccountScreen(
+            account = accountProfile,
+            dark = darkTheme,
+            themeId = themeId,
+            onSelectTheme = onSelectTheme,
+            onToggleDark = { viewModel.setDarkTheme(!darkTheme) },
+            onLogout = { showAccount = false; account.logout() },
+            onBack = { showAccount = false }
         )
     }
 

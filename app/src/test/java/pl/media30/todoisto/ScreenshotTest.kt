@@ -227,6 +227,7 @@ class ScreenshotTest {
                     customPhotos = emptyList(), activeCustomBg = "", usePhaseBg = false, aiImages = null, bgBusy = false,
                     onSelectGradient = {}, onSelectScene = {}, onAddCustomPhoto = {},
                     onSetActiveCustom = {}, onRemoveCustom = {}, onReorderCustom = {}, onGenerateAi = {}, onGeneratePhaseAi = {}, onAddPresets = {}, onDismissAiImages = {},
+                    themeId = "violet", onSelectTheme = {}, onOpenAccount = {},
                     onBack = {}, onToggleDark = {}, onTogglePhoto = {},
                     onSetApiKey = {}, onSetGoals = { _, _ -> },
                     onSetStartView = {}, onSetDateRecognition = {}, onSetWeekStartMonday = {},

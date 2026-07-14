@@ -75,6 +75,7 @@ import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -220,6 +221,7 @@ fun TaskListScreen(
     onSetApiKey: (String) -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenStats: () -> Unit = {},
+    onOpenAccount: () -> Unit = {},
     swipeRightCompletes: Boolean = true,
     onReorder: (List<Long>) -> Unit = {},
     onScanNote: (ByteArray) -> Unit = {},
@@ -301,7 +303,8 @@ fun TaskListScreen(
                 hasApiKey = hasApiKey,
                 onOpenApiKey = { dialog = DialogKind.ApiKey },
                 onOpenSettings = { onOpenSettings(); scope.launch { drawerState.close() } },
-                onOpenStats = { onOpenStats(); scope.launch { drawerState.close() } }
+                onOpenStats = { onOpenStats(); scope.launch { drawerState.close() } },
+                onOpenAccount = { onOpenAccount(); scope.launch { drawerState.close() } }
             )
         }
     ) {
@@ -1531,7 +1534,8 @@ private fun DrawerContent(
     hasApiKey: Boolean,
     onOpenApiKey: () -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenStats: () -> Unit
+    onOpenStats: () -> Unit,
+    onOpenAccount: () -> Unit = {}
 ) {
     ModalDrawerSheet(
         drawerContainerColor = GlassDrawerBg,
@@ -1557,6 +1561,7 @@ private fun DrawerContent(
             DrawerRow(Icons.Outlined.Inbox, "Skrzynka", uiState.inboxCount, current == AppView.Inbox) { onSelect(AppView.Inbox) }
             DrawerRow(Icons.Outlined.CheckCircle, "Ukończone", null, current == AppView.Completed) { onSelect(AppView.Completed) }
             DrawerRow(Icons.Outlined.Bolt, "Pula aktywności", null, false, onOpenActivityPool)
+            DrawerRow(Icons.Outlined.AccountCircle, "Konto", null, false, onOpenAccount)
             DrawerRow(Icons.Outlined.Insights, "Statystyki", null, false, onOpenStats)
             DrawerRow(Icons.Outlined.Settings, "Ustawienia", null, false, onOpenSettings)
 

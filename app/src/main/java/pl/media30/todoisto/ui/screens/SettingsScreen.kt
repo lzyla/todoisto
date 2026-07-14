@@ -52,6 +52,8 @@ import androidx.compose.material.icons.outlined.DataUsage
 import androidx.compose.material.icons.outlined.Paid
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Shuffle
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Palette
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import androidx.compose.material.icons.outlined.EmojiEvents
@@ -136,6 +138,9 @@ fun SettingsScreen(
     onGeneratePhaseAi: () -> Unit,
     onAddPresets: () -> Unit,
     onDismissAiImages: () -> Unit,
+    themeId: String,
+    onSelectTheme: (String) -> Unit,
+    onOpenAccount: () -> Unit,
     onBack: () -> Unit,
     onToggleDark: () -> Unit,
     onTogglePhoto: () -> Unit,
@@ -161,7 +166,7 @@ fun SettingsScreen(
 
     GlassBackground {
         Column(Modifier.fillMaxSize()) {
-            TopBar(when (route) { 1 -> "Ogólne"; 2 -> "Tło"; else -> "Ustawienia" }) {
+            TopBar(when (route) { 1 -> "Ogólne"; 2 -> "Tło"; 3 -> "Motyw"; else -> "Ustawienia" }) {
                 if (route != 0) route = 0 else onBack()
             }
             Column(
@@ -172,12 +177,14 @@ fun SettingsScreen(
                     dark, photo, activeCustomBg, usePhaseBg, customPhotos, bgBusy,
                     onSelectGradient, onSelectScene, onAddCustomPhoto, onSetActiveCustom, onRemoveCustom,
                     onReorderCustom, onAddPresets
-                ) else if (route == 0) MainSettings(
+                ) else if (route == 3) ThemeSettings(themeId, onSelectTheme)
+                else if (route == 0) MainSettings(
                     dark, photo, activeCustomBg, hasApiKey, dailyGoal, weeklyGoal,
                     aiPromptTokens, aiCompletionTokens, aiImageCount, onResetAiUsage,
                     adminKeySet, aiCost, onRefreshCost, onOpenAdminKey = { showAdminKey = true },
                     onOpenGeneral = { route = 1 }, onOpenBackground = { route = 2 },
-                    onToggleDark,
+                    onToggleDark, themeName = pl.media30.todoisto.ui.theme.ThemePalettes.byId(themeId).name,
+                    onOpenTheme = { route = 3 }, onOpenAccount = onOpenAccount,
                     onOpenKey = { showKey = true }, onOpenGoals = { showGoals = true },
                     onOpenPool, onOpenImport
                 ) else GeneralSettings(
@@ -201,6 +208,7 @@ private fun MainSettings(
     adminKeySet: Boolean, aiCost: pl.media30.todoisto.ui.AiCostState?, onRefreshCost: () -> Unit, onOpenAdminKey: () -> Unit,
     onOpenGeneral: () -> Unit, onOpenBackground: () -> Unit,
     onToggleDark: () -> Unit,
+    themeName: String, onOpenTheme: () -> Unit, onOpenAccount: () -> Unit,
     onOpenKey: () -> Unit, onOpenGoals: () -> Unit,
     onOpenPool: () -> Unit, onOpenImport: () -> Unit
 ) {
@@ -209,12 +217,16 @@ private fun MainSettings(
 
     SettingsSection("Ustawienia")
     SettingsCard {
+        NavRow(Icons.Outlined.AccountCircle, Color(0xFF9B6BFF), "Konto", "Profil, motyw, wylogowanie", onClick = onOpenAccount)
+        RowDivider()
         NavRow(Icons.Outlined.Tune, Color(0xFF8AA0FF), "Ogólne", "Widok startowy, daty, tydzień, przesuwanie", onClick = onOpenGeneral)
     }
     Spacer(Modifier.height(22.dp))
 
     SettingsSection("Personalizacja")
     SettingsCard {
+        NavRow(Icons.Outlined.Palette, Color(0xFFFB7185), "Motyw", themeName, onClick = onOpenTheme)
+        RowDivider()
         ToggleRow(Icons.Outlined.DarkMode, Color(0xFF7C6BFF), "Tryb ciemny", if (dark) "Włączony" else "Wyłączony", dark, onToggleDark)
         RowDivider()
         val bgSub = when {
@@ -253,7 +265,7 @@ private fun MainSettings(
     SettingsCard {
         NavRow(Icons.Outlined.Info, Color(0xFF9AA6FF), "Wersja", "Todoisto 1.0", trailing = {})
         RowDivider()
-        NavRow(Icons.Outlined.Lock, Color(0xFF34D399), "Dane", "Przechowywane lokalnie · offline, bez konta", trailing = {})
+        NavRow(Icons.Outlined.Lock, Color(0xFF34D399), "Dane", "Przechowywane lokalnie · offline, konto tylko na urządzeniu", trailing = {})
     }
     Spacer(Modifier.height(18.dp))
     Text(
@@ -470,6 +482,38 @@ private fun BackgroundSettings(
         fontSize = 11.5.sp, color = GlassTextSecondary.copy(alpha = 0.85f),
         modifier = Modifier.padding(start = 6.dp, top = 8.dp, end = 6.dp)
     )
+}
+
+/** Wybór motywu kolorystycznego (siatka próbek). */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun ThemeSettings(themeId: String, onSelectTheme: (String) -> Unit) {
+    SettingsSection("Kolor akcentu")
+    SettingsCard {
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            Text("Zmienia kolor przycisków, akcentów i kart w całej apce.", fontSize = 12.5.sp, color = GlassTextSecondary)
+            Spacer(Modifier.height(14.dp))
+            androidx.compose.foundation.layout.FlowRow(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                pl.media30.todoisto.ui.theme.ThemePalettes.all.forEach { pal ->
+                    val selected = pal.id == themeId
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            Modifier.size(52.dp).clip(CircleShape).background(pal.swatch)
+                                .then(if (selected) Modifier.border(3.dp, GlassTextPrimary, CircleShape) else Modifier)
+                                .bouncy(0.9f) { onSelectTheme(pal.id) },
+                            contentAlignment = Alignment.Center
+                        ) { if (selected) Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(24.dp)) }
+                        Spacer(Modifier.height(6.dp))
+                        Text(pal.name, fontSize = 12.sp, fontWeight = if (selected) FontWeight.W800 else FontWeight.W600, color = if (selected) GlassTextPrimary else GlassTextSecondary)
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

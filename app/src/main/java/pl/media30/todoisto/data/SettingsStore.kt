@@ -32,6 +32,14 @@ class SettingsStore(context: Context) {
     private val _darkTheme = MutableStateFlow(prefs.getBoolean(KEY_DARK, false))
     val darkTheme: StateFlow<Boolean> = _darkTheme.asStateFlow()
 
+    // Motyw kolorystyczny (id z ThemePalettes; domyślnie fiolet).
+    private val _themeId = MutableStateFlow(prefs.getString(KEY_THEME, "violet").orEmpty())
+    val themeId: StateFlow<String> = _themeId.asStateFlow()
+    fun setThemeId(id: String) {
+        prefs.edit().putString(KEY_THEME, id).apply()
+        _themeId.value = id
+    }
+
     private val _dailyGoal = MutableStateFlow(prefs.getInt(KEY_DAILY, 5))
     val dailyGoal: StateFlow<Int> = _dailyGoal.asStateFlow()
 
@@ -220,6 +228,7 @@ class SettingsStore(context: Context) {
 
     private companion object {
         const val KEY_DARK = "dark_theme"
+        const val KEY_THEME = "color_theme"
         const val KEY_AI_IN = "ai_prompt_tokens"
         const val KEY_AI_OUT = "ai_completion_tokens"
         const val KEY_AI_IMAGES = "ai_image_count"

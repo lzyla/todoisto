@@ -447,6 +447,16 @@ private fun BackgroundSettings(
                     Text(if (usePhaseBg) "Wygeneruj ponownie (AI)" else "Wygeneruj tło pór dnia (AI)", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
                 }
             }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Błąd o braku uprawnień do obrazów? Otwórz OpenAI → API keys i utwórz klucz z dostępem All.",
+                fontSize = 12.sp, fontWeight = FontWeight.W700, color = GlassAccent,
+                modifier = Modifier.bouncy(1f) {
+                    runCatching {
+                        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://platform.openai.com/api-keys")))
+                    }
+                }
+            )
         }
     }
     Spacer(Modifier.height(22.dp))

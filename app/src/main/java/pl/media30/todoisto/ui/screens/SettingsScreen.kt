@@ -47,6 +47,7 @@ import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DataUsage
 import androidx.compose.material.icons.outlined.Paid
 import androidx.compose.material.icons.outlined.RestartAlt
+import androidx.compose.material.icons.outlined.Shuffle
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
@@ -498,33 +499,38 @@ private fun BackgroundSettings(
                 }
             }
             Spacer(Modifier.height(14.dp))
-            // Generowanie AI
+            // GŁÓWNY przycisk — losowanie: natychmiastowe, bez AI i bez kosztów.
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent)
+                    .bouncy(0.97f) { onAddPresets() }.padding(vertical = 14.dp),
+                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Outlined.Shuffle, null, tint = Color.White, modifier = Modifier.size(17.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Losuj tło", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.W800)
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Natychmiast, bez internetu. Klikaj do skutku — za każdym razem inny zestaw.",
+                fontSize = 11.5.sp, color = GlassTextSecondary
+            )
+            Spacer(Modifier.height(12.dp))
+            // Opcja dodatkowa (wolna, płatna) — generowanie przez AI.
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent.copy(alpha = if (dark) 0.22f else 0.12f))
                     .bouncy(0.97f) { if (aiImages?.loading != true) onGenerateAi() }
                     .padding(vertical = 13.dp),
                 horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
             ) {
                 if (aiImages?.loading == true) {
-                    CircularProgressIndicator(color = Color.White, strokeWidth = 2.5.dp, modifier = Modifier.size(18.dp))
+                    CircularProgressIndicator(color = GlassAccent, strokeWidth = 2.5.dp, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(10.dp))
-                    Text("Generuję 3 tła…", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
+                    Text("Generuję (potrwa chwilę)…", color = GlassAccent, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
                 } else {
-                    Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Wygeneruj 3 propozycje (AI)", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
+                    Text("Wygeneruj przez AI (wolniejsze)", color = GlassAccent, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
                 }
-            }
-            Spacer(Modifier.height(10.dp))
-            // Gotowe propozycje (bez AI, bez kosztów).
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(GlassAccent.copy(alpha = if (dark) 0.22f else 0.12f))
-                    .bouncy(0.97f) { onAddPresets() }.padding(vertical = 13.dp),
-                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Outlined.Gradient, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Losuj 3 tła (bez AI)", color = GlassAccent, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
             }
             if (aiImages?.needsKey == true) {
                 Spacer(Modifier.height(8.dp))

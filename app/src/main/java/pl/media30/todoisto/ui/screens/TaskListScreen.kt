@@ -1279,6 +1279,19 @@ private fun QuickAddMorph(
         val bg by animateColorAsState(if (open) GlassSurface else GlassAccent, tween(400), label = "qaBg")
         val rot by animateFloatAsState(if (open) 45f else 0f, tween(500, easing = EASE), label = "qaRot")
         val parsed = remember(text) { QuickAddParser().parse(text) }
+        var showCal by remember { mutableStateOf(false) }
+        if (showCal) {
+            ReschedDatePicker(
+                initialEpochDay = parsed.dueDate ?: LocalDate.now().toEpochDay(),
+                onDismiss = { showCal = false },
+                onPick = { day ->
+                    // Wstaw wybrany dzień jako datę ISO — parser rozpozna go jako termin.
+                    val iso = LocalDate.ofEpochDay(day).toString()
+                    onText((text.trimEnd() + " " + iso + " ").trimStart())
+                    showCal = false
+                }
+            )
+        }
 
         Box(
             Modifier
@@ -1353,6 +1366,16 @@ private fun QuickAddMorph(
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         val addToken: (String) -> Unit = { tok ->
                             onText((text.trimEnd() + " " + tok + " ").trimStart())
+                        }
+                        // Ikona kalendarza — rozwija wybór konkretnego dnia.
+                        Row(
+                            Modifier.clip(RoundedCornerShape(50)).background(GlassAccent.copy(alpha = 0.15f))
+                                .bouncy(0.9f) { showCal = true }.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Outlined.CalendarToday, "Wybierz dzień", tint = GlassAccent, modifier = Modifier.size(13.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text("Dzień…", fontSize = 11.5.sp, fontWeight = FontWeight.W800, color = GlassAccent)
                         }
                         QAToken("dzisiaj", GlassAccent) { addToken("dzisiaj") }
                         QAToken("jutro", GlassAccent) { addToken("jutro") }

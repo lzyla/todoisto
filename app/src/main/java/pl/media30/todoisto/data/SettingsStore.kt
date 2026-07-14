@@ -25,7 +25,11 @@ class SettingsStore(context: Context) {
      * upload nie zależy od surowego kopiowania strumienia (które bywa zawodne).
      */
     fun importBackgroundFromUri(uri: android.net.Uri): String? {
-        val bytes = NoteScan.bytesFromUri(appContext, uri, 1600) ?: return null
+        // Najpierw dekodowanie + skalowanie; gdy się nie uda — surowa kopia strumienia.
+        val bytes = NoteScan.bytesFromUri(appContext, uri, 1600) ?: runCatching {
+            appContext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+        }.getOrNull()
+        if (bytes == null || bytes.isEmpty()) return null
         return saveBackgroundBytes(bytes, "up_${System.currentTimeMillis()}.jpg")
     }
 

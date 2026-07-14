@@ -109,8 +109,8 @@ private fun AiContent(loading: Boolean, answer: String?, error: String?, needsKe
                 Text(error, fontSize = 13.sp, lineHeight = 19.sp, color = GlassTextSecondary)
             }
             answer != null -> Box(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState())) {
-                // Linki narzędzi na żółto, podkreślone; klik otwiera stronę w przeglądarce.
-                Text(aiAnnotated(answer, Color(0xFFC9820E)), fontSize = 13.5.sp, lineHeight = 20.sp, color = GlassTextPrimary)
+                // Linki narzędzi: niebieskie, podkreślone; klik otwiera stronę www.
+                Text(aiAnnotated(answer, Color(0xFF2563EB)), fontSize = 13.5.sp, lineHeight = 20.sp, color = GlassTextPrimary)
             }
         }
     }
@@ -119,10 +119,64 @@ private fun AiContent(loading: Boolean, answer: String?, error: String?, needsKe
 private val mdLinkRegex = Regex("""\[([^\]]+)]\((https?://[^\s)]+)\)""")
 private val urlRegex = Regex("""https?://[^\s)\]]+""")
 
+/** Znane narzędzia produktywności → strona www (do auto-linkowania nazw). */
+private val toolUrls: Map<String, String> = linkedMapOf(
+    "Google Calendar" to "https://calendar.google.com",
+    "Kalendarz Google" to "https://calendar.google.com",
+    "Google Sheets" to "https://sheets.google.com",
+    "Arkusze Google" to "https://sheets.google.com",
+    "Google Keep" to "https://keep.google.com",
+    "Google Drive" to "https://drive.google.com",
+    "Google Tasks" to "https://tasks.google.com",
+    "Microsoft To Do" to "https://to-do.office.com",
+    "Microsoft To-Do" to "https://to-do.office.com",
+    "Notion" to "https://notion.so",
+    "Todoist" to "https://todoist.com",
+    "Zapier" to "https://zapier.com",
+    "IFTTT" to "https://ifttt.com",
+    "Trello" to "https://trello.com",
+    "Asana" to "https://asana.com",
+    "ClickUp" to "https://clickup.com",
+    "Slack" to "https://slack.com",
+    "Obsidian" to "https://obsidian.md",
+    "Evernote" to "https://evernote.com",
+    "Airtable" to "https://airtable.com",
+    "ChatGPT" to "https://chat.openai.com",
+    "Calendly" to "https://calendly.com",
+    "Toggl" to "https://toggl.com",
+    "TickTick" to "https://ticktick.com",
+    "Habitica" to "https://habitica.com",
+    "Canva" to "https://canva.com",
+    "Loom" to "https://loom.com",
+    "Grammarly" to "https://grammarly.com",
+    "Miro" to "https://miro.com",
+    "Gmail" to "https://mail.google.com",
+    "Pomofocus" to "https://pomofocus.io",
+    "Make" to "https://make.com"
+)
+
+private val toolRegex = Regex(
+    "(?i)\\b(" + toolUrls.keys.sortedByDescending { it.length }.joinToString("|") { Regex.escape(it) } + ")\\b"
+)
+
+/** Do fragmentu tekstu (bez linków) dokleja auto-linki znanych narzędzi. */
+private fun androidx.compose.ui.text.AnnotatedString.Builder.appendWithToolLinks(chunk: String, styles: TextLinkStyles) {
+    var i = 0
+    while (i < chunk.length) {
+        val m = toolRegex.find(chunk, i)
+        if (m == null) { append(chunk.substring(i)); break }
+        if (m.range.first > i) append(chunk.substring(i, m.range.first))
+        val name = m.value
+        val url = toolUrls.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value
+        if (url != null) withLink(LinkAnnotation.Url(url, styles)) { append(name) } else append(name)
+        i = m.range.last + 1
+    }
+}
+
 /**
- * Zamienia odpowiedź AI na tekst z KLIKALNYMI linkami: rozpoznaje linki
- * Markdown [nazwa](url) oraz gołe adresy http(s). Kliknięcie otwiera stronę
- * narzędzia (domyślny UriHandler). Reszta tekstu bez zmian.
+ * Odpowiedź AI z KLIKALNYMI linkami: linki Markdown [nazwa](url), gołe adresy
+ * http(s) ORAZ nazwy znanych narzędzi (nawet bez podanego adresu) — wszystkie
+ * niebieskie i podkreślone; klik otwiera stronę (domyślny UriHandler).
  */
 private fun aiAnnotated(text: String, linkColor: Color): AnnotatedString = buildAnnotatedString {
     val linkStyles = TextLinkStyles(
@@ -134,8 +188,8 @@ private fun aiAnnotated(text: String, linkColor: Color): AnnotatedString = build
         val url = urlRegex.find(text, i)
         val useMd = md != null && (url == null || md.range.first <= url.range.first)
         val next = if (useMd) md else url
-        if (next == null) { append(text.substring(i)); break }
-        if (next.range.first > i) append(text.substring(i, next.range.first))
+        if (next == null) { appendWithToolLinks(text.substring(i), linkStyles); break }
+        if (next.range.first > i) appendWithToolLinks(text.substring(i, next.range.first), linkStyles)
         if (useMd && md != null) {
             withLink(LinkAnnotation.Url(md.groupValues[2], linkStyles)) { append(md.groupValues[1]) }
         } else {

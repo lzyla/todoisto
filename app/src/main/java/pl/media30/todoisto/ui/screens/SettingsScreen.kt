@@ -524,7 +524,7 @@ private fun BackgroundSettings(
             ) {
                 Icon(Icons.Outlined.Gradient, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Wstaw 3 gotowe tła (bez AI)", color = GlassAccent, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
+                Text("Losuj 3 tła (bez AI)", color = GlassAccent, fontSize = 13.5.sp, fontWeight = FontWeight.W800)
             }
             if (aiImages?.needsKey == true) {
                 Spacer(Modifier.height(8.dp))

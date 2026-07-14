@@ -228,19 +228,25 @@ class TodoViewModel(
         }
     }
 
-    /** Gotowe (wbudowane) propozycje tła — rysowane w kodzie, bez AI i bez kosztów. */
+    /**
+     * Losuje 3 gotowe (wbudowane) tła z banku palet — bez AI i bez kosztów.
+     * Każde kliknięcie wrzuca inny zestaw i od razu ustawia pierwsze jako tło,
+     * więc „losowanie" jest natychmiast widoczne.
+     */
     fun addPresetBackgrounds() {
         viewModelScope.launch {
-            val palettes = listOf(
-                intArrayOf(0xFFF3E7FF.toInt(), 0xFFFFE3F1.toInt(), 0xFFFFF0D9.toInt()), // fiolet→róż→żółty
-                intArrayOf(0xFFDDF3FF.toInt(), 0xFFE7ECFF.toInt(), 0xFFF6E7FF.toInt()), // błękit→lawenda
-                intArrayOf(0xFFFFE9D6.toInt(), 0xFFFFD9E3.toInt(), 0xFFE9D9FF.toInt())  // brzoskwinia→róż→fiolet
-            )
+            val palettes = pl.media30.todoisto.data.PresetBackgrounds.randomPalettes(3)
             val paths = palettes.mapIndexed { i, colors ->
                 val bytes = pl.media30.todoisto.data.PresetBackgrounds.gradientPng(1080, 1920, colors)
                 settings.saveBackgroundBytes(bytes, "preset_${System.currentTimeMillis()}_$i.png")
             }
             settings.setCustomPhotos(paths)
+            // Od razu ustaw pierwsze jako aktywne tło (widoczny efekt losowania).
+            paths.firstOrNull()?.let {
+                settings.setActiveCustomBg(it)
+                settings.setUsePhaseBg(false)
+                settings.setPhotoBackground(false)
+            }
         }
     }
 

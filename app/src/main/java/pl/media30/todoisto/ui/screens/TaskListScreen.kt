@@ -1600,7 +1600,7 @@ private fun DrawerContent(
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 20.dp)) {
             // Nagłówek konta: awatar (zdjęcie/inicjał) obok Todoisto — dotknięcie otwiera Konto.
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).bouncy(0.98f, onOpenAccount)
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).bouncy(0.98f, onOpenSettings)
                     .padding(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1632,7 +1632,6 @@ private fun DrawerContent(
             DrawerRow(Icons.Outlined.CheckCircle, "Ukończone", null, current == AppView.Completed) { onSelect(AppView.Completed) }
             DrawerRow(Icons.Outlined.Bolt, "Pula aktywności", null, false, onOpenActivityPool)
             DrawerRow(Icons.Outlined.Insights, "Statystyki", null, false, onOpenStats)
-            DrawerRow(Icons.Outlined.Settings, "Ustawienia", null, false, onOpenSettings)
 
             // Szacowanie: ile pracy zostało na dziś (suma czasów zadań) — klik → rozbicie
             EstimateCard(uiState.todayCount, uiState.estTodayMinutes, onOpenEstimate)

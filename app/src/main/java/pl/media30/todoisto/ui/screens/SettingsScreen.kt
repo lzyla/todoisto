@@ -247,8 +247,6 @@ private fun MainSettings(
         fontSize = 11.5.sp, color = GlassTextSecondary.copy(alpha = 0.85f),
         modifier = Modifier.padding(start = 6.dp, top = 8.dp, end = 6.dp)
     )
-    Spacer(Modifier.height(12.dp))
-    AiUsageCard(aiPromptTokens, aiCompletionTokens, aiImageCount, onResetAiUsage, adminKeySet, aiCost, onRefreshCost, onOpenAdminKey)
     Spacer(Modifier.height(22.dp))
 
     SettingsSection("Produktywność")
@@ -267,6 +265,10 @@ private fun MainSettings(
         RowDivider()
         NavRow(Icons.Outlined.Lock, Color(0xFF34D399), "Dane", "Przechowywane lokalnie · offline, konto tylko na urządzeniu", trailing = {})
     }
+    Spacer(Modifier.height(22.dp))
+
+    // „Zużycie AI" na samym dole ustawień.
+    AiUsageCard(aiPromptTokens, aiCompletionTokens, aiImageCount, onResetAiUsage, adminKeySet, aiCost, onRefreshCost, onOpenAdminKey)
     Spacer(Modifier.height(18.dp))
     Text(
         "Zrobione z ♥ dla spokojnego dnia.",

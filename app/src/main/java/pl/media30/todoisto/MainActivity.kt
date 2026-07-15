@@ -250,6 +250,7 @@ fun TodoistoApp(
         onOpenSettings = { showSettings = true },
         onOpenStats = { showStats = true },
         onOpenAccount = { showAccount = true },
+        accountInitial = (accountProfile?.name?.trim()?.firstOrNull()?.uppercaseChar() ?: "").toString(),
         swipeRightCompletes = swipeRightCompletes,
         onReorder = viewModel::reorderTasks,
         onScanNote = viewModel::scanNoteImage,

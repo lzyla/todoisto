@@ -60,6 +60,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
@@ -223,6 +224,7 @@ fun TaskListScreen(
     onOpenSettings: () -> Unit = {},
     onOpenStats: () -> Unit = {},
     onOpenAccount: () -> Unit = {},
+    accountInitial: String = "",
     swipeRightCompletes: Boolean = true,
     onReorder: (List<Long>) -> Unit = {},
     onScanNote: (ByteArray) -> Unit = {},
@@ -234,6 +236,7 @@ fun TaskListScreen(
     val scope = rememberCoroutineScope()
     var menuOpen by remember { mutableStateOf(false) }
     var sortMenuOpen by remember { mutableStateOf(false) }
+    var voiceOpen by remember { mutableStateOf(false) }
     var qaOpen by remember { mutableStateOf(false) }
     var qaText by remember { mutableStateOf("") }
     var routOpen by remember { mutableStateOf(routinesExpandedInitially) }
@@ -258,13 +261,6 @@ fun TaskListScreen(
         androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) pl.media30.todoisto.data.NoteScan.bytesFromUri(scanCtx, uri)?.let(onScanNote)
-    } else null
-    // Dodawanie głosowe — systemowe rozpoznawanie mowy; tekst idzie przez parser.
-    val voiceInput = if (hasRegistry) androidx.activity.compose.rememberLauncherForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val spoken = result.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-        if (!spoken.isNullOrBlank()) onQuickAdd(spoken, QuickAddOverrides())
     } else null
 
     // Wstecz (systemowe) zamyka kolejno otwarte nakładki — intuicyjna nawigacja.
@@ -356,14 +352,23 @@ fun TaskListScreen(
                 ZenContent(uiState, projects, labels, onToggle, onTaskClick, onDeferToTomorrow, onOpenAutomation, 0.dp, onReorder)
             }
 
-            // ── ⋮ akcje widoku — nakładka pod paskiem ─────────────────────────
-            Box(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 54.dp, end = 8.dp)) {
+            // ── Mikrofon + ⋮ — dwa osobne szklane kółka pod paskiem ───────────
+            Row(
+                Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 50.dp, end = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Dodawanie głosowe — osobny, okrągły przycisk (mikrofon).
                 Box(
-                    Modifier.size(34.dp).clip(CircleShape).bouncy(0.9f) { menuOpen = true },
+                    Modifier.size(40.dp).controlCenterGlass(CircleShape).bouncy(0.9f) { voiceOpen = true },
                     contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Filled.MoreVert, "Więcej", tint = GlassTextSecondary, modifier = Modifier.size(18.dp))
-                }
+                ) { Icon(Icons.Filled.Mic, "Dodaj głosowo", tint = GlassAccent, modifier = Modifier.size(19.dp)) }
+
+                Box {
+                    Box(
+                        Modifier.size(40.dp).controlCenterGlass(CircleShape).bouncy(0.9f) { menuOpen = true },
+                        contentAlignment = Alignment.Center
+                    ) { Icon(Icons.Filled.MoreVert, "Więcej", tint = GlassTextSecondary, modifier = Modifier.size(19.dp)) }
                 GlassMenu(expanded = menuOpen, onDismiss = { menuOpen = false }) {
                     GlassMenuItem("Sortowanie: ${uiState.sortMode.label}") { menuOpen = false; sortMenuOpen = true }
                     uiState.currentProject?.let { project ->
@@ -388,18 +393,6 @@ fun TaskListScreen(
                         menuOpen = false
                         pickPhoto?.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
                     }
-                    GlassMenuItem("Dodaj głosowo (mikrofon)") {
-                        menuOpen = false
-                        val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                            putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                            putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "pl-PL")
-                            putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Powiedz zadanie…")
-                        }
-                        val ok = runCatching { voiceInput?.launch(intent) }.isSuccess
-                        if (!ok || voiceInput == null) {
-                            android.widget.Toast.makeText(scanCtx, "Brak rozpoznawania mowy na tym urządzeniu.", android.widget.Toast.LENGTH_SHORT).show()
-                        }
-                    }
                     GlassMenuItem("Wyślij plan dnia") { menuOpen = false; onSharePlan() }
                     GlassMenuItem("Usuń ukończone") { menuOpen = false; onClearCompleted() }
                 }
@@ -407,6 +400,7 @@ fun TaskListScreen(
                     SortMode.entries.forEach { mode ->
                         GlassMenuItem((if (mode == uiState.sortMode) "✓ " else "") + mode.label) { sortMenuOpen = false; onSort(mode) }
                     }
+                }
                 }
             }
 
@@ -416,7 +410,14 @@ fun TaskListScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 CircleGlassButton({ scope.launch { drawerState.open() } }) {
-                    Icon(Icons.Filled.Menu, "Menu", tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
+                    if (accountInitial.isNotBlank()) {
+                        // Awatar konta (inicjał) — klik otwiera panel z ustawieniami i nawigacją.
+                        Box(Modifier.size(32.dp).clip(CircleShape).background(GlassAccent), contentAlignment = Alignment.Center) {
+                            Text(accountInitial, fontSize = 15.sp, fontWeight = FontWeight.W900, color = Color.White)
+                        }
+                    } else {
+                        Icon(Icons.Filled.Menu, "Menu", tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
+                    }
                 }
                 Spacer(Modifier.weight(1f))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -550,6 +551,14 @@ fun TaskListScreen(
                     onAction = { briefActionDone = true; onMoveOverdueToToday() },
                     onItemClick = { onTaskClick(it); briefOpen = false },
                     onClose = { briefOpen = false }
+                )
+            }
+
+            // ── Animowana nakładka nagrywania głosu ─────────────────────────
+            if (voiceOpen) {
+                VoiceCaptureOverlay(
+                    onResult = { text -> onQuickAdd(text, QuickAddOverrides()); voiceOpen = false },
+                    onDismiss = { voiceOpen = false }
                 )
             }
         }

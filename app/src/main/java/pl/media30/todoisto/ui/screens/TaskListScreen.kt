@@ -1326,9 +1326,11 @@ private fun QuickAddMorph(
     onScanGallery: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    BoxWithConstraintsFix(modifier.navigationBarsPadding().imePadding()) { maxW ->
+    BoxWithConstraintsFix(modifier.navigationBarsPadding().imePadding()) { maxW, maxH ->
         val width by animateDpAsState(if (open) maxW - 28.dp else 58.dp, tween(500, easing = EASE), label = "qaW")
-        val height by animateDpAsState(if (open) 360.dp else 58.dp, tween(500, easing = EASE), label = "qaH")
+        // Wysokość dopasowana do dostępnego miejsca (nad klawiaturą) — panel się mieści w całości.
+        val openH = 460.dp.coerceAtMost(maxH - 20.dp)
+        val height by animateDpAsState(if (open) openH else 58.dp, tween(500, easing = EASE), label = "qaH")
         val bottomPad by animateDpAsState(if (open) 16.dp else 84.dp, tween(500, easing = EASE), label = "qaB")
         val bg by animateColorAsState(if (open) GlassSurface else GlassAccent, tween(400), label = "qaBg")
         val rot by animateFloatAsState(if (open) 45f else 0f, tween(500, easing = EASE), label = "qaRot")
@@ -1469,7 +1471,7 @@ private fun QuickAddMorph(
                             Text("Z galerii", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassAccent)
                         }
                     }
-                    Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.height(16.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             "Anuluj", fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = GlassTextSecondary,
@@ -1493,8 +1495,8 @@ private fun QuickAddMorph(
 
 /** Pomocniczy BoxWithConstraints przekazujący maxWidth. */
 @Composable
-private fun BoxWithConstraintsFix(modifier: Modifier, content: @Composable (androidx.compose.ui.unit.Dp) -> Unit) {
-    androidx.compose.foundation.layout.BoxWithConstraints(modifier) { content(maxWidth) }
+private fun BoxWithConstraintsFix(modifier: Modifier, content: @Composable (androidx.compose.ui.unit.Dp, androidx.compose.ui.unit.Dp) -> Unit) {
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier) { content(maxWidth, maxHeight) }
 }
 
 @Composable

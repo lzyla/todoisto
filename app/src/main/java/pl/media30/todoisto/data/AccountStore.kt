@@ -19,10 +19,29 @@ data class Account(val name: String, val email: String)
  */
 class AccountStore(context: Context) {
 
-    private val prefs = context.applicationContext.getSharedPreferences("todoisto_account", Context.MODE_PRIVATE)
+    private val appContext = context.applicationContext
+    private val prefs = appContext.getSharedPreferences("todoisto_account", Context.MODE_PRIVATE)
 
     private val _account = MutableStateFlow(readAccount())
     val account: StateFlow<Account?> = _account.asStateFlow()
+
+    // Zdjęcie profilowe (ścieżka lokalnego pliku) — miniatura awatara.
+    private val _avatar = MutableStateFlow(prefs.getString(KEY_AVATAR, "").orEmpty())
+    val avatar: StateFlow<String> = _avatar.asStateFlow()
+
+    /** Zapisuje wybrane zdjęcie jako awatar; zwraca ścieżkę lub null przy błędzie. */
+    fun importAvatarFromUri(uri: android.net.Uri): String? {
+        val bytes = NoteScan.bytesFromUri(appContext, uri, 512) ?: runCatching {
+            appContext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+        }.getOrNull()
+        if (bytes == null || bytes.isEmpty()) return null
+        val dir = java.io.File(appContext.filesDir, "avatars").apply { mkdirs() }
+        val f = java.io.File(dir, "avatar_${System.currentTimeMillis()}.jpg")
+        f.writeBytes(bytes)
+        prefs.edit().putString(KEY_AVATAR, f.absolutePath).apply()
+        _avatar.value = f.absolutePath
+        return f.absolutePath
+    }
 
     private val _loggedIn = MutableStateFlow(prefs.getBoolean(KEY_LOGGED_IN, false))
     val loggedIn: StateFlow<Boolean> = _loggedIn.asStateFlow()
@@ -97,5 +116,6 @@ class AccountStore(context: Context) {
         const val KEY_SALT = "salt"
         const val KEY_HASH = "hash"
         const val KEY_LOGGED_IN = "logged_in"
+        const val KEY_AVATAR = "avatar_path"
     }
 }

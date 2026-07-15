@@ -225,6 +225,7 @@ fun TaskListScreen(
     onOpenStats: () -> Unit = {},
     onOpenAccount: () -> Unit = {},
     accountInitial: String = "",
+    accountAvatar: String = "",
     swipeRightCompletes: Boolean = true,
     onReorder: (List<Long>) -> Unit = {},
     onScanNote: (ByteArray) -> Unit = {},
@@ -360,12 +361,16 @@ fun TaskListScreen(
             ) {
                 // Awatar / menu — otwiera panel (szufladę z ustawieniami i nawigacją).
                 CircleGlassButton({ scope.launch { drawerState.open() } }) {
-                    if (accountInitial.isNotBlank()) {
-                        Box(Modifier.size(32.dp).clip(CircleShape).background(GlassAccent), contentAlignment = Alignment.Center) {
+                    when {
+                        accountAvatar.isNotBlank() -> coil.compose.AsyncImage(
+                            model = java.io.File(accountAvatar), contentDescription = "Konto",
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier.size(36.dp).clip(CircleShape)
+                        )
+                        accountInitial.isNotBlank() -> Box(Modifier.size(32.dp).clip(CircleShape).background(GlassAccent), contentAlignment = Alignment.Center) {
                             Text(accountInitial, fontSize = 15.sp, fontWeight = FontWeight.W900, color = Color.White)
                         }
-                    } else {
-                        Icon(Icons.Filled.Menu, "Menu", tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
+                        else -> Icon(Icons.Filled.Menu, "Menu", tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
                     }
                 }
                 AreaSwitcher(areas, activeAreaId, onSelectArea) { dialog = DialogKind.NewArea }
@@ -1617,7 +1622,6 @@ private fun DrawerContent(
             DrawerRow(Icons.Outlined.Inbox, "Skrzynka", uiState.inboxCount, current == AppView.Inbox) { onSelect(AppView.Inbox) }
             DrawerRow(Icons.Outlined.CheckCircle, "Ukończone", null, current == AppView.Completed) { onSelect(AppView.Completed) }
             DrawerRow(Icons.Outlined.Bolt, "Pula aktywności", null, false, onOpenActivityPool)
-            DrawerRow(Icons.Outlined.AccountCircle, "Konto", null, false, onOpenAccount)
             DrawerRow(Icons.Outlined.Insights, "Statystyki", null, false, onOpenStats)
             DrawerRow(Icons.Outlined.Settings, "Ustawienia", null, false, onOpenSettings)
 

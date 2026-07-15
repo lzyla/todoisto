@@ -62,6 +62,8 @@ import pl.media30.todoisto.ui.theme.glass
 @Composable
 fun AccountScreen(
     account: Account?,
+    avatar: String,
+    onPickAvatar: (android.net.Uri) -> Unit,
     dark: Boolean,
     themeId: String,
     onSelectTheme: (String) -> Unit,
@@ -96,19 +98,36 @@ fun AccountScreen(
                     .padding(horizontal = 18.dp).padding(top = 6.dp, bottom = 28.dp)
             ) {
                 // Profil
+                val hasReg = androidx.activity.compose.LocalActivityResultRegistryOwner.current != null
+                val avatarPicker = if (hasReg) androidx.activity.compose.rememberLauncherForActivityResult(
+                    androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()
+                ) { uri -> if (uri != null) onPickAvatar(uri) } else null
                 Row(
                     Modifier.fillMaxWidth().glass(RoundedCornerShape(24.dp)).padding(18.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val initial = (account?.name?.trim()?.firstOrNull() ?: '?').uppercaseChar().toString()
                     Box(
-                        Modifier.size(56.dp).clip(CircleShape).background(GlassAccent),
+                        Modifier.size(60.dp).clip(CircleShape).background(GlassAccent)
+                            .bouncy(0.9f) { avatarPicker?.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                         contentAlignment = Alignment.Center
-                    ) { Text(initial, fontSize = 24.sp, fontWeight = FontWeight.W900, color = Color.White) }
+                    ) {
+                        if (avatar.isNotBlank()) {
+                            coil.compose.AsyncImage(
+                                model = java.io.File(avatar), contentDescription = "Zdjęcie profilowe",
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                modifier = Modifier.size(60.dp).clip(CircleShape)
+                            )
+                        } else {
+                            Text(initial, fontSize = 24.sp, fontWeight = FontWeight.W900, color = Color.White)
+                        }
+                    }
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
                         Text(account?.name ?: "Użytkownik", fontSize = 18.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
                         Text(account?.email ?: "", fontSize = 13.sp, color = GlassTextSecondary)
+                        Spacer(Modifier.height(3.dp))
+                        Text("Dotknij zdjęcie, aby zmienić", fontSize = 11.sp, color = GlassAccent, fontWeight = FontWeight.W700)
                     }
                 }
                 Spacer(Modifier.height(24.dp))

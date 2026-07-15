@@ -166,6 +166,7 @@ fun TodoistoApp(
     var showStats by remember { mutableStateOf(false) }
     var showAccount by remember { mutableStateOf(false) }
     val accountProfile by account.account.collectAsState()
+    val accountAvatar by account.avatar.collectAsState()
     val cloudState by viewModel.cloudState.collectAsState()
     var detailAiExpanded by remember { mutableStateOf(false) }
     var editingActivity by remember { mutableStateOf<pl.media30.todoisto.data.Activity?>(null) }
@@ -251,6 +252,7 @@ fun TodoistoApp(
         onOpenStats = { showStats = true },
         onOpenAccount = { showAccount = true },
         accountInitial = (accountProfile?.name?.trim()?.firstOrNull()?.uppercaseChar() ?: "").toString(),
+        accountAvatar = accountAvatar,
         swipeRightCompletes = swipeRightCompletes,
         onReorder = viewModel::reorderTasks,
         onScanNote = viewModel::scanNoteImage,
@@ -316,6 +318,8 @@ fun TodoistoApp(
     if (showAccount) {
         pl.media30.todoisto.ui.screens.AccountScreen(
             account = accountProfile,
+            avatar = accountAvatar,
+            onPickAvatar = { uri -> account.importAvatarFromUri(uri) },
             dark = darkTheme,
             themeId = themeId,
             onSelectTheme = onSelectTheme,

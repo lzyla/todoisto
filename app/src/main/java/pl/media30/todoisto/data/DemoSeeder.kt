@@ -20,6 +20,7 @@ object DemoSeeder {
         if (settings.isDemoSeeded()) return
         try {
             seed(db)
+            settings.seedDemoStats()
             settings.markDemoSeeded()
         } catch (e: Exception) {
             android.util.Log.e("DemoSeeder", "Seeding failed", e)
@@ -140,6 +141,43 @@ object DemoSeeder {
             td.insert(Task(title = "Drobne zadanie -$d", isCompleted = true,
                 completedAt = millis(LocalDate.now().minusDays(d.toLong()), 16),
                 dueDate = today - d, projectId = nauka, position = p(), createdAt = now))
+        }
+
+        // ── Więcej zaległych (test sekcji „ZALEGŁE") ────────────────────────
+        td.insert(Task(title = "Rozliczyć delegację", priority = Priority.P2, dueDate = today - 3, projectId = praca, position = p(), createdAt = now))
+        td.insert(Task(title = "Umówić przegląd auta", priority = Priority.P3, dueDate = today - 4, projectId = dom, labelIds = listOf(lTelefon), position = p(), createdAt = now))
+        td.insert(Task(title = "Zapłacić za prąd", priority = Priority.P1, dueDate = today - 6, projectId = dom, labelIds = listOf(lPilne), position = p(), createdAt = now))
+
+        // ── Zadanie z linkiem (kafelek linku) + obrazkiem ───────────────────
+        td.insert(Task(title = "Przeczytać dokumentację Compose", priority = Priority.P3, dueDate = today + 2, projectId = nauka,
+            attachments = listOf("https://developer.android.com/jetpack/compose"), position = p(), createdAt = now))
+
+        // ── Historia ~6 miesięcy ukończonych zadań (streak, wykresy 30 dni,
+        //    dni tygodnia, godziny). Kilka luk, żeby streak był realistyczny. ──
+        val projCycle = listOf(praca, dom, zdrowie, nauka, kampania)
+        val histTitles = listOf(
+            "Przegląd maili", "Krótki trening", "Nauka — 20 min", "Sprzątanie", "Zakupy spożywcze",
+            "Telefon do klienta", "Spacer", "Czytanie 30 min", "Planowanie dnia", "Code review",
+            "Odpowiedzi na wiadomości", "Porządki w plikach", "Rozciąganie", "Notatki ze spotkania"
+        )
+        val hoursCycle = intArrayOf(8, 9, 11, 13, 15, 17, 19, 21)
+        for (d in 1..180) {
+            // Luka co 9. dzień, ale tylko starsze niż 18 dni (świeży streak zostaje ciągły).
+            if (d > 18 && d % 9 == 0) continue
+            val date = LocalDate.now().minusDays(d.toLong())
+            val count = 1 + (d + date.dayOfWeek.value) % 3   // 1..3 zadania/dzień
+            for (k in 0 until count) {
+                val hour = hoursCycle[(d * 2 + k) % hoursCycle.size]
+                val proj = projCycle[(d + k) % projCycle.size]
+                val title = histTitles[(d * 3 + k) % histTitles.size]
+                td.insert(Task(
+                    title = title, isCompleted = true,
+                    completedAt = millis(date, hour), dueDate = date.toEpochDay(),
+                    priority = Priority.entries[(d + k) % 4], projectId = proj,
+                    durationMinutes = intArrayOf(15, 20, 30, 45, 60)[(d + k) % 5],
+                    position = p(), createdAt = millis(date, 7)
+                ))
+            }
         }
 
         // ── Pula aktywności ─────────────────────────────────────────────────

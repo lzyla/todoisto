@@ -145,6 +145,25 @@ class SettingsStore(context: Context) {
         _avgActualMinutes.value = (sum / cnt).toInt()
     }
 
+    /** Zasiew statystyk demo (godziny otwarć, przesunięcia, śr. czas, zużycie AI). */
+    fun seedDemoStats() {
+        // Rozkład godzin otwierania — piki rano (8–9) i wieczorem (19–21).
+        val hours = IntArray(24)
+        val profile = mapOf(6 to 4, 7 to 12, 8 to 41, 9 to 38, 10 to 22, 11 to 18, 12 to 15,
+            13 to 20, 14 to 17, 15 to 24, 16 to 19, 17 to 21, 18 to 28, 19 to 44, 20 to 39, 21 to 33, 22 to 16, 23 to 7)
+        profile.forEach { (h, c) -> hours[h] = c }
+        prefs.edit()
+            .putString(KEY_OPEN_HOURS, hours.joinToString(","))
+            .putLong(KEY_DEFERS, 37)
+            .putLong(KEY_ACT_SUM, 1792).putInt(KEY_ACT_COUNT, 64)   // ~28 min/zadanie
+            .putLong(KEY_AI_IN, 42150).putLong(KEY_AI_OUT, 15320).putLong(KEY_AI_IMAGES, 4)
+            .apply()
+        _openHours.value = readHours()
+        _deferCount.value = 37
+        _avgActualMinutes.value = computeAvgActual()
+        _aiPromptTokens.value = 42150; _aiCompletionTokens.value = 15320; _aiImageCount.value = 4
+    }
+
     fun setGoals(daily: Int, weekly: Int) {
         prefs.edit().putInt(KEY_DAILY, daily).putInt(KEY_WEEKLY, weekly).apply()
         _dailyGoal.value = daily
@@ -279,7 +298,7 @@ class SettingsStore(context: Context) {
         const val KEY_SWIPE_RIGHT = "swipe_right_completes"
         // Wersjonowany klucz — bump wymusza jednorazowe ponowne zasianie u wszystkich
         // (v4: po dodaniu Obszarów baza jest przebudowywana, więc dosiewamy z obszarami).
-        const val KEY_SEEDED = "demo_seeded_v4"
+        const val KEY_SEEDED = "demo_seeded_v5"
         const val KEY_AREA = "active_area"
         const val KEY_OPENAI = "openai_key"
         const val KEY_OPENAI_ADMIN = "openai_admin_key"

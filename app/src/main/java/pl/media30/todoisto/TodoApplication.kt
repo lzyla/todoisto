@@ -23,7 +23,8 @@ class TodoApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // Dane demonstracyjne przy pierwszym uruchomieniu (żeby od razu było widać w akcji).
+        // Konto demo (zalogowane) + bogate dane demonstracyjne przy pierwszym uruchomieniu.
+        account.seedDemoIfEmpty()
         appScope.launch { DemoSeeder.seedIfEmpty(db, settings) }
     }
 }

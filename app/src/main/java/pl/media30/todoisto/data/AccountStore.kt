@@ -55,6 +55,12 @@ class AccountStore(context: Context) {
         return Account(name, email)
     }
 
+    /** Konto demo (jeśli nie ma jeszcze żadnego) — od razu zalogowane, by ominąć bramkę. */
+    fun seedDemoIfEmpty() {
+        if (hasAccount) return
+        register("Demo", "demo@todoisto.app", "demo1234")
+    }
+
     /** Rejestracja konta. Zwraca komunikat błędu albo null przy sukcesie (i loguje). */
     fun register(name: String, email: String, password: String): String? {
         val n = name.trim(); val e = email.trim().lowercase()

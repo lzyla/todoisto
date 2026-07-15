@@ -79,12 +79,13 @@ object AiClient {
     data class EstimateResult(val minutes: Int, val promptTokens: Int, val completionTokens: Int)
 
     /** Szacuje realny łączny czas wykonania zadań (w minutach) — model tekstowy. */
-    suspend fun estimateMinutes(apiKey: String, tasks: List<String>): EstimateResult = withContext(Dispatchers.IO) {
+    suspend fun estimateMinutes(apiKey: String, tasks: List<String>, avgPerTask: Int = 0): EstimateResult = withContext(Dispatchers.IO) {
         require(apiKey.isNotBlank()) { "Brak klucza API" }
         val list = tasks.joinToString("\n") { "- $it" }
+        val hint = if (avgPerTask > 0) "\n\nWskazówka: historyczna średnia użytkownika to ok. $avgPerTask min na zadanie — uwzględnij ją." else ""
         val prompt = "Oszacuj realistyczny łączny czas potrzebny jednej osobie na wykonanie poniższych zadań. " +
             "Weź pod uwagę typowy czas trwania i drobne przerwy. " +
-            "Odpowiedz WYŁĄCZNIE jedną liczbą całkowitą — liczbą minut, bez żadnego tekstu.\n\n$list"
+            "Odpowiedz WYŁĄCZNIE jedną liczbą całkowitą — liczbą minut, bez żadnego tekstu.\n\n$list$hint"
         val body = JSONObject().apply {
             put("model", MODEL)
             put("temperature", 0.2)

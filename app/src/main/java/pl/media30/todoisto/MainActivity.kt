@@ -169,6 +169,7 @@ fun TodoistoApp(
     val accountAvatar by account.avatar.collectAsState()
     val cloudState by viewModel.cloudState.collectAsState()
     val estimateAi by viewModel.estimateAi.collectAsState()
+    val avgActualMinutes by viewModel.avgActualMinutes.collectAsState()
     var detailAiExpanded by remember { mutableStateOf(false) }
     var editingActivity by remember { mutableStateOf<pl.media30.todoisto.data.Activity?>(null) }
 
@@ -204,7 +205,7 @@ fun TodoistoApp(
             }
             viewModel.toggleCompleted(t)
         },
-        onTaskClick = { detailTaskId = it.id; detailAiExpanded = false; viewModel.dismissAi(); viewModel.recordTaskOpen() },
+        onTaskClick = { detailTaskId = it.id; detailAiExpanded = false; viewModel.dismissAi(); viewModel.recordTaskOpen(); viewModel.markTaskOpened(it.id) },
         onQuickAdd = viewModel::quickAdd,
         onAddProject = viewModel::addProject,
         onDeleteProject = viewModel::deleteProject,
@@ -408,6 +409,7 @@ fun TodoistoApp(
             pl.media30.todoisto.ui.screens.EstimateBreakdownSheet(
                 items = todayOpen, projects = projects,
                 aiState = estimateAi,
+                avgActualMinutes = avgActualMinutes,
                 onEstimateAi = { viewModel.estimateTodayWithAi(todayOpen.map { it.title }) }
             )
         }

@@ -333,7 +333,7 @@ class TodoViewModel(
         _estimateAi.value = EstimateAiState(loading = true)
         viewModelScope.launch {
             _estimateAi.value = try {
-                val r = pl.media30.todoisto.data.AiClient.estimateMinutes(key, titles)
+                val r = pl.media30.todoisto.data.AiClient.estimateMinutes(key, titles, settings.avgActualMinutes.value)
                 settings.addAiUsage(r.promptTokens, r.completionTokens)
                 EstimateAiState(minutes = r.minutes)
             } catch (e: Exception) {
@@ -730,7 +730,12 @@ class TodoViewModel(
         }
     }
 
-    fun toggleCompleted(task: Task) = viewModelScope.launch { repository.toggleCompleted(task) }
+    fun toggleCompleted(task: Task) = viewModelScope.launch {
+        if (!task.isCompleted) settings.recordActualCompletion(task.id) // liczymy realny czas przy ukończeniu
+        repository.toggleCompleted(task)
+    }
+    fun markTaskOpened(id: Long) = settings.markTaskOpened(id)
+    val avgActualMinutes: StateFlow<Int> = settings.avgActualMinutes
 
     // --- Statystyki ---
     val deferCount: StateFlow<Long> = settings.deferCount

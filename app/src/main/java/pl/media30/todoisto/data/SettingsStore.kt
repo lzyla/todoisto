@@ -116,6 +116,35 @@ class SettingsStore(context: Context) {
         _openHours.value = list
     }
 
+    // --- Realny czas wykonania (heurystyka: otwarto → ukończono), średnia na zadanie ---
+    private fun computeAvgActual(): Int {
+        val c = prefs.getInt(KEY_ACT_COUNT, 0)
+        return if (c <= 0) 0 else (prefs.getLong(KEY_ACT_SUM, 0L) / c).toInt()
+    }
+    private val _avgActualMinutes = MutableStateFlow(computeAvgActual())
+    val avgActualMinutes: StateFlow<Int> = _avgActualMinutes.asStateFlow()
+    val actualSamples: Int get() = prefs.getInt(KEY_ACT_COUNT, 0)
+
+    /** Zapamiętuje moment pierwszego otwarcia zadania (do pomiaru czasu). */
+    fun markTaskOpened(id: Long) {
+        val k = "opened_$id"
+        if (!prefs.contains(k)) prefs.edit().putLong(k, System.currentTimeMillis()).apply()
+    }
+
+    /** Po ukończeniu liczy realny czas (otwarto→teraz) i dokłada do średniej. */
+    fun recordActualCompletion(id: Long) {
+        val k = "opened_$id"
+        val opened = prefs.getLong(k, 0L)
+        prefs.edit().remove(k).apply()
+        if (opened <= 0L) return
+        val mins = ((System.currentTimeMillis() - opened) / 60_000L).toInt()
+        if (mins !in 1..240) return // odrzuć śmieciowe wartości (otwarte dawno temu)
+        val sum = prefs.getLong(KEY_ACT_SUM, 0L) + mins
+        val cnt = prefs.getInt(KEY_ACT_COUNT, 0) + 1
+        prefs.edit().putLong(KEY_ACT_SUM, sum).putInt(KEY_ACT_COUNT, cnt).apply()
+        _avgActualMinutes.value = (sum / cnt).toInt()
+    }
+
     fun setGoals(daily: Int, weekly: Int) {
         prefs.edit().putInt(KEY_DAILY, daily).putInt(KEY_WEEKLY, weekly).apply()
         _dailyGoal.value = daily
@@ -237,6 +266,8 @@ class SettingsStore(context: Context) {
         const val KEY_AI_OUT = "ai_completion_tokens"
         const val KEY_AI_IMAGES = "ai_image_count"
         const val KEY_DEFERS = "defer_count"
+        const val KEY_ACT_SUM = "actual_sum_min"
+        const val KEY_ACT_COUNT = "actual_count"
         const val KEY_OPEN_HOURS = "open_hours"
         const val KEY_DAILY = "daily_goal"
         const val KEY_WEEKLY = "weekly_goal"

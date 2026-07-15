@@ -600,7 +600,8 @@ private fun AutomationCard(
                                 .heightIn(max = 380.dp).verticalScroll(rememberScrollState())
                                 .padding(16.dp)
                         ) {
-                            Text(cleanMarkdown(aiState.answer), fontSize = 13.5.sp, lineHeight = 20.sp, color = GlassTextPrimary)
+                            // Klikalne linki narzędzi (niebieskie, podkreślone) — nawet gdy AI poda samą nazwę.
+                            Text(aiAnnotated(cleanMarkdown(aiState.answer), Color(0xFF2563EB)), fontSize = 13.5.sp, lineHeight = 20.sp, color = GlassTextPrimary)
                         }
                     }
                 }

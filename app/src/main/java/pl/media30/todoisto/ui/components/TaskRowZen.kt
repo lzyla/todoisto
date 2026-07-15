@@ -119,15 +119,15 @@ fun zenMetaLine(
     subTotal: Int,
     linkDomains: List<String>
 ): String {
+    // Priorytet NIE jest tekstem — pokazuje go kolor kółka. Projekt pokazujemy zawsze.
     val chips = mutableListOf<String>()
     dueChip?.let { chips += it }
     if (durationMin != null) chips += "$durationMin min"
     recurrenceLabel?.let { chips += "⟳ $it" }
     deadline?.let { chips += it }
-    if (priority != Priority.P4) chips += "P${priority.ordinal + 1}"
-    projectName?.let { chips += "#$it" }
     labelNames.forEach { chips += "@$it" }
     val parts = chips.take(3).toMutableList()
+    projectName?.let { parts += "#$it" }
     if (subTotal > 0) parts += "$subDone/$subTotal"
     linkDomains.forEach { parts += "↗ $it" }
     return parts.joinToString("  ·  ")

@@ -178,7 +178,7 @@ private fun androidx.compose.ui.text.AnnotatedString.Builder.appendWithToolLinks
  * http(s) ORAZ nazwy znanych narzędzi (nawet bez podanego adresu) — wszystkie
  * niebieskie i podkreślone; klik otwiera stronę (domyślny UriHandler).
  */
-private fun aiAnnotated(text: String, linkColor: Color): AnnotatedString = buildAnnotatedString {
+internal fun aiAnnotated(text: String, linkColor: Color): AnnotatedString = buildAnnotatedString {
     val linkStyles = TextLinkStyles(
         SpanStyle(color = linkColor, fontWeight = FontWeight.W700, textDecoration = TextDecoration.Underline)
     )

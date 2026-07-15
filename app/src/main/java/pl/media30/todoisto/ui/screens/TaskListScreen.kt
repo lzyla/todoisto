@@ -819,37 +819,79 @@ private fun ZenContent(
                         )
                     }
                 } else {
-                    // Grupy w STAŁEJ kolejności (żeby nagłówki były ciągłe i miały
-                    // unikalne klucze); w obrębie grupy kolejność wg przeciągania.
-                    listOf("Rano", "Po południu", "Wieczorem").forEach { b ->
-                        val inBucket = orderedNodes.filter { bucketOf(it.task) == b }
-                        if (inBucket.isNotEmpty()) {
-                            item(key = "sec-$b") {
-                                val isCol = collapsed[b] == true
-                                val chev by animateFloatAsState(if (isCol) -90f else 0f, tween(400, easing = EASE), label = "chev")
-                                Row(
-                                    Modifier.fillMaxWidth().padding(top = 14.dp).clip(RoundedCornerShape(12.dp))
-                                        .bouncy(0.98f) { collapsed[b] = !isCol }.padding(horizontal = 6.dp, vertical = 5.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(b.uppercase(), fontSize = 11.sp, fontWeight = FontWeight.W800, letterSpacing = 1.54.sp, color = GlassTextSecondary, modifier = Modifier.weight(1f))
-                                    Icon(Icons.Filled.KeyboardArrowDown, null, tint = GlassTextSecondary, modifier = Modifier.size(13.dp).rotate(chev))
+                    val todayEp = today.toEpochDay()
+                    val overdueNodes = orderedNodes.filter { it.task.dueDate != null && it.task.dueDate!! < todayEp }
+                    val todayNodes = orderedNodes.filter { it.task.dueDate == null || it.task.dueDate!! >= todayEp }
+
+                    // ── ZALEGŁE — rozwijana sekcja na górze (bez etykiety przy każdym zadaniu) ──
+                    if (overdueNodes.isNotEmpty()) {
+                        item(key = "sec-overdue") {
+                            val isCol = collapsed["overdue"] == true
+                            val chev by animateFloatAsState(if (isCol) -90f else 0f, tween(400, easing = EASE), label = "chevOv")
+                            Row(
+                                Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(12.dp))
+                                    .bouncy(0.98f) { collapsed["overdue"] = !isCol }.padding(horizontal = 6.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("ZALEGŁE · ${overdueNodes.size}", fontSize = 11.sp, fontWeight = FontWeight.W800, letterSpacing = 1.2.sp, color = Color(0xFFC2410C), modifier = Modifier.weight(1f))
+                                Icon(Icons.Filled.KeyboardArrowDown, null, tint = Color(0xFFC2410C), modifier = Modifier.size(13.dp).rotate(chev))
+                            }
+                        }
+                        if (collapsed["overdue"] != true) {
+                            overdueNodes.forEach { node ->
+                                item(key = "ov-${node.task.id}") {
+                                    Column(Modifier.padding(vertical = 4.dp)) {
+                                        ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
+                                    }
                                 }
                             }
-                            if (collapsed[b] != true) {
-                                inBucket.forEach { node ->
-                                    item(key = node.task.id) {
-                                        ReorderableItem(reorderState, key = node.task.id) { dragging ->
-                                            val scale by animateFloatAsState(if (dragging) 1.03f else 1f, tween(180), label = "dragScale")
-                                            val elevation by animateDpAsState(if (dragging) 12.dp else 0.dp, tween(180), label = "dragElev")
-                                            Column(
-                                                Modifier
-                                                    .padding(vertical = 4.dp)
-                                                    .graphicsLayer { scaleX = scale; scaleY = scale }
-                                                    .shadow(elevation, RoundedCornerShape(20.dp))
-                                                    .longPressDraggableHandle(onDragStopped = { onReorder(orderedNodes.map { it.task.id }) })
-                                            ) {
-                                                ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
+                        }
+                    }
+
+                    // ── DZISIAJ — rozwijana sekcja z podziałem na porę dnia ──
+                    item(key = "sec-today") {
+                        val isCol = collapsed["today"] == true
+                        val chev by animateFloatAsState(if (isCol) -90f else 0f, tween(400, easing = EASE), label = "chevToday")
+                        Row(
+                            Modifier.fillMaxWidth().padding(top = 14.dp).clip(RoundedCornerShape(12.dp))
+                                .bouncy(0.98f) { collapsed["today"] = !isCol }.padding(horizontal = 6.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("DZISIAJ · ${todayNodes.size}", fontSize = 11.sp, fontWeight = FontWeight.W800, letterSpacing = 1.2.sp, color = GlassTextSecondary, modifier = Modifier.weight(1f))
+                            Icon(Icons.Filled.KeyboardArrowDown, null, tint = GlassTextSecondary, modifier = Modifier.size(13.dp).rotate(chev))
+                        }
+                    }
+                    if (collapsed["today"] != true) {
+                        listOf("Rano", "Po południu", "Wieczorem").forEach { b ->
+                            val inBucket = todayNodes.filter { bucketOf(it.task) == b }
+                            if (inBucket.isNotEmpty()) {
+                                item(key = "sec-$b") {
+                                    val isCol = collapsed[b] == true
+                                    val chev by animateFloatAsState(if (isCol) -90f else 0f, tween(400, easing = EASE), label = "chev")
+                                    Row(
+                                        Modifier.fillMaxWidth().padding(top = 10.dp, start = 8.dp).clip(RoundedCornerShape(12.dp))
+                                            .bouncy(0.98f) { collapsed[b] = !isCol }.padding(horizontal = 6.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(b.uppercase(), fontSize = 10.5.sp, fontWeight = FontWeight.W700, letterSpacing = 1.3.sp, color = GlassTextSecondary.copy(alpha = 0.8f), modifier = Modifier.weight(1f))
+                                        Icon(Icons.Filled.KeyboardArrowDown, null, tint = GlassTextSecondary, modifier = Modifier.size(12.dp).rotate(chev))
+                                    }
+                                }
+                                if (collapsed[b] != true) {
+                                    inBucket.forEach { node ->
+                                        item(key = node.task.id) {
+                                            ReorderableItem(reorderState, key = node.task.id) { dragging ->
+                                                val scale by animateFloatAsState(if (dragging) 1.03f else 1f, tween(180), label = "dragScale")
+                                                val elevation by animateDpAsState(if (dragging) 12.dp else 0.dp, tween(180), label = "dragElev")
+                                                Column(
+                                                    Modifier
+                                                        .padding(vertical = 4.dp)
+                                                        .graphicsLayer { scaleX = scale; scaleY = scale }
+                                                        .shadow(elevation, RoundedCornerShape(20.dp))
+                                                        .longPressDraggableHandle(onDragStopped = { onReorder(orderedNodes.map { it.task.id }) })
+                                                ) {
+                                                    ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
+                                                }
                                             }
                                         }
                                     }
@@ -1012,12 +1054,8 @@ private fun ZenRowWithSubs(
             AppView.Upcoming -> false
             else -> true
         }
-        if (!show) null else when {
-            due < todayEpoch -> "Zaległe"
-            due == todayEpoch -> "Dzisiaj"
-            due == todayEpoch + 1 -> "Jutro"
-            else -> shortDate(due)
-        }
+        // Dziś → bez daty (liczy się tylko godzina); inaczej dzień + miesiąc.
+        if (!show || due == todayEpoch) null else shortDate(due)
     }
     val meta = zenMetaLine(
         dueChip = dueChip,
@@ -1121,15 +1159,15 @@ private fun ZenRowWithSubs(
                     enter = androidx.compose.animation.fadeIn(tween(150)),
                     exit = androidx.compose.animation.fadeOut(tween(120))
                 ) {
-                    Row(Modifier.padding(start = 14.dp, top = 2.dp, bottom = 11.dp)) {
+                    Row(Modifier.padding(start = 14.dp, top = 1.dp, bottom = 6.dp)) {
                         Row(
                             Modifier.clip(RoundedCornerShape(50)).background(Color(0x22C2410C))
-                                .bouncy(0.92f) { reschedOpen = true }.padding(horizontal = 11.dp, vertical = 5.dp),
+                                .bouncy(0.92f) { reschedOpen = true }.padding(horizontal = 10.dp, vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Outlined.DateRange, null, tint = Color(0xFFC2410C), modifier = Modifier.size(13.dp))
-                            Spacer(Modifier.width(5.dp))
-                            Text("Przełóż", fontSize = 11.sp, fontWeight = FontWeight.W800, color = Color(0xFF9A3412))
+                            Icon(Icons.Outlined.DateRange, null, tint = Color(0xFFC2410C), modifier = Modifier.size(12.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Przełóż", fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = Color(0xFF9A3412))
                         }
                     }
                 }
@@ -1773,6 +1811,7 @@ fun EstimateBreakdownSheet(
     items: List<Task>,
     projects: List<Project>,
     aiState: pl.media30.todoisto.ui.TodoViewModel.EstimateAiState = pl.media30.todoisto.ui.TodoViewModel.EstimateAiState(),
+    avgActualMinutes: Int = 0,
     onEstimateAi: () -> Unit = {}
 ) {
     val total = items.sumOf { it.durationMinutes ?: 20 }
@@ -1834,6 +1873,10 @@ fun EstimateBreakdownSheet(
             aiState.error?.let {
                 Spacer(Modifier.height(8.dp))
                 Text(it, fontSize = 11.5.sp, fontWeight = FontWeight.W700, color = Color(0xFFEB4034))
+            }
+            if (avgActualMinutes > 0) {
+                Spacer(Modifier.height(8.dp))
+                Text("Twoja średnia z ukończonych zadań: ~$avgActualMinutes min/zadanie.", fontSize = 11.5.sp, color = GlassTextSecondary)
             }
             Spacer(Modifier.height(16.dp))
         }

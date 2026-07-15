@@ -320,6 +320,28 @@ class TodoViewModel(
 
     fun clearCloudMessage() { _cloud.value = cloudSnapshot() }
 
+    // --- Szacowanie czasu przez AI (porównanie z sumą zadań) ---
+    data class EstimateAiState(val loading: Boolean = false, val minutes: Int? = null, val error: String? = null, val needsKey: Boolean = false)
+    private val _estimateAi = MutableStateFlow(EstimateAiState())
+    val estimateAi: StateFlow<EstimateAiState> = _estimateAi.asStateFlow()
+    fun clearEstimateAi() { _estimateAi.value = EstimateAiState() }
+
+    fun estimateTodayWithAi(titles: List<String>) {
+        val key = settings.openAiKey.value
+        if (key.isBlank()) { _estimateAi.value = EstimateAiState(needsKey = true); return }
+        if (titles.isEmpty()) { _estimateAi.value = EstimateAiState(minutes = 0); return }
+        _estimateAi.value = EstimateAiState(loading = true)
+        viewModelScope.launch {
+            _estimateAi.value = try {
+                val r = pl.media30.todoisto.data.AiClient.estimateMinutes(key, titles)
+                settings.addAiUsage(r.promptTokens, r.completionTokens)
+                EstimateAiState(minutes = r.minutes)
+            } catch (e: Exception) {
+                EstimateAiState(error = e.message ?: "Błąd połączenia")
+            }
+        }
+    }
+
     private val _bgBusy = MutableStateFlow(false)
     val bgBusy: StateFlow<Boolean> = _bgBusy.asStateFlow()
 

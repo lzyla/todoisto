@@ -168,6 +168,7 @@ fun TodoistoApp(
     val accountProfile by account.account.collectAsState()
     val accountAvatar by account.avatar.collectAsState()
     val cloudState by viewModel.cloudState.collectAsState()
+    val estimateAi by viewModel.estimateAi.collectAsState()
     var detailAiExpanded by remember { mutableStateOf(false) }
     var editingActivity by remember { mutableStateOf<pl.media30.todoisto.data.Activity?>(null) }
 
@@ -245,7 +246,7 @@ fun TodoistoApp(
         activeAreaId = activeAreaId,
         onSelectArea = viewModel::setActiveArea,
         onAddArea = viewModel::addArea,
-        onOpenEstimate = { showEstimate = true },
+        onOpenEstimate = { viewModel.clearEstimateAi(); showEstimate = true },
         hasApiKey = openAiKey.isNotBlank(),
         onSetApiKey = viewModel::setOpenAiKey,
         onOpenSettings = { showSettings = true },
@@ -404,7 +405,11 @@ fun TodoistoApp(
             containerColor = GlassSurface,
             shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
         ) {
-            pl.media30.todoisto.ui.screens.EstimateBreakdownSheet(items = todayOpen, projects = projects)
+            pl.media30.todoisto.ui.screens.EstimateBreakdownSheet(
+                items = todayOpen, projects = projects,
+                aiState = estimateAi,
+                onEstimateAi = { viewModel.estimateTodayWithAi(todayOpen.map { it.title }) }
+            )
         }
     }
 

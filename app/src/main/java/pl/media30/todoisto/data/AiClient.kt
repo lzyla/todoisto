@@ -75,6 +75,42 @@ object AiClient {
         )
     }
 
+    /** Wynik szacowania czasu przez AI (minuty + zużyte tokeny). */
+    data class EstimateResult(val minutes: Int, val promptTokens: Int, val completionTokens: Int)
+
+    /** Szacuje realny łączny czas wykonania zadań (w minutach) — model tekstowy. */
+    suspend fun estimateMinutes(apiKey: String, tasks: List<String>): EstimateResult = withContext(Dispatchers.IO) {
+        require(apiKey.isNotBlank()) { "Brak klucza API" }
+        val list = tasks.joinToString("\n") { "- $it" }
+        val prompt = "Oszacuj realistyczny łączny czas potrzebny jednej osobie na wykonanie poniższych zadań. " +
+            "Weź pod uwagę typowy czas trwania i drobne przerwy. " +
+            "Odpowiedz WYŁĄCZNIE jedną liczbą całkowitą — liczbą minut, bez żadnego tekstu.\n\n$list"
+        val body = JSONObject().apply {
+            put("model", MODEL)
+            put("temperature", 0.2)
+            put("messages", JSONArray().apply {
+                put(JSONObject().put("role", "user").put("content", prompt))
+            })
+        }.toString()
+        val conn = (URL(ENDPOINT).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"; connectTimeout = 20000; readTimeout = 40000; doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Authorization", "Bearer $apiKey")
+        }
+        conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+        val code = conn.responseCode
+        val text = (if (code in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
+        if (code !in 200..299) {
+            val msg = runCatching { JSONObject(text).getJSONObject("error").getString("message") }.getOrDefault("Błąd $code")
+            throw RuntimeException(msg)
+        }
+        val obj = JSONObject(text)
+        val content = obj.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content")
+        val minutes = Regex("\\d+").find(content)?.value?.toIntOrNull() ?: 0
+        val usage = obj.optJSONObject("usage")
+        EstimateResult(minutes, usage?.optInt("prompt_tokens", 0) ?: 0, usage?.optInt("completion_tokens", 0) ?: 0)
+    }
+
     /**
      * Generuje [count] propozycji tła (OpenAI Images, dall-e-3) — zwraca listę
      * obrazów jako bajty PNG. Woła się kluczem użytkownika; każdy obraz to

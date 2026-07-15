@@ -1769,7 +1769,12 @@ private fun estTime(minutes: Int): String = when {
 
 /** #4a — rozbicie „Szacowanego czasu na dziś" na poszczególne zadania z minutami. */
 @Composable
-fun EstimateBreakdownSheet(items: List<Task>, projects: List<Project>) {
+fun EstimateBreakdownSheet(
+    items: List<Task>,
+    projects: List<Project>,
+    aiState: pl.media30.todoisto.ui.TodoViewModel.EstimateAiState = pl.media30.todoisto.ui.TodoViewModel.EstimateAiState(),
+    onEstimateAi: () -> Unit = {}
+) {
     val total = items.sumOf { it.durationMinutes ?: 20 }
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 26.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1779,6 +1784,59 @@ fun EstimateBreakdownSheet(items: List<Task>, projects: List<Project>) {
             Text(estTime(total), fontSize = 13.sp, fontWeight = FontWeight.W800, color = GlassAccent)
         }
         Spacer(Modifier.height(14.dp))
+
+        // Porównanie: suma zadań vs szacunek AI.
+        if (items.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Suma zadań
+                Column(
+                    Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(GlassTint).padding(14.dp)
+                ) {
+                    Text("SUMA ZADAŃ", fontSize = 9.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.8.sp, color = GlassTextSecondary)
+                    Spacer(Modifier.height(4.dp))
+                    Text(estTime(total), fontSize = 18.sp, fontWeight = FontWeight.W900, color = GlassTextPrimary)
+                }
+                // Szacunek AI
+                Column(
+                    Modifier.weight(1f).clip(RoundedCornerShape(16.dp))
+                        .background(GlassAccent.copy(alpha = 0.12f))
+                        .then(if (aiState.minutes == null && !aiState.loading) Modifier.bouncy(0.97f, onEstimateAi) else Modifier)
+                        .padding(14.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(12.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("SZACUNEK AI", fontSize = 9.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.8.sp, color = GlassAccent)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    when {
+                        aiState.loading -> Text("Liczę…", fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassAccent)
+                        aiState.minutes != null -> Text(estTime(aiState.minutes!!), fontSize = 18.sp, fontWeight = FontWeight.W900, color = GlassAccent)
+                        else -> Text("Dotknij, aby policzyć", fontSize = 12.sp, fontWeight = FontWeight.W700, color = GlassAccent)
+                    }
+                }
+            }
+            // Różnica / komunikaty.
+            aiState.minutes?.let { ai ->
+                Spacer(Modifier.height(8.dp))
+                val diff = ai - total
+                val txt = when {
+                    diff == 0 -> "AI szacuje podobnie jak suma zadań."
+                    diff > 0 -> "AI szacuje o ${estTime(diff).removePrefix("~")} więcej niż suma."
+                    else -> "AI szacuje o ${estTime(-diff).removePrefix("~")} mniej niż suma."
+                }
+                Text(txt, fontSize = 11.5.sp, color = GlassTextSecondary)
+            }
+            if (aiState.needsKey) {
+                Spacer(Modifier.height(8.dp))
+                Text("Dodaj klucz API w Ustawieniach, aby użyć szacowania AI.", fontSize = 11.5.sp, fontWeight = FontWeight.W700, color = Color(0xFFEB8909))
+            }
+            aiState.error?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, fontSize = 11.5.sp, fontWeight = FontWeight.W700, color = Color(0xFFEB4034))
+            }
+            Spacer(Modifier.height(16.dp))
+        }
         if (items.isEmpty()) {
             Text("Nic nie zaplanowane na dziś.", fontSize = 13.sp, color = GlassTextSecondary)
         } else {

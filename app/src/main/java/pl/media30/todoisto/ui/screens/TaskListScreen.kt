@@ -3,6 +3,8 @@ package pl.media30.todoisto.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -17,6 +19,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -442,9 +445,30 @@ fun TaskListScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 if (uiState.view == AppView.Today) {
+                    // Postęp dnia: ukończone dziś / (ukończone dziś + otwarte) → pierścień
+                    // wokół kółka Rutyn; przy 100% robi się złoty.
+                    val todayStartMs = remember { LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() }
+                    val doneToday = weekTasks.count { it.isCompleted && (it.completedAt ?: 0L) >= todayStartMs }
+                    val dayFrac = if (doneToday + uiState.todayCount == 0) 0f else doneToday.toFloat() / (doneToday + uiState.todayCount)
+                    val ringFrac by animateFloatAsState(dayFrac, tween(650, easing = EASE), label = "dayRing")
+                    val ringColor by animateColorAsState(if (dayFrac >= 1f) Color(0xFFF4B740) else GlassAccent, tween(500), label = "dayRingC")
                     Box {
                         Box(
-                            Modifier.size(54.dp).controlCenterGlass(CircleShape).bouncy(0.9f) { routOpen = !routOpen },
+                            Modifier.size(54.dp).controlCenterGlass(CircleShape)
+                                .drawWithContent {
+                                    drawContent()
+                                    if (ringFrac > 0f) {
+                                        val stroke = 2.5.dp.toPx()
+                                        drawArc(
+                                            color = ringColor,
+                                            startAngle = -90f, sweepAngle = 360f * ringFrac, useCenter = false,
+                                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round),
+                                            topLeft = Offset(stroke / 2f, stroke / 2f),
+                                            size = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke)
+                                        )
+                                    }
+                                }
+                                .bouncy(0.9f) { routOpen = !routOpen },
                             contentAlignment = Alignment.Center
                         ) {
                             if (uiState.routines.isEmpty() && uiState.routinesDone > 0) {
@@ -797,6 +821,20 @@ private fun ZenContent(
         orderedNodes.clear()
         orderedNodes.addAll(flatNodes.sortedBy { it.task.position })
     }
+
+    // Puls „nowego zadania": id spoza znanego zbioru → jedno sprężyste wejście.
+    // Pierwsze (niepuste) załadowanie tylko zasila zbiór — bez animowania wszystkiego.
+    val seenIds = remember { mutableSetOf<Long>() }
+    val listReady = remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(flatIds) {
+        if (!listReady.value) {
+            if (flatIds.isNotEmpty()) { seenIds.addAll(flatIds); listReady.value = true }
+        } else seenIds.addAll(flatIds)
+    }
+    fun isNewTask(id: Long): Boolean = listReady.value && id !in seenIds
+
+    // Celebracja końca dnia: lista Dzisiaj miała zadania i właśnie się opróżniła.
+    val hadTasksToday = remember { mutableStateOf(false) }
     val lazyState = rememberLazyListState()
     val reorderState = rememberReorderableLazyListState(lazyState) { from, to ->
         val f = orderedNodes.indexOfFirst { it.task.id == from.key }
@@ -824,12 +862,15 @@ private fun ZenContent(
                 }
                 if (orderedNodes.isEmpty()) {
                     item(key = "empty") {
+                        // Dyskretna nagroda — tylko gdy lista opróżniła się na naszych oczach.
+                        if (hadTasksToday.value) CelebrationBurst()
                         EmptyState(
                             if (uiState.routines.isNotEmpty()) "Zostały tylko rutyny" else "Wszystko zrobione",
                             if (uiState.routines.isNotEmpty()) "Główna lista pusta — sprawdź rutyny przyciskiem ⟳ na dole." else "Dodaj kolejne zadanie plusem w rogu."
                         )
                     }
                 } else {
+                    hadTasksToday.value = true
                     val todayEp = today.toEpochDay()
                     val overdueNodes = orderedNodes.filter { it.task.dueDate != null && it.task.dueDate!! < todayEp }
                     val todayNodes = orderedNodes.filter { it.task.dueDate == null || it.task.dueDate!! >= todayEp }
@@ -844,14 +885,19 @@ private fun ZenContent(
                                     .bouncy(0.98f) { collapsed["overdue"] = !isCol }.padding(horizontal = 6.dp, vertical = 5.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("ZALEGŁE · ${overdueNodes.size}", fontSize = 11.sp, fontWeight = FontWeight.W800, letterSpacing = 1.2.sp, color = Color(0xFFC2410C), modifier = Modifier.weight(1f))
+                                AnimatedSectionLabel("ZALEGŁE", overdueNodes.size, Color(0xFFC2410C), Modifier.weight(1f))
                                 Icon(Icons.Filled.KeyboardArrowDown, null, tint = Color(0xFFC2410C), modifier = Modifier.size(13.dp).rotate(chev))
                             }
                         }
                         if (collapsed["overdue"] != true) {
                             overdueNodes.forEach { node ->
                                 item(key = "ov-${node.task.id}") {
-                                    Column(Modifier.padding(vertical = 4.dp)) {
+                                    val isNew = remember(node.task.id) { isNewTask(node.task.id) }
+                                    val pulse = remember(node.task.id) { androidx.compose.animation.core.Animatable(if (isNew) 0.92f else 1f) }
+                                    LaunchedEffect(node.task.id) {
+                                        if (isNew) pulse.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.5f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))
+                                    }
+                                    Column(Modifier.padding(vertical = 4.dp).graphicsLayer { scaleX = pulse.value; scaleY = pulse.value }) {
                                         ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
                                     }
                                 }
@@ -868,7 +914,7 @@ private fun ZenContent(
                                 .bouncy(0.98f) { collapsed["today"] = !isCol }.padding(horizontal = 6.dp, vertical = 5.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("DZISIAJ · ${todayNodes.size}", fontSize = 11.sp, fontWeight = FontWeight.W800, letterSpacing = 1.2.sp, color = GlassTextSecondary, modifier = Modifier.weight(1f))
+                            AnimatedSectionLabel("DZISIAJ", todayNodes.size, GlassTextSecondary, Modifier.weight(1f))
                             Icon(Icons.Filled.KeyboardArrowDown, null, tint = GlassTextSecondary, modifier = Modifier.size(13.dp).rotate(chev))
                         }
                     }
@@ -891,13 +937,18 @@ private fun ZenContent(
                                 if (collapsed[b] != true) {
                                     inBucket.forEach { node ->
                                         item(key = node.task.id) {
+                                            val isNew = remember(node.task.id) { isNewTask(node.task.id) }
+                                            val pulse = remember(node.task.id) { androidx.compose.animation.core.Animatable(if (isNew) 0.92f else 1f) }
+                                            LaunchedEffect(node.task.id) {
+                                                if (isNew) pulse.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.5f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))
+                                            }
                                             ReorderableItem(reorderState, key = node.task.id) { dragging ->
                                                 val scale by animateFloatAsState(if (dragging) 1.03f else 1f, tween(180), label = "dragScale")
                                                 val elevation by animateDpAsState(if (dragging) 12.dp else 0.dp, tween(180), label = "dragElev")
                                                 Column(
                                                     Modifier
                                                         .padding(vertical = 4.dp)
-                                                        .graphicsLayer { scaleX = scale; scaleY = scale }
+                                                        .graphicsLayer { scaleX = scale * pulse.value; scaleY = scale * pulse.value }
                                                         .shadow(elevation, RoundedCornerShape(20.dp))
                                                         .longPressDraggableHandle(onDragStopped = { onReorder(orderedNodes.map { it.task.id }) })
                                                 ) {
@@ -1096,11 +1147,29 @@ private fun ZenRowWithSubs(
     // key(task.id) — stabilny stan swipe'u mimo zmian listy (bez pomyłki wierszy).
     androidx.compose.runtime.key(task.id) {
         val view = LocalView.current
+        val rowScope = rememberCoroutineScope()
         // Konfigurowalne przesunięcia: prawe = ukończ lub przełóż (ustawienia).
         val rightCompletes = LocalSwipeRightCompletes.current
         // Swipe „przełóż" rozwija w dół wybór daty (do kiedy); po wyborze się zwija.
         var reschedOpen by remember { mutableStateOf(false) }
         var showDatePicker by remember { mutableStateOf(false) }
+        // Animacje wyjścia: ukończenie (kreska + zanik) / przełożenie (zanik w dół).
+        var completing by remember { mutableStateOf(false) }
+        var leaving by remember { mutableStateOf(false) }
+        val strike by animateFloatAsState(if (completing) 1f else 0f, tween(240, easing = EASE), label = "strike")
+        val exitProg by animateFloatAsState(if (completing || leaving) 1f else 0f, tween(430, easing = EASE), label = "exit")
+        // Ukończenie z animacją: kreska rysuje się, kafelek cichnie, DOPIERO potem zapis.
+        val doComplete: () -> Unit = {
+            if (!task.isCompleted && !completing) {
+                completing = true
+                rowScope.launch {
+                    kotlinx.coroutines.delay(430)
+                    onToggle(task)
+                    // Reset — zadanie cykliczne zostaje na liście i ma wrócić do normy.
+                    kotlinx.coroutines.delay(300); completing = false
+                }
+            } else if (task.isCompleted) onToggle(task)
+        }
         val dismiss = androidx.compose.material3.rememberSwipeToDismissBoxState(
             confirmValueChange = { value ->
                 val toEnd = value == androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd
@@ -1108,7 +1177,7 @@ private fun ZenRowWithSubs(
                 val complete = (toEnd && rightCompletes) || (toStart && !rightCompletes)
                 val defer = (toStart && rightCompletes) || (toEnd && !rightCompletes)
                 when {
-                    complete -> view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM).also { onToggle(task) }
+                    complete -> view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM).also { doComplete() }
                     defer -> view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK).also { reschedOpen = !reschedOpen }
                 }
                 false // akcja odpalona — kafelek wraca na miejsce
@@ -1120,7 +1189,17 @@ private fun ZenRowWithSubs(
             modifier = Modifier.clip(RoundedCornerShape(20.dp)),
             backgroundContent = { SwipeBg(dismiss.dismissDirection, rightCompletes) }
         ) {
-            Column(Modifier.fillMaxWidth().taskTile { onTaskClick(task) }) {
+            Column(
+                Modifier.fillMaxWidth()
+                    .graphicsLayer {
+                        // Wyciszenie kafelka w drodze „na zewnątrz" (ukończenie/przełożenie).
+                        alpha = 1f - 0.5f * exitProg
+                        val s = 1f - 0.035f * exitProg
+                        scaleX = s; scaleY = s
+                        if (leaving) translationY = 26f * exitProg
+                    }
+                    .taskTile { onTaskClick(task) }
+            ) {
                 if (deadlineWarn) {
                     Row(Modifier.padding(start = 14.dp, top = 10.dp)) {
                         Text(
@@ -1133,7 +1212,8 @@ private fun ZenRowWithSubs(
                 // Ikonka AI po prawej, na wysokości zadania; godzina pod spodem
                 val timeStr = task.dueTimeMinutes?.let { "%d:%02d".format(it / 60, it % 60) }
                 TaskRowZen(
-                    task, meta, { onToggle(task) }, { onTaskClick(task) },
+                    task, meta, doComplete, { onTaskClick(task) },
+                    strikeProgress = strike, forceChecked = completing,
                     trailing = if (automatable) {
                         {
                             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1189,7 +1269,17 @@ private fun ZenRowWithSubs(
                     exit = androidx.compose.animation.shrinkVertically(tween(200, easing = EASE)) + androidx.compose.animation.fadeOut(tween(140))
                 ) {
                     val resched = LocalReschedule.current
-                    val onPick: (Long) -> Unit = { day -> resched(task, day); reschedOpen = false }
+                    // Przełożenie z animacją: panel się zwija, kafelek „odpływa" w dół, potem zapis.
+                    val onPick: (Long) -> Unit = { day ->
+                        reschedOpen = false
+                        if (!leaving) {
+                            leaving = true
+                            rowScope.launch {
+                                kotlinx.coroutines.delay(430); resched(task, day)
+                                kotlinx.coroutines.delay(300); leaving = false  // np. „Dziś" — kafelek zostaje
+                            }
+                        }
+                    }
                     androidx.compose.foundation.layout.FlowRow(
                         Modifier.fillMaxWidth().padding(start = 14.dp, end = 12.dp, top = 2.dp, bottom = 11.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1218,7 +1308,16 @@ private fun ZenRowWithSubs(
                     ReschedDatePicker(
                         initialEpochDay = task.dueDate ?: todayEpoch,
                         onDismiss = { showDatePicker = false },
-                        onPick = { day -> resched(task, day); showDatePicker = false; reschedOpen = false }
+                        onPick = { day ->
+                            showDatePicker = false; reschedOpen = false
+                            if (!leaving) {
+                                leaving = true
+                                rowScope.launch {
+                                    kotlinx.coroutines.delay(430); resched(task, day)
+                                    kotlinx.coroutines.delay(300); leaving = false
+                                }
+                            }
+                        }
                     )
                 }
             }
@@ -1250,6 +1349,58 @@ private fun SwipeBg(dir: androidx.compose.material3.SwipeToDismissBoxValue, righ
         )
         Spacer(Modifier.width(8.dp))
         Text(if (isComplete) "Ukończ" else "Przełóż", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W800)
+    }
+}
+
+/**
+ * Nagłówek sekcji z PŁYNNYM licznikiem: przy zmianie liczby stara cyfra
+ * wyjeżdża w dół, nowa wjeżdża z góry (zamiast skokowej podmiany).
+ */
+@Composable
+private fun AnimatedSectionLabel(label: String, count: Int, color: Color, modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Text("$label · ", fontSize = 11.sp, fontWeight = FontWeight.W800, letterSpacing = 1.2.sp, color = color)
+        androidx.compose.animation.AnimatedContent(
+            targetState = count,
+            transitionSpec = {
+                val up = targetState > initialState
+                (slideInVertically(tween(220, easing = EASE)) { if (up) it else -it } + fadeIn(tween(180))) togetherWith
+                    (slideOutVertically(tween(180, easing = EASE)) { if (up) -it else it } + fadeOut(tween(120)))
+            },
+            label = "sectionCount"
+        ) { c ->
+            Text("$c", fontSize = 11.sp, fontWeight = FontWeight.W800, letterSpacing = 1.2.sp, color = color)
+        }
+    }
+}
+
+/**
+ * Dyskretna celebracja końca dnia: jednorazowy rozbłysk drobin w kolorach
+ * apki nad komunikatem „Wszystko zrobione" (≈0,9 s, bez pętli, bez dźwięku).
+ */
+@Composable
+private fun CelebrationBurst() {
+    val prog = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(Unit) { prog.animateTo(1f, tween(950, easing = EASE)) }
+    val accent = GlassAccent
+    val colors = listOf(accent, Color(0xFFF4B740), Color(0xFFFF8FB1), Color(0xFF6ED3B3), Color(0xFF9AA6FF))
+    androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(84.dp)) {
+        val p = prog.value
+        if (p <= 0.02f || p >= 0.98f) return@Canvas
+        val cx = size.width / 2f
+        val cy = size.height * 0.75f
+        repeat(14) { i ->
+            val ang = (i.toFloat() / 14f) * 6.2832f + 0.4f * (i % 4)
+            val spread = 0.55f + 0.15f * (i % 3)
+            val dist = size.height * (0.35f + 1.15f * p) * spread
+            val x = cx + kotlin.math.cos(ang) * dist * 1.6f
+            val y = cy + kotlin.math.sin(ang) * dist - size.height * 0.45f * p
+            drawCircle(
+                color = colors[i % colors.size].copy(alpha = (1f - p) * 0.85f),
+                radius = (2.6.dp.toPx() + (i % 3) * 1.1.dp.toPx()) * (1f - 0.35f * p),
+                center = Offset(x, y)
+            )
+        }
     }
 }
 

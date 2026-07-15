@@ -17,6 +17,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -41,10 +43,15 @@ fun TaskRowZen(
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
-    trailing: (@Composable () -> Unit)? = null
+    trailing: (@Composable () -> Unit)? = null,
+    /** 0..1 — animowane przekreślenie rysowane od lewej (moment ukończenia). */
+    strikeProgress: Float = 0f,
+    /** Kółko pokazane jako odhaczone zanim baza się zaktualizuje. */
+    forceChecked: Boolean = false
 ) {
     val ring = if (task.priority != Priority.P4) task.priority.color else GlassAccent
     val done = task.isCompleted
+    val strikeColor = GlassTextSecondary
     // Kliknięcie i efekt dotyku obsługuje kafelek (taskTile); wiersz jest tylko treścią.
     Row(
         modifier = modifier
@@ -59,7 +66,7 @@ fun TaskRowZen(
         verticalAlignment = Alignment.Top
     ) {
         GlassCheck(
-            checked = done,
+            checked = done || forceChecked,
             ringColor = ring,
             size = if (compact) 19.dp else 23.dp,
             onToggle = onToggle
@@ -74,8 +81,19 @@ fun TaskRowZen(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 textDecoration = if (done) TextDecoration.LineThrough else null,
-                color = if (done) GlassTextSecondary else GlassTextPrimary,
-                modifier = Modifier.padding(top = 1.dp)
+                color = if (done || forceChecked) GlassTextSecondary else GlassTextPrimary,
+                modifier = Modifier.padding(top = 1.dp).drawWithContent {
+                    drawContent()
+                    // Kreska ukończenia rysowana od lewej — jedno pociągnięcie.
+                    if (strikeProgress > 0f) {
+                        drawLine(
+                            color = strikeColor,
+                            start = Offset(0f, size.height / 2f),
+                            end = Offset(size.width * strikeProgress, size.height / 2f),
+                            strokeWidth = 1.6.dp.toPx()
+                        )
+                    }
+                }
             )
             if (metaLine.isNotBlank()) {
                 Spacer(Modifier.height(3.dp))

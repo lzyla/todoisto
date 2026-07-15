@@ -309,7 +309,9 @@ fun TaskListScreen(
                 onOpenApiKey = { dialog = DialogKind.ApiKey },
                 onOpenSettings = { onOpenSettings(); scope.launch { drawerState.close() } },
                 onOpenStats = { onOpenStats(); scope.launch { drawerState.close() } },
-                onOpenAccount = { onOpenAccount(); scope.launch { drawerState.close() } }
+                onOpenAccount = { onOpenAccount(); scope.launch { drawerState.close() } },
+                accountAvatar = accountAvatar,
+                accountInitial = accountInitial
             )
         }
     ) {
@@ -361,17 +363,7 @@ fun TaskListScreen(
             ) {
                 // Awatar / menu — otwiera panel (szufladę z ustawieniami i nawigacją).
                 CircleGlassButton({ scope.launch { drawerState.open() } }) {
-                    when {
-                        accountAvatar.isNotBlank() -> coil.compose.AsyncImage(
-                            model = java.io.File(accountAvatar), contentDescription = "Konto",
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                            modifier = Modifier.size(36.dp).clip(CircleShape)
-                        )
-                        accountInitial.isNotBlank() -> Box(Modifier.size(32.dp).clip(CircleShape).background(GlassAccent), contentAlignment = Alignment.Center) {
-                            Text(accountInitial, fontSize = 15.sp, fontWeight = FontWeight.W900, color = Color.White)
-                        }
-                        else -> Icon(Icons.Filled.Menu, "Menu", tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
-                    }
+                    Icon(Icons.Filled.Menu, "Menu", tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
                 }
                 AreaSwitcher(areas, activeAreaId, onSelectArea) { dialog = DialogKind.NewArea }
                 Spacer(Modifier.weight(1f))
@@ -1596,7 +1588,9 @@ private fun DrawerContent(
     onOpenApiKey: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenStats: () -> Unit,
-    onOpenAccount: () -> Unit = {}
+    onOpenAccount: () -> Unit = {},
+    accountAvatar: String = "",
+    accountInitial: String = ""
 ) {
     ModalDrawerSheet(
         drawerContainerColor = GlassDrawerBg,
@@ -1604,17 +1598,32 @@ private fun DrawerContent(
         modifier = Modifier.width(296.dp)
     ) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 20.dp)) {
-            // Logo
-            Row(Modifier.padding(start = 12.dp, bottom = 16.dp, top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Nagłówek konta: awatar (zdjęcie/inicjał) obok Todoisto — dotknięcie otwiera Konto.
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).bouncy(0.98f, onOpenAccount)
+                    .padding(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Box(
-                    Modifier.size(36.dp).clip(RoundedCornerShape(12.dp))
-                        .background(Brush.linearGradient(listOf(Color(0xFFA47CFF), Color(0xFF6B3FE0)))),
+                    Modifier.size(42.dp).clip(CircleShape).background(GlassAccent),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    when {
+                        accountAvatar.isNotBlank() -> coil.compose.AsyncImage(
+                            model = java.io.File(accountAvatar), contentDescription = "Konto",
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier.size(42.dp).clip(CircleShape)
+                        )
+                        accountInitial.isNotBlank() -> Text(accountInitial, fontSize = 19.sp, fontWeight = FontWeight.W900, color = Color.White)
+                        else -> Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
                 }
                 Spacer(Modifier.width(11.dp))
-                Text(buildAnnotatedLogo(), fontSize = 19.sp)
+                Column(Modifier.weight(1f)) {
+                    Text(buildAnnotatedLogo(), fontSize = 18.sp)
+                    Text("Konto i ustawienia", fontSize = 11.5.sp, fontWeight = FontWeight.W600, color = GlassTextSecondary)
+                }
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = GlassTextSecondary, modifier = Modifier.size(20.dp))
             }
 
             DrawerRow(Icons.Outlined.CalendarToday, "Dzisiaj", uiState.todayCount, current == AppView.Today) { onSelect(AppView.Today) }

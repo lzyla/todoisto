@@ -352,66 +352,15 @@ fun TaskListScreen(
                 ZenContent(uiState, projects, labels, onToggle, onTaskClick, onDeferToTomorrow, onOpenAutomation, 0.dp, onReorder)
             }
 
-            // ── Mikrofon + ⋮ — dwa osobne szklane kółka pod paskiem ───────────
+            // ── Pasek górny — jeden równy rząd (liquid glass) ────────────────
             Row(
-                Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 50.dp, end = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Dodawanie głosowe — osobny, okrągły przycisk (mikrofon).
-                Box(
-                    Modifier.size(40.dp).controlCenterGlass(CircleShape).bouncy(0.9f) { voiceOpen = true },
-                    contentAlignment = Alignment.Center
-                ) { Icon(Icons.Filled.Mic, "Dodaj głosowo", tint = GlassAccent, modifier = Modifier.size(19.dp)) }
-
-                Box {
-                    Box(
-                        Modifier.size(40.dp).controlCenterGlass(CircleShape).bouncy(0.9f) { menuOpen = true },
-                        contentAlignment = Alignment.Center
-                    ) { Icon(Icons.Filled.MoreVert, "Więcej", tint = GlassTextSecondary, modifier = Modifier.size(19.dp)) }
-                GlassMenu(expanded = menuOpen, onDismiss = { menuOpen = false }) {
-                    GlassMenuItem("Sortowanie: ${uiState.sortMode.label}") { menuOpen = false; sortMenuOpen = true }
-                    uiState.currentProject?.let { project ->
-                        GlassMenuItem(if (project.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") { menuOpen = false; onToggleProjectFavorite(project.id) }
-                        GlassMenuItem("Dodaj sekcję") { menuOpen = false; dialog = DialogKind.NewSection }
-                        GlassMenuItem("Duplikuj projekt") { menuOpen = false; onDuplicateProject(project.id) }
-                        GlassMenuItem(if (project.isArchived) "Przywróć z archiwum" else "Archiwizuj projekt") { menuOpen = false; onArchiveProject(project.id, !project.isArchived) }
-                        GlassMenuItem("Usuń projekt") { menuOpen = false; onDeleteProject(project.id) }
-                    }
-                    uiState.currentLabel?.let { label ->
-                        GlassMenuItem(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") { menuOpen = false; onToggleLabelFavorite(label.id) }
-                        GlassMenuItem("Usuń etykietę") { menuOpen = false; onDeleteLabel(label.id) }
-                    }
-                    GlassMenuItem("Zeskanuj kartkę (aparat)") {
-                        menuOpen = false
-                        if (takePhoto != null) {
-                            val (u, _) = pl.media30.todoisto.data.NoteScan.newCaptureUri(scanCtx)
-                            scanUri = u; takePhoto.launch(u)
-                        }
-                    }
-                    GlassMenuItem("Wybierz zdjęcie kartki") {
-                        menuOpen = false
-                        pickPhoto?.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    }
-                    GlassMenuItem("Wyślij plan dnia") { menuOpen = false; onSharePlan() }
-                    GlassMenuItem("Usuń ukończone") { menuOpen = false; onClearCompleted() }
-                }
-                GlassMenu(expanded = sortMenuOpen, onDismiss = { sortMenuOpen = false }) {
-                    SortMode.entries.forEach { mode ->
-                        GlassMenuItem((if (mode == uiState.sortMode) "✓ " else "") + mode.label) { sortMenuOpen = false; onSort(mode) }
-                    }
-                }
-                }
-            }
-
-            // ── Pasek górny — nakładka; pigułki rozmywają treść pod sobą (liquid glass) ─
-            Row(
-                Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+                // Awatar / menu — otwiera panel (szufladę z ustawieniami i nawigacją).
                 CircleGlassButton({ scope.launch { drawerState.open() } }) {
                     if (accountInitial.isNotBlank()) {
-                        // Awatar konta (inicjał) — klik otwiera panel z ustawieniami i nawigacją.
                         Box(Modifier.size(32.dp).clip(CircleShape).background(GlassAccent), contentAlignment = Alignment.Center) {
                             Text(accountInitial, fontSize = 15.sp, fontWeight = FontWeight.W900, color = Color.White)
                         }
@@ -419,25 +368,54 @@ fun TaskListScreen(
                         Icon(Icons.Filled.Menu, "Menu", tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
                     }
                 }
+                AreaSwitcher(areas, activeAreaId, onSelectArea) { dialog = DialogKind.NewArea }
                 Spacer(Modifier.weight(1f))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    AreaSwitcher(areas, activeAreaId, onSelectArea) { dialog = DialogKind.NewArea }
-                    Row(
-                        Modifier
-                            .height(42.dp)
-                            .glassBlur(RoundedCornerShape(21.dp))
-                            .bouncy(0.94f) { briefOpen = !briefOpen }
-                            .padding(horizontal = 15.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(15.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Tydzień", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
-                    }
+                // Tydzień (asystent AI) — kółko
+                CircleGlassButton({ briefOpen = !briefOpen }) {
+                    Icon(Icons.Outlined.AutoAwesome, "Podsumowanie tygodnia", tint = GlassAccent, modifier = Modifier.size(18.dp))
                 }
-                Spacer(Modifier.weight(1f))
-                CircleGlassButton(onFreeTime) {
-                    Icon(Icons.Outlined.Bolt, "Czas wolny", tint = GlassAccent, modifier = Modifier.size(19.dp))
+                // Dodawanie głosowe — kółko
+                CircleGlassButton({ voiceOpen = true }) {
+                    Icon(Icons.Filled.Mic, "Dodaj głosowo", tint = GlassAccent, modifier = Modifier.size(18.dp))
+                }
+                // Menu akcji ⋮ — kółko z rozwijanym menu
+                Box {
+                    CircleGlassButton({ menuOpen = true }) {
+                        Icon(Icons.Filled.MoreVert, "Więcej", tint = GlassTextSecondary, modifier = Modifier.size(18.dp))
+                    }
+                    GlassMenu(expanded = menuOpen, onDismiss = { menuOpen = false }) {
+                        GlassMenuItem("Sortowanie: ${uiState.sortMode.label}") { menuOpen = false; sortMenuOpen = true }
+                        uiState.currentProject?.let { project ->
+                            GlassMenuItem(if (project.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") { menuOpen = false; onToggleProjectFavorite(project.id) }
+                            GlassMenuItem("Dodaj sekcję") { menuOpen = false; dialog = DialogKind.NewSection }
+                            GlassMenuItem("Duplikuj projekt") { menuOpen = false; onDuplicateProject(project.id) }
+                            GlassMenuItem(if (project.isArchived) "Przywróć z archiwum" else "Archiwizuj projekt") { menuOpen = false; onArchiveProject(project.id, !project.isArchived) }
+                            GlassMenuItem("Usuń projekt") { menuOpen = false; onDeleteProject(project.id) }
+                        }
+                        uiState.currentLabel?.let { label ->
+                            GlassMenuItem(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") { menuOpen = false; onToggleLabelFavorite(label.id) }
+                            GlassMenuItem("Usuń etykietę") { menuOpen = false; onDeleteLabel(label.id) }
+                        }
+                        GlassMenuItem("Czas wolny — sugestia") { menuOpen = false; onFreeTime() }
+                        GlassMenuItem("Zeskanuj kartkę (aparat)") {
+                            menuOpen = false
+                            if (takePhoto != null) {
+                                val (u, _) = pl.media30.todoisto.data.NoteScan.newCaptureUri(scanCtx)
+                                scanUri = u; takePhoto.launch(u)
+                            }
+                        }
+                        GlassMenuItem("Wybierz zdjęcie kartki") {
+                            menuOpen = false
+                            pickPhoto?.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        }
+                        GlassMenuItem("Wyślij plan dnia") { menuOpen = false; onSharePlan() }
+                        GlassMenuItem("Usuń ukończone") { menuOpen = false; onClearCompleted() }
+                    }
+                    GlassMenu(expanded = sortMenuOpen, onDismiss = { sortMenuOpen = false }) {
+                        SortMode.entries.forEach { mode ->
+                            GlassMenuItem((if (mode == uiState.sortMode) "✓ " else "") + mode.label) { sortMenuOpen = false; onSort(mode) }
+                        }
+                    }
                 }
             }
 

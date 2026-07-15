@@ -137,19 +137,20 @@ private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
         Color(0xFFD46E4E), Color(0xFFC85C90), Color(0xFFC0982E), Color(0xFF2EA68C),
         Color(0xFF8E6BEB), Color(0xFFC85CA8)
     ) else BgPalette(
+        // Świt — delikatne, ale wielobarwne pastele: róż, brzoskwinia, lawenda, mięta, złoto
         listOf(Color(0xFFFDFBFF), Color(0xFFF6F1FE), Color(0xFFEFE8FC), Color(0xFFF3ECFF)),
-        Color(0xFF9C7BF0), Color(0xFFC9A6FF), Color(0xFFA6B0FF), Color(0xFF7E5AE0),
-        Color(0xFFFFC1A6), Color(0xFFFFE08A)
+        Color(0xFFF6C2D2), Color(0xFFFFD9B0), Color(0xFFCBC4FF), Color(0xFFB6A8FF),
+        Color(0xFFBFEBD9), Color(0xFFFFEBA6)
     )
-    // Południe — dzień: fiolet + czerwień + żółty + błękit + róż
+    // Południe — dzień: błękit + lawenda + mięta + róż + złoto
     DayPhase.NOON -> if (d) BgPalette(
         listOf(Color(0xFF2A3A66), Color(0xFF2E3A60), Color(0xFF283458), Color(0xFF20294E)),
         Color(0xFF2EA69C), Color(0xFFC85CA8), Color(0xFF4E80C8), Color(0xFFC0A02E),
         Color(0xFF6E45D9), Color(0xFFC0664E)
     ) else BgPalette(
         listOf(Color(0xFFFDFBFF), Color(0xFFF6F1FE), Color(0xFFEFE8FC), Color(0xFFF4EEFF)),
-        Color(0xFF8E6BEB), Color(0xFFB79CFF), Color(0xFF9AA6FF), Color(0xFF6E45D9),
-        Color(0xFFB5E6FF), Color(0xFFFFD1E8)
+        Color(0xFFBFE0FF), Color(0xFFCBBEFF), Color(0xFFBFEFD9), Color(0xFFA6B4FF),
+        Color(0xFFFFD2E6), Color(0xFFFFEAB0)
     )
     // Wieczór — zmierzch: fiolet + czerwień/magenta + złoty + błękit + mięta
     DayPhase.EVENING -> if (d) BgPalette(
@@ -157,9 +158,10 @@ private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
         Color(0xFFC24DA0), Color(0xFF5C6CD0), Color(0xFFC0664E), Color(0xFFC09A2E),
         Color(0xFF4E80C8), Color(0xFF2EA68C)
     ) else BgPalette(
-        listOf(Color(0xFFF3EAFF), Color(0xFFFFECEC), Color(0xFFFFF3E0), Color(0xFFF0E8FF)),
-        Color(0xFF9E7BFF), Color(0xFFFF6E8E), Color(0xFFFFC85E), Color(0xFFC06BE0),
-        Color(0xFFB6F0DC), Color(0xFFFFD48A)
+        // Zmierzch — ciepłe, delikatne pastele: lawenda, róż, złoto, brzoskwinia, mięta
+        listOf(Color(0xFFF3EAFF), Color(0xFFFFF0F3), Color(0xFFFFF6EA), Color(0xFFF0E8FF)),
+        Color(0xFFCDB8FF), Color(0xFFFFB8CC), Color(0xFFFFDCA6), Color(0xFFD8B0FF),
+        Color(0xFFBEE8DE), Color(0xFFFFCEB0)
     )
 }
 
@@ -271,7 +273,7 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
                 )
             )
         } else {
-            val meshA = if (dark) 0.60f else 0.44f
+            val meshA = if (dark) 0.68f else 0.72f
             // Baza — jasna lawenda wg palety (FDFBFF → EFE8FC).
             val baseTop = if (dark) Color(0xFF241E3C) else Color(0xFFFDFBFF)
             val baseBot = if (dark) Color(0xFF1B1630) else Color(0xFFEFE8FC)
@@ -297,9 +299,8 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
             blob(pal.meshAccent, 4.9f, 0.46f, 0.58f, 0.54f, 0.62f, meshA * (0.72f + 0.28f * p))
             blob(pal.meshAccent2, 2.5f, 0.24f, 0.66f, 0.54f, 0.58f, meshA * (0.80f + 0.20f * (1f - p)))
             blob(pal.meshAccent3, 5.6f, 0.76f, 0.30f, 0.52f, 0.60f, meshA * 0.85f)
-            // Mleczna zasłona — nieco słabsza, żeby kolory tła były wyraźniejsze
-            // (mocniejszy kontrast z jasnymi elementami/kartami na wierzchu).
-            if (!dark) drawRect(Color.White.copy(alpha = 0.30f))
+            // Mleczna zasłona — minimalna, żeby pastele tła były wyraźnie kolorowe.
+            if (!dark) drawRect(Color.White.copy(alpha = 0.12f))
         }
     }
 }

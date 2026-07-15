@@ -230,6 +230,65 @@ object AiClient {
             .filter { it.isNotEmpty() && it.length in 2..200 }
     }
 
+    /** Wynik inteligentnej analizy zdjęcia. */
+    data class SmartScan(
+        val summary: String,
+        val tasks: List<String>,
+        val suggestion: String,
+        val plan: String
+    )
+
+    /**
+     * Inteligentna analiza zdjęcia (Vision): rozpoznaje CZY to lista rzeczy do
+     * zrobienia, CZY obiekt (książka, produkt, plakat, wydarzenie). Dla listy
+     * zwraca zadania; dla obiektu — proponuje jedno konkretne zadanie i realny plan.
+     */
+    suspend fun analyzeImageSmart(apiKey: String, jpegBytes: ByteArray): SmartScan = withContext(Dispatchers.IO) {
+        require(apiKey.isNotBlank()) { "Brak klucza API" }
+        val dataUrl = "data:image/jpeg;base64," + android.util.Base64.encodeToString(jpegBytes, android.util.Base64.NO_WRAP)
+        val instruction =
+            "Przeanalizuj zdjęcie i odpowiedz WYŁĄCZNIE surowym JSON (bez markdown, bez ```), w formacie:\n" +
+            "{\"summary\":\"...\",\"tasks\":[\"...\"],\"suggestion\":\"...\",\"plan\":\"...\"}\n" +
+            "Zasady (po polsku):\n" +
+            "- Jeśli to lista rzeczy do zrobienia: wypełnij tasks (krótkie zadania), a suggestion i plan zostaw puste.\n" +
+            "- Jeśli to obiekt (np. książka, produkt, plakat, wydarzenie, miejsce): tasks puste; w suggestion podaj JEDNO konkretne zadanie " +
+            "(np. Przeczytać ksiazke <tytul i autor jesli widoczny>), a w plan krótki, realny plan realizacji z sugestią pory dnia i terminu " +
+            "(np. Czytajac po poludniu okolo 30 min dziennie skonczysz w okolo 2 tygodnie).\n" +
+            "- summary: jedno zdanie, co widać na zdjęciu."
+        val userContent = JSONArray().apply {
+            put(JSONObject().put("type", "text").put("text", instruction))
+            put(JSONObject().put("type", "image_url").put("image_url", JSONObject().put("url", dataUrl)))
+        }
+        val body = JSONObject().apply {
+            put("model", "gpt-4o-mini")
+            put("temperature", 0.3)
+            put("messages", JSONArray().apply { put(JSONObject().put("role", "user").put("content", userContent)) })
+        }.toString()
+        val conn = (URL(ENDPOINT).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"; connectTimeout = 20000; readTimeout = 60000; doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Authorization", "Bearer $apiKey")
+        }
+        conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+        val code = conn.responseCode
+        val text = (if (code in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
+        if (code !in 200..299) {
+            val msg = runCatching { JSONObject(text).getJSONObject("error").getString("message") }.getOrDefault("Błąd $code")
+            throw RuntimeException(msg)
+        }
+        val content = JSONObject(text).getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content")
+            .trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+        val o = runCatching { JSONObject(content) }.getOrNull()
+            ?: return@withContext SmartScan(summary = content.take(200), tasks = emptyList(), suggestion = "", plan = "")
+        val tasks = o.optJSONArray("tasks")?.let { a -> (0 until a.length()).map { a.getString(it).trim() }.filter { it.isNotEmpty() } } ?: emptyList()
+        SmartScan(
+            summary = o.optString("summary").trim(),
+            tasks = tasks,
+            suggestion = o.optString("suggestion").trim(),
+            plan = o.optString("plan").trim()
+        )
+    }
+
     /**
      * Realny koszt z panelu OpenAI (Costs API) — wymaga klucza ADMIN (sk-admin-…),
      * bo zwykły klucz nie ma dostępu do rozliczeń. Sumuje dzienne kubełki od

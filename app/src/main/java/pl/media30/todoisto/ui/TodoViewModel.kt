@@ -222,24 +222,47 @@ class TodoViewModel(
         }
     }
 
-    // --- Skan kartki → zadania (Vision) ---
-    private val _scanResult = MutableStateFlow<String?>(null)
-    val scanResult: StateFlow<String?> = _scanResult.asStateFlow()
-    fun clearScanResult() { _scanResult.value = null }
+    // --- Inteligentny skan zdjęcia (lista LUB obiekt, np. książka) ---
+    data class ScanState(
+        val loading: Boolean = false,
+        val summary: String = "",
+        val tasks: List<String> = emptyList(),
+        val suggestion: String = "",
+        val plan: String = "",
+        val error: String? = null,
+        val needsKey: Boolean = false
+    )
+    private val _scan = MutableStateFlow<ScanState?>(null)
+    val scan: StateFlow<ScanState?> = _scan.asStateFlow()
+    fun dismissScan() { _scan.value = null }
 
-    /** Odczytuje zadania ze zdjęcia kartki i dodaje je do listy. */
+    /** Analizuje zdjęcie i pokazuje propozycję (nie dodaje od razu). */
     fun scanNoteImage(jpegBytes: ByteArray) {
         val key = settings.openAiKey.value
-        if (key.isBlank()) { _scanResult.value = "Dodaj klucz API w Ustawieniach, aby skanować kartki."; return }
-        _scanResult.value = "Odczytuję kartkę…"
+        if (key.isBlank()) { _scan.value = ScanState(needsKey = true); return }
+        _scan.value = ScanState(loading = true)
         viewModelScope.launch {
-            try {
-                val tasks = pl.media30.todoisto.data.AiClient.extractTasksFromImage(key, jpegBytes)
-                tasks.forEach { quickAdd(it) }
-                _scanResult.value = if (tasks.isEmpty()) "Nie znalazłem zadań na zdjęciu." else "Dodano ${tasks.size} zadań z kartki."
+            _scan.value = try {
+                val r = pl.media30.todoisto.data.AiClient.analyzeImageSmart(key, jpegBytes)
+                ScanState(summary = r.summary, tasks = r.tasks, suggestion = r.suggestion, plan = r.plan)
             } catch (e: Exception) {
-                _scanResult.value = "Błąd skanowania: ${e.message ?: "spróbuj ponownie"}"
+                ScanState(error = e.message ?: "Błąd skanowania")
             }
+        }
+    }
+
+    /** Dodaje zadania rozpoznane z listy. */
+    fun addScanTasks(titles: List<String>) {
+        titles.forEach { quickAdd(it) }
+        _scan.value = null
+    }
+
+    /** Dodaje jedno proponowane zadanie (np. „Przeczytać książkę…"), plan → notatka. */
+    fun addScanSuggestion(title: String, plan: String) {
+        if (title.isBlank()) { _scan.value = null; return }
+        viewModelScope.launch {
+            repository.insert(pl.media30.todoisto.data.Task(title = title.trim(), notes = plan.trim(), createdAt = System.currentTimeMillis()))
+            _scan.value = null
         }
     }
 

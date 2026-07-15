@@ -180,13 +180,7 @@ fun TodoistoApp(
             viewModel.clearImportResult()
         }
     }
-    val scanResult by viewModel.scanResult.collectAsState()
-    androidx.compose.runtime.LaunchedEffect(scanResult) {
-        scanResult?.let {
-            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
-            if (!it.startsWith("Odczytuję")) viewModel.clearScanResult()
-        }
-    }
+    val scanState by viewModel.scan.collectAsState()
 
     TaskListScreen(
         uiState = uiState,
@@ -411,6 +405,22 @@ fun TodoistoApp(
                 aiState = estimateAi,
                 avgActualMinutes = avgActualMinutes,
                 onEstimateAi = { viewModel.estimateTodayWithAi(todayOpen.map { it.title }) }
+            )
+        }
+    }
+
+    scanState?.let { s ->
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.dismissScan() },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = GlassSurface,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
+        ) {
+            pl.media30.todoisto.ui.screens.ScanResultSheet(
+                state = s,
+                onAddTasks = { viewModel.addScanTasks(it) },
+                onAddSuggestion = { t, p -> viewModel.addScanSuggestion(t, p) },
+                onDismiss = { viewModel.dismissScan() }
             )
         }
     }

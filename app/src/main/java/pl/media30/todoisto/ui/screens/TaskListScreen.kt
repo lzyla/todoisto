@@ -70,6 +70,8 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Autorenew
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DarkMode
@@ -501,6 +503,15 @@ fun TaskListScreen(
                         qaOpen = false
                         onPrefillConsumed()
                     }
+                },
+                onScanCamera = {
+                    if (takePhoto != null) {
+                        val (u, _) = pl.media30.todoisto.data.NoteScan.newCaptureUri(scanCtx)
+                        scanUri = u; takePhoto.launch(u)
+                    }
+                },
+                onScanGallery = {
+                    pickPhoto?.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
                 },
                 modifier = Modifier.align(Alignment.BottomEnd)
             )
@@ -1311,6 +1322,8 @@ private fun QuickAddMorph(
     labels: List<Label>,
     onToggleOpen: () -> Unit,
     onSubmit: () -> Unit,
+    onScanCamera: () -> Unit = {},
+    onScanGallery: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraintsFix(modifier.navigationBarsPadding().imePadding()) { maxW ->
@@ -1430,6 +1443,30 @@ private fun QuickAddMorph(
                         }
                         labels.take(1).forEach { l ->
                             QAToken("@${l.name}", Color(l.colorArgb)) { addToken("@${l.name}") }
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    // Skan listy z kartki — widoczne przyciski (aparat / galeria).
+                    Text("SKAN Z KARTKI", fontSize = 9.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.8.sp, color = GlassTextSecondary)
+                    Spacer(Modifier.height(6.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            Modifier.weight(1f).clip(RoundedCornerShape(13.dp)).background(GlassAccent.copy(alpha = 0.14f))
+                                .bouncy(0.96f) { onScanCamera() }.padding(vertical = 10.dp),
+                            horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Outlined.PhotoCamera, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Zrób zdjęcie", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassAccent)
+                        }
+                        Row(
+                            Modifier.weight(1f).clip(RoundedCornerShape(13.dp)).background(GlassAccent.copy(alpha = 0.14f))
+                                .bouncy(0.96f) { onScanGallery() }.padding(vertical = 10.dp),
+                            horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Outlined.Image, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Z galerii", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassAccent)
                         }
                     }
                     Spacer(Modifier.weight(1f))

@@ -542,24 +542,29 @@ private fun AutomationCard(
                         Icon(Icons.Filled.Close, "Zwiń", tint = GlassTextSecondary, modifier = Modifier.size(16.dp))
                     }
                 }
-                Spacer(Modifier.height(14.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    tip.tools.forEach { t ->
-                        Text(
-                            t, fontSize = 11.5.sp, fontWeight = FontWeight.W800, color = GlassAccent,
-                            modifier = Modifier.clip(RoundedCornerShape(50)).background(GlassAccent.copy(alpha = 0.12f)).padding(horizontal = 11.dp, vertical = 5.dp)
-                        )
+                // Statyczne podpowiedzi doradcy (narzędzia + kroki) pokazujemy TYLKO,
+                // gdy nie ma jeszcze odpowiedzi AI. Po kliknięciu ikony AI liczy się
+                // sama odpowiedź AI — kanoniczne kroki byłyby zbędnym dublem.
+                if (aiState == null) {
+                    Spacer(Modifier.height(14.dp))
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        tip.tools.forEach { t ->
+                            Text(
+                                t, fontSize = 11.5.sp, fontWeight = FontWeight.W800, color = GlassAccent,
+                                modifier = Modifier.clip(RoundedCornerShape(50)).background(GlassAccent.copy(alpha = 0.12f)).padding(horizontal = 11.dp, vertical = 5.dp)
+                            )
+                        }
                     }
-                }
-                Spacer(Modifier.height(14.dp))
-                tip.steps.forEachIndexed { i, step ->
-                    Row(Modifier.padding(bottom = 10.dp)) {
-                        Box(
-                            Modifier.size(22.dp).clip(CircleShape).background(GlassAccent),
-                            contentAlignment = Alignment.Center
-                        ) { Text("${i + 1}", color = Color.White, fontSize = 11.5.sp, fontWeight = FontWeight.W800) }
-                        Spacer(Modifier.width(11.dp))
-                        Text(step, fontSize = 13.5.sp, lineHeight = 19.sp, color = GlassTextPrimary, modifier = Modifier.weight(1f))
+                    Spacer(Modifier.height(14.dp))
+                    tip.steps.forEachIndexed { i, step ->
+                        Row(Modifier.padding(bottom = 10.dp)) {
+                            Box(
+                                Modifier.size(22.dp).clip(CircleShape).background(GlassAccent),
+                                contentAlignment = Alignment.Center
+                            ) { Text("${i + 1}", color = Color.White, fontSize = 11.5.sp, fontWeight = FontWeight.W800) }
+                            Spacer(Modifier.width(11.dp))
+                            Text(step, fontSize = 13.5.sp, lineHeight = 19.sp, color = GlassTextPrimary, modifier = Modifier.weight(1f))
+                        }
                     }
                 }
                 // Przycisk „Zróbmy to z AI" tylko zanim padnie pytanie — po kliknięciu

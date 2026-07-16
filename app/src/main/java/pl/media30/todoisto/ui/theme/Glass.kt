@@ -137,10 +137,11 @@ private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
         Color(0xFFD46E4E), Color(0xFFC85C90), Color(0xFFC0982E), Color(0xFF2EA68C),
         Color(0xFF8E6BEB), Color(0xFFC85CA8)
     ) else BgPalette(
-        // Świt — delikatne, ale wielobarwne pastele: róż, brzoskwinia, lawenda, mięta, złoto
+        // Świt — fiolet + niebieski + żółty: jasne pastele (fioletowe przyciski
+        // muszą się wyraźnie odcinać od tła)
         listOf(Color(0xFFFDFBFF), Color(0xFFF6F1FE), Color(0xFFEFE8FC), Color(0xFFF3ECFF)),
-        Color(0xFFF6C2D2), Color(0xFFFFD9B0), Color(0xFFCBC4FF), Color(0xFFB6A8FF),
-        Color(0xFFBFEBD9), Color(0xFFFFEBA6)
+        Color(0xFFCBB4FF), Color(0xFFB0D0FF), Color(0xFFFFE9A6), Color(0xFFBFA8FF),
+        Color(0xFFA8C6FF), Color(0xFFFFE18C)
     )
     // Południe — dzień: błękit + lawenda + mięta + róż + złoto
     DayPhase.NOON -> if (d) BgPalette(
@@ -148,9 +149,10 @@ private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
         Color(0xFF2EA69C), Color(0xFFC85CA8), Color(0xFF4E80C8), Color(0xFFC0A02E),
         Color(0xFF6E45D9), Color(0xFFC0664E)
     ) else BgPalette(
+        // Dzień — fiolet + niebieski + żółty
         listOf(Color(0xFFFDFBFF), Color(0xFFF6F1FE), Color(0xFFEFE8FC), Color(0xFFF4EEFF)),
-        Color(0xFFBFE0FF), Color(0xFFCBBEFF), Color(0xFFBFEFD9), Color(0xFFA6B4FF),
-        Color(0xFFFFD2E6), Color(0xFFFFEAB0)
+        Color(0xFFC6AEFF), Color(0xFFA9CBFF), Color(0xFFFFECA0), Color(0xFFB79CFF),
+        Color(0xFFBFE0FF), Color(0xFFFFE289)
     )
     // Wieczór — zmierzch: fiolet + czerwień/magenta + złoty + błękit + mięta
     DayPhase.EVENING -> if (d) BgPalette(
@@ -158,10 +160,10 @@ private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
         Color(0xFFC24DA0), Color(0xFF5C6CD0), Color(0xFFC0664E), Color(0xFFC09A2E),
         Color(0xFF4E80C8), Color(0xFF2EA68C)
     ) else BgPalette(
-        // Zmierzch — ciepłe, delikatne pastele: lawenda, róż, złoto, brzoskwinia, mięta
-        listOf(Color(0xFFF3EAFF), Color(0xFFFFF0F3), Color(0xFFFFF6EA), Color(0xFFF0E8FF)),
-        Color(0xFFCDB8FF), Color(0xFFFFB8CC), Color(0xFFFFDCA6), Color(0xFFD8B0FF),
-        Color(0xFFBEE8DE), Color(0xFFFFCEB0)
+        // Zmierzch — fiolet + niebieski + ciepły żółty
+        listOf(Color(0xFFF3EAFF), Color(0xFFF0F0FF), Color(0xFFFFF6E6), Color(0xFFF0E8FF)),
+        Color(0xFFCFB2FF), Color(0xFFAFC2FF), Color(0xFFFFDD92), Color(0xFFC9A4FF),
+        Color(0xFFB8CCFF), Color(0xFFFFD483)
     )
 }
 

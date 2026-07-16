@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.asStateFlow
 class SettingsStore(context: Context) {
 
     private val appContext = context.applicationContext
+    /** Context aplikacji dla warstwy ViewModel (lokalizacja, pogoda). */
+    val appCtx: Context get() = appContext
     private val prefs = context.getSharedPreferences("todoisto_settings", Context.MODE_PRIVATE)
 
     /** Zapisuje bajty tła do wewnętrznego magazynu i zwraca ścieżkę pliku. */
@@ -298,7 +300,7 @@ class SettingsStore(context: Context) {
         const val KEY_SWIPE_RIGHT = "swipe_right_completes"
         // Wersjonowany klucz — bump wymusza jednorazowe ponowne zasianie u wszystkich
         // (v4: po dodaniu Obszarów baza jest przebudowywana, więc dosiewamy z obszarami).
-        const val KEY_SEEDED = "demo_seeded_v5"
+        const val KEY_SEEDED = "demo_seeded_v6"
         const val KEY_AREA = "active_area"
         const val KEY_OPENAI = "openai_key"
         const val KEY_OPENAI_ADMIN = "openai_admin_key"

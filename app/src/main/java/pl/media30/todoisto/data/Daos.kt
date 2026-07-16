@@ -17,6 +17,9 @@ interface TaskDao {
     @Query("SELECT COUNT(*) FROM tasks")
     suspend fun count(): Int
 
+    @Query("SELECT * FROM tasks WHERE isCompleted = 0 AND locLat IS NOT NULL")
+    suspend fun getWithLocation(): List<Task>
+
     @Query("SELECT * FROM tasks WHERE id = :id LIMIT 1")
     suspend fun getTaskById(id: Long): Task?
 

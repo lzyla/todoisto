@@ -18,7 +18,9 @@ data class DayContext(
     val dayOfWeek: Int,              // 1=pon..7=niedz
     val weekCountByActivity: Map<Long, Int> = emptyMap(), // ukończone w tym tyg. per activityId
     val lastDoneByActivity: Map<Long, Long?> = emptyMap(),// lastCompletedAt per activityId
-    val nowMillis: Long = 0L
+    val nowMillis: Long = 0L,
+    /** true = deszcz/śnieg/burza (aktywności na zewnątrz tracą wagę); null = brak danych. */
+    val weatherBad: Boolean? = null
 )
 
 /** Propozycja: aktywność + slot + proponowana godzina startu. */
@@ -54,6 +56,14 @@ object ActivityPlanner {
         val windowMatch = if (a.windowStartMin == null || a.windowEndMin == null) 1.0
         else if (overlaps(slot, a.windowStartMin, a.windowEndMin)) 1.5 else 0.3
 
+        // weatherMatch — zła pogoda mocno degraduje aktywności na zewnątrz,
+        // ładna delikatnie je premiuje (dane z Open-Meteo, jeśli dostępne).
+        val weatherMatch = when {
+            ctx.weatherBad == true && a.place == Place.OUTSIDE -> 0.15
+            ctx.weatherBad == false && a.place == Place.OUTSIDE -> 1.35
+            else -> 1.0
+        }
+
         // dayMatch — dziś w daysMask
         val dayMatch = if (a.daysMask and dayBit(ctx.dayOfWeek) != 0) 1.5 else 0.5
 
@@ -86,7 +96,7 @@ object ActivityPlanner {
             EnergyCost.LOW -> if (b < 40) 1.2 else 1.0
         }.let { if (a.effortType == EffortType.RELAX && b < 40) it * 1.4 else it }
 
-        return typMatch * windowMatch * dayMatch * freqDebt * freshness * energyFit
+        return typMatch * windowMatch * dayMatch * freqDebt * freshness * energyFit * weatherMatch
     }
 
     /** Proponowana godzina startu w slocie z uwzględnieniem okna aktywności. */

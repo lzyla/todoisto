@@ -157,6 +157,11 @@ fun TodoistoApp(
     val bgBusy by viewModel.bgBusy.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
+    // Zgoda na lokalizację (pogoda w „Czas wolny") — po odpowiedzi i tak sugerujemy.
+    val locPermLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) { viewModel.suggestFreeTime() }
+
     var detailTaskId by remember { mutableStateOf<Long?>(null) }
     var showPool by remember { mutableStateOf(false) }
     var showForm by remember { mutableStateOf(false) }
@@ -216,7 +221,13 @@ fun TodoistoApp(
         onToggleTheme = { viewModel.setDarkTheme(!darkTheme) },
         onMoveOverdueToToday = viewModel::moveOverdueToToday,
         onOpenActivityPool = { showPool = true },
-        onFreeTime = { viewModel.suggestFreeTime() },
+        onFreeTime = {
+            if (pl.media30.todoisto.data.LocationHelper.hasPermission(context)) viewModel.suggestFreeTime()
+            else locPermLauncher.launch(arrayOf(
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION
+            ))
+        },
         isPhotoBackground = photoBg,
         onTogglePhotoBackground = { viewModel.setPhotoBackground(!photoBg) },
         activities = activities,

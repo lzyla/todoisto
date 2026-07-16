@@ -63,6 +63,7 @@ dependencies {
     implementation(libs.coil.compose)
     implementation("dev.chrisbanes.haze:haze:1.0.2")
     implementation("sh.calvin.reorderable:reorderable:2.4.3")
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

@@ -1141,7 +1141,8 @@ private fun ZenRowWithSubs(
         labelNames = labels.filter { task.labelIds.contains(it.id) }.map { it.name },
         subDone = node.subtasks.count { it.isCompleted },
         subTotal = node.subtasks.size,
-        linkDomains = task.attachments.map { it.removePrefix("https://").removePrefix("http://").substringBefore('/') }
+        linkDomains = task.attachments.map { it.removePrefix("https://").removePrefix("http://").substringBefore('/') },
+        locationName = task.locName
     )
     // #4 — znacznik dla długiego zadania ze zbliżającym się deadline'em
     val longTask = (task.durationMinutes ?: 0) >= 60

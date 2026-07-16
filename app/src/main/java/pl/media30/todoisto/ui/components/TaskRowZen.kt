@@ -135,7 +135,8 @@ fun zenMetaLine(
     labelNames: List<String>,
     subDone: Int,
     subTotal: Int,
-    linkDomains: List<String>
+    linkDomains: List<String>,
+    locationName: String? = null
 ): String {
     // Priorytet NIE jest tekstem — pokazuje go kolor kółka. Projekt pokazujemy zawsze.
     val chips = mutableListOf<String>()
@@ -146,6 +147,7 @@ fun zenMetaLine(
     labelNames.forEach { chips += "@$it" }
     val parts = chips.take(3).toMutableList()
     projectName?.let { parts += "#$it" }
+    locationName?.let { parts += "📍$it" }
     if (subTotal > 0) parts += "$subDone/$subTotal"
     linkDomains.forEach { parts += "↗ $it" }
     return parts.joinToString("  ·  ")

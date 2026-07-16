@@ -33,6 +33,10 @@ data class Task(
     val labelIds: List<Long> = emptyList(),
     /** Attachment URLs — image links render as thumbnails, the rest as link rows. */
     val attachments: List<String> = emptyList(),
+    /** Przypomnienie w miejscu: współrzędne + nazwa (promień 300 m). */
+    val locLat: Double? = null,
+    val locLon: Double? = null,
+    val locName: String? = null,
     val position: Int = 0,
     val createdAt: Long = 0L
 )

@@ -26,5 +26,12 @@ class TodoApplication : Application() {
         // Konto demo (zalogowane) + bogate dane demonstracyjne przy pierwszym uruchomieniu.
         account.seedDemoIfEmpty()
         appScope.launch { DemoSeeder.seedIfEmpty(db, settings) }
+        // Przypomnienia w miejscu: cykliczny worker + sprawdzenie na starcie.
+        runCatching { pl.media30.todoisto.data.GeoReminders.schedule(this) }
+        appScope.launch {
+            runCatching {
+                pl.media30.todoisto.data.GeoReminders.check(this@TodoApplication, db.taskDao().getWithLocation())
+            }
+        }
     }
 }

@@ -54,6 +54,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -260,6 +261,8 @@ fun TaskDetailSheet(
                 PresetChip(t, task.durationMinutes == v, Color(0xFF6B3FE0)) { onPatch(task.copy(durationMinutes = v)) }
             }
         }
+
+        LocationSection(task, onPatch)
 
         if (labels.isNotEmpty()) {
             DetailSection("Etykiety", Color(0xFFC24DFF)) {
@@ -621,6 +624,84 @@ private fun cleanMarkdown(s: String): String = s
     .replace(Regex("(?m)^\\s*#{1,6}\\s*"), "")
     .replace(Regex("(?m)^\\s*[-*]\\s+"), "• ")
     .trim()
+
+/**
+ * Przypomnienie w miejscu: adres (Geocoder, bez klucza) albo bieżąca lokalizacja.
+ * Gdy jesteś w promieniu ~300 m — apka wysyła notyfikację (worker co ~15 min).
+ */
+@Composable
+private fun LocationSection(task: pl.media30.todoisto.data.Task, onPatch: (pl.media30.todoisto.data.Task) -> Unit) {
+    val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var query by remember(task.id) { mutableStateOf("") }
+    var status by remember(task.id) { mutableStateOf<String?>(null) }
+    val hasRegistry = androidx.activity.compose.LocalActivityResultRegistryOwner.current != null
+    val permLauncher = if (hasRegistry) androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) { } else null
+    fun askPerms() {
+        val perms = mutableListOf(
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+        if (android.os.Build.VERSION.SDK_INT >= 33) perms += android.Manifest.permission.POST_NOTIFICATIONS
+        runCatching { permLauncher?.launch(perms.toTypedArray()) }
+    }
+
+    DetailSection("Przypomnij w miejscu", Color(0xFF2E9CC8)) {
+        if (task.locName != null) {
+            PresetChip("📍 ${task.locName}", true, Color(0xFF2E9CC8)) { }
+            PresetChip("Usuń", false, Color(0xFF2E9CC8)) {
+                onPatch(task.copy(locLat = null, locLon = null, locName = null))
+            }
+        } else {
+            BasicTextField(
+                value = query, onValueChange = { query = it; status = null },
+                textStyle = TextStyle(fontSize = 13.sp, color = GlassTextPrimary, fontWeight = FontWeight.W600),
+                cursorBrush = SolidColor(GlassAccent),
+                decorationBox = { inner ->
+                    Box(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                            .background(GlassAccent.copy(alpha = 0.08f))
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                    ) {
+                        if (query.isEmpty()) Text("np. Biedronka, Marszałkowska 10…", fontSize = 13.sp, color = GlassTextSecondary.copy(alpha = 0.6f))
+                        inner()
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            PresetChip("Ustaw z adresu", false, Color(0xFF2E9CC8)) {
+                if (query.isBlank()) { status = "Wpisz adres lub nazwę miejsca." } else {
+                    askPerms(); status = "Szukam…"
+                    scope.launch {
+                        val found = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            runCatching {
+                                @Suppress("DEPRECATION")
+                                android.location.Geocoder(context, java.util.Locale("pl"))
+                                    .getFromLocationName(query.trim(), 1)?.firstOrNull()
+                            }.getOrNull()
+                        }
+                        if (found != null) {
+                            onPatch(task.copy(locLat = found.latitude, locLon = found.longitude,
+                                locName = query.trim().take(40)))
+                            status = null
+                        } else status = "Nie znalazłem tego miejsca — spróbuj dokładniej."
+                    }
+                }
+            }
+            PresetChip("Moja lokalizacja", false, Color(0xFF2E9CC8)) {
+                askPerms()
+                val here = pl.media30.todoisto.data.LocationHelper.lastKnown(context)
+                if (here != null) {
+                    onPatch(task.copy(locLat = here.first, locLon = here.second, locName = "Tutaj"))
+                    status = null
+                } else status = "Brak lokalizacji — daj zgodę i spróbuj ponownie."
+            }
+            status?.let { Text(it, fontSize = 11.5.sp, fontWeight = FontWeight.W700, color = GlassTextSecondary) }
+        }
+    }
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

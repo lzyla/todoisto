@@ -50,7 +50,9 @@ data class FreeTimeState(
     val freeMinutes: Int,
     val suggestions: List<pl.media30.todoisto.data.Suggestion>,
     val poolEmpty: Boolean,
-    val noWindows: Boolean
+    val noWindows: Boolean,
+    /** Bieżąca pogoda (Open-Meteo) — wpływa na dobór aktywności dom/zewnątrz. */
+    val weather: pl.media30.todoisto.data.WeatherNow? = null
 )
 
 /** Stan zapytania do AI (przycisk „Zapytaj AI"). */
@@ -865,8 +867,17 @@ class TodoViewModel(
     fun setProjectEffort(project: Project, effort: pl.media30.todoisto.data.EffortType?) =
         viewModelScope.launch { repository.updateProject(project.copy(workEffortType = effort)) }
 
+    private var lastWeather: pl.media30.todoisto.data.WeatherNow? = null
+
     fun suggestFreeTime() = viewModelScope.launch {
         dismissedActivityIds.clear()
+        // Pogoda (Open-Meteo, bez klucza) z ostatniej znanej lokalizacji — jeśli brak
+        // zgody/sieci, planner działa jak dotąd.
+        lastWeather = runCatching {
+            pl.media30.todoisto.data.LocationHelper.lastKnown(settings.appCtx)?.let { (lat, lon) ->
+                pl.media30.todoisto.data.WeatherClient.fetch(lat, lon)
+            }
+        }.getOrNull()
         _freeTime.value = computeFreeTime(emptyList())
     }
 
@@ -917,12 +928,14 @@ class TodoViewModel(
         val nowMin = now.hour * 60 + now.minute
         val acts = activities.value.filter { it.isActive && it.id !in exclude }
         val slots = repository.freeWindows(allTasks.value, today.toEpochDay(), nowMin)
-        val suggestions = pl.media30.todoisto.data.ActivityPlanner.plan(acts, currentDayContext(), slots, count = 1)
+        val ctx = currentDayContext().copy(weatherBad = lastWeather?.isBad)
+        val suggestions = pl.media30.todoisto.data.ActivityPlanner.plan(acts, ctx, slots, count = 1)
         return FreeTimeState(
             freeMinutes = slots.sumOf { it.length },
             suggestions = suggestions,
             poolEmpty = activities.value.none { it.isActive },
-            noWindows = slots.isEmpty()
+            noWindows = slots.isEmpty(),
+            weather = lastWeather
         )
     }
 

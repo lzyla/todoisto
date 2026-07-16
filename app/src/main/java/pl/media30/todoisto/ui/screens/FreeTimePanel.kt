@@ -66,6 +66,15 @@ fun FreeTimePanel(
             if (!state.noWindows && !state.poolEmpty)
                 Text(freeSummary(state.freeMinutes), fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = GlassTextSecondary)
         }
+        // Pogoda (Open-Meteo) — kontekst propozycji: dom vs zewnątrz.
+        state.weather?.let { w ->
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "${w.emoji} ${w.tempC.toInt()}° · ${w.label}" +
+                    if (w.isBad) " — proponuję coś pod dachem" else " — dobra pora na zewnątrz",
+                fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = GlassTextSecondary
+            )
+        }
         Spacer(Modifier.height(16.dp))
 
         val hero = state.suggestions.firstOrNull()

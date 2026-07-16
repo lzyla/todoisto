@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Wariant E: przekątna — check u góry, linia, dymek AI w prawym dolnym rogu -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#B558F6"/>
+      <stop offset="1" stop-color="#5B2BE0"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg)"/>
+<polyline points="120,228 184,292 304,158" fill="none" stroke="#FFFFFF" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="196" y="285.0" width="212" height="30" rx="15.0" fill="#FFFFFF"/>
+<path d="M 288.0 356 H 404.0 A 48.0 48.0 0 0 1 404.0 452 H 288.0 A 48.0 48.0 0 0 1 288.0 356 Z M 286.2 404.0 a 13 13 0 1 0 26 0 a 13 13 0 1 0 -26 0 Z M 333.0 404.0 a 13 13 0 1 0 26 0 a 13 13 0 1 0 -26 0 Z M 379.8 404.0 a 13 13 0 1 0 26 0 a 13 13 0 1 0 -26 0 Z" fill="#FFFFFF" fill-rule="evenodd"/>
+</svg>

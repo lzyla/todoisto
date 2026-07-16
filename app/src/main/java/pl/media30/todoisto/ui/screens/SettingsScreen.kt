@@ -261,7 +261,11 @@ private fun MainSettings(
 
     SettingsSection("O aplikacji")
     SettingsCard {
-        NavRow(Icons.Outlined.Info, Color(0xFF9AA6FF), "Wersja", "Todoisto 1.0", trailing = {})
+        val verCtx = LocalContext.current
+        val versionName = remember {
+            runCatching { verCtx.packageManager.getPackageInfo(verCtx.packageName, 0).versionName }.getOrNull() ?: "1.0"
+        }
+        NavRow(Icons.Outlined.Info, Color(0xFF9AA6FF), "Wersja", "Todoisto v$versionName", trailing = {})
         RowDivider()
         NavRow(Icons.Outlined.Lock, Color(0xFF34D399), "Dane", "Przechowywane lokalnie · offline, konto tylko na urządzeniu", trailing = {})
     }

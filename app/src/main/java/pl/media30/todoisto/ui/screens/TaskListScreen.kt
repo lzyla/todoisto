@@ -161,6 +161,7 @@ import pl.media30.todoisto.ui.theme.Sora
 import pl.media30.todoisto.ui.theme.controlCenterGlass
 import pl.media30.todoisto.ui.theme.glass
 import pl.media30.todoisto.ui.theme.glassBlur
+import pl.media30.todoisto.ui.theme.livingGradient
 import pl.media30.todoisto.ui.theme.taskTile
 import java.time.LocalDate
 import java.time.format.TextStyle as JTextStyle
@@ -882,6 +883,7 @@ private fun ZenContent(
                             val chev by animateFloatAsState(if (isCol) -90f else 0f, tween(400, easing = EASE), label = "chevOv")
                             Row(
                                 Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(12.dp))
+                                    .then(if (!isCol) Modifier.livingGradient(RoundedCornerShape(12.dp), 0.12f) else Modifier)
                                     .bouncy(0.98f) { collapsed["overdue"] = !isCol }.padding(horizontal = 6.dp, vertical = 5.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -911,6 +913,7 @@ private fun ZenContent(
                         val chev by animateFloatAsState(if (isCol) -90f else 0f, tween(400, easing = EASE), label = "chevToday")
                         Row(
                             Modifier.fillMaxWidth().padding(top = 14.dp).clip(RoundedCornerShape(12.dp))
+                                .then(if (!isCol) Modifier.livingGradient(RoundedCornerShape(12.dp), 0.12f) else Modifier)
                                 .bouncy(0.98f) { collapsed["today"] = !isCol }.padding(horizontal = 6.dp, vertical = 5.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -943,13 +946,21 @@ private fun ZenContent(
                                                 if (isNew) pulse.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.5f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))
                                             }
                                             ReorderableItem(reorderState, key = node.task.id) { dragging ->
-                                                val scale by animateFloatAsState(if (dragging) 1.03f else 1f, tween(180), label = "dragScale")
-                                                val elevation by animateDpAsState(if (dragging) 12.dp else 0.dp, tween(180), label = "dragElev")
+                                                // Przeciąganie: uniesienie + delikatny przechył + fioletowa poświata
+                                                // (kafelek „w palcach" wyraźnie odróżnia się od reszty listy).
+                                                val scale by animateFloatAsState(if (dragging) 1.035f else 1f, tween(180), label = "dragScale")
+                                                val elevation by animateDpAsState(if (dragging) 16.dp else 0.dp, tween(180), label = "dragElev")
+                                                val tilt by animateFloatAsState(if (dragging) 1.4f else 0f, tween(200), label = "dragTilt")
+                                                val glow by animateFloatAsState(if (dragging) 1f else 0f, tween(200), label = "dragGlow")
                                                 Column(
                                                     Modifier
                                                         .padding(vertical = 4.dp)
-                                                        .graphicsLayer { scaleX = scale * pulse.value; scaleY = scale * pulse.value }
-                                                        .shadow(elevation, RoundedCornerShape(20.dp))
+                                                        .graphicsLayer {
+                                                            scaleX = scale * pulse.value; scaleY = scale * pulse.value
+                                                            rotationZ = tilt
+                                                        }
+                                                        .shadow(elevation, RoundedCornerShape(20.dp), spotColor = GlassAccent, ambientColor = GlassAccent.copy(alpha = 0.7f))
+                                                        .then(if (glow > 0f) Modifier.border(1.dp, GlassAccent.copy(alpha = 0.45f * glow), RoundedCornerShape(20.dp)) else Modifier)
                                                         .longPressDraggableHandle(onDragStopped = { onReorder(orderedNodes.map { it.task.id }) })
                                                 ) {
                                                     ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
@@ -1281,7 +1292,9 @@ private fun ZenRowWithSubs(
                         }
                     }
                     androidx.compose.foundation.layout.FlowRow(
-                        Modifier.fillMaxWidth().padding(start = 14.dp, end = 12.dp, top = 2.dp, bottom = 11.dp),
+                        Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 9.dp)
+                            .livingGradient(RoundedCornerShape(14.dp), 0.14f)
+                            .padding(horizontal = 8.dp, vertical = 7.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
@@ -1511,6 +1524,7 @@ private fun QuickAddMorph(
                         .shadow(22.dp, RoundedCornerShape(29.dp))
                         .clip(RoundedCornerShape(29.dp))
                         .background(GlassSurface)
+                        .livingGradient(RoundedCornerShape(29.dp), 0.08f)
                         .border(1.dp, GlassRim.copy(alpha = 0.6f), RoundedCornerShape(29.dp))
                     else Modifier.clip(RoundedCornerShape(29.dp)).background(GlassAccent)
                 )

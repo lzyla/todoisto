@@ -338,6 +338,35 @@ private fun DrawScope.sheen(progress: Float, alpha: Float) {
 }
 
 /**
+ * „Żyjący gradient" rozwiniętego panelu: barwy motywu (fiolet→niebieski→róż)
+ * powoli przesuwają się po tafli, dopóki panel jest otwarty. Bardzo niska
+ * alpha — treść pozostaje w pełni czytelna, a panel wygląda jak żywe szkło.
+ */
+fun Modifier.livingGradient(shape: Shape = RoundedCornerShape(20.dp), strength: Float = 0.16f): Modifier = composed {
+    val tr = rememberInfiniteTransition(label = "living")
+    val t by tr.animateFloat(
+        0f, 1f, infiniteRepeatable(tween(5200, easing = LinearEasing), RepeatMode.Reverse), label = "livingT"
+    )
+    val c1 = GlassAccent
+    val c2 = Color(0xFF4E80C8)   // niebieski towarzysz
+    val c3 = Color(0xFFC24DA0)   // różowy akcent
+    this.clip(shape).drawBehind {
+        val w = size.width; val h = size.height
+        val off = (t - 0.5f) * w * 1.4f
+        drawRect(
+            Brush.linearGradient(
+                colors = listOf(
+                    c1.copy(alpha = strength), c2.copy(alpha = strength * 0.85f),
+                    c3.copy(alpha = strength * 0.7f), c1.copy(alpha = strength)
+                ),
+                start = Offset(-w * 0.6f + off, 0f),
+                end = Offset(w * 1.2f + off, h)
+            )
+        )
+    }
+}
+
+/**
  * Tafla glass (karta/tafla/przycisk) w duchu Apple Liquid Glass:
  * miękki rozproszony cień, półprzezroczyste wypełnienie (tło prześwituje),
  * gradientowy rant (jasny u góry → nikły u dołu), górny refleks świetlny

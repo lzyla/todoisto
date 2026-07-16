@@ -1360,8 +1360,12 @@ private fun SwipeBg(dir: androidx.compose.material3.SwipeToDismissBoxValue, righ
             if (isComplete) Icons.Filled.Check else Icons.Outlined.DateRange,
             null, tint = Color.White, modifier = Modifier.size(22.dp)
         )
-        Spacer(Modifier.width(8.dp))
-        Text(if (isComplete) "Ukończ" else "Przełóż", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W800)
+        // Strona „przełóż": sama ikona — napis dublował się z chipem „Przełóż"
+        // widocznym na kafelku zaległego zadania podczas przesuwania.
+        if (isComplete) {
+            Spacer(Modifier.width(8.dp))
+            Text("Ukończ", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W800)
+        }
     }
 }
 

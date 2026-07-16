@@ -1238,6 +1238,7 @@ private fun ZenRowWithSubs(
                                 Row(
                                     Modifier
                                         .graphicsLayer { scaleX = aiScale; scaleY = aiScale }
+                                        .shadow(4.dp, RoundedCornerShape(50), spotColor = Color(0xFFC98A00), ambientColor = Color(0xFFC98A00))
                                         .clip(RoundedCornerShape(50)).background(Color(0xFFFFC94D))
                                         .bouncy(0.9f) { onOpenAutomation(task) }.padding(horizontal = 9.dp, vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
@@ -1263,7 +1264,8 @@ private fun ZenRowWithSubs(
                 ) {
                     Row(Modifier.padding(start = 14.dp, top = 1.dp, bottom = 6.dp)) {
                         Row(
-                            Modifier.clip(RoundedCornerShape(50)).background(Color(0x22C2410C))
+                            Modifier.shadow(2.dp, RoundedCornerShape(50), spotColor = Color(0x66C2410C))
+                                .clip(RoundedCornerShape(50)).background(Color(0xFFFFE9DD))
                                 .bouncy(0.92f) { reschedOpen = true }.padding(horizontal = 10.dp, vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -1530,7 +1532,9 @@ private fun QuickAddMorph(
                         .background(GlassSurface)
                         .livingGradient(RoundedCornerShape(29.dp), 0.08f)
                         .border(1.dp, GlassRim.copy(alpha = 0.6f), RoundedCornerShape(29.dp))
-                    else Modifier.clip(RoundedCornerShape(29.dp)).background(GlassAccent)
+                    else Modifier
+                        .shadow(12.dp, RoundedCornerShape(29.dp), spotColor = GlassAccent, ambientColor = GlassAccent.copy(alpha = 0.6f))
+                        .clip(RoundedCornerShape(29.dp)).background(GlassAccent)
                 )
         ) {
             // Plus / X

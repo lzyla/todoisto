@@ -475,7 +475,7 @@ fun Modifier.taskTile(onClick: () -> Unit): Modifier = composed {
     // Miękki cień unoszący kartę nad tłem — teraz wypełnienie jest kryjące, więc
     // cień nie „prześwituje" jako prostokąt. Delikatnie rośnie przy dotknięciu.
     val elev by androidx.compose.animation.core.animateDpAsState(
-        targetValue = if (pressed) 12.dp else 5.dp,
+        targetValue = if (pressed) 16.dp else 9.dp,
         animationSpec = tween(280), label = "tileElev"
     )
     this

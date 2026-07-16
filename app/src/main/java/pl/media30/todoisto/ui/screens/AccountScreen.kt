@@ -76,9 +76,20 @@ fun AccountScreen(
     onCloudSignOut: () -> Unit,
     onCloudBackup: () -> Unit,
     onCloudRestore: () -> Unit,
+    aiPromptTokens: Long,
+    aiCompletionTokens: Long,
+    aiImageCount: Long,
+    onResetAiUsage: () -> Unit,
+    adminKeySet: Boolean,
+    aiCost: pl.media30.todoisto.ui.AiCostState?,
+    onSetAdminKey: (String) -> Unit,
+    onRefreshCost: () -> Unit,
     onBack: () -> Unit
 ) {
     BackHandler { onBack() }
+    var showAdminKey by remember { mutableStateOf(false) }
+    // Auto-odświeżenie realnego kosztu przy wejściu, gdy klucz Admin ustawiony.
+    androidx.compose.runtime.LaunchedEffect(adminKeySet) { if (adminKeySet && aiCost == null) onRefreshCost() }
     GlassBackground {
         Column(Modifier.fillMaxSize()) {
             // Górny pasek
@@ -183,6 +194,13 @@ fun AccountScreen(
                 // Chmura (Supabase) — synchronizacja między urządzeniami
                 Text("CHMURA (SYNCHRONIZACJA)", fontSize = 11.5.sp, fontWeight = FontWeight.W800, color = GlassAccent, modifier = Modifier.padding(start = 6.dp, bottom = 10.dp))
                 CloudSection(cloud, onCloudConfig, onCloudSignIn, onCloudSignUp, onCloudSignOut, onCloudBackup, onCloudRestore)
+                Spacer(Modifier.height(24.dp))
+
+                // Zużycie AI: tokeny, szacowany i realny koszt — rozliczenia przy koncie.
+                AiUsageCard(
+                    aiPromptTokens, aiCompletionTokens, aiImageCount, onResetAiUsage,
+                    adminKeySet, aiCost, onRefreshCost, onOpenAdminKey = { showAdminKey = true }
+                )
                 Spacer(Modifier.height(28.dp))
 
                 // Wyloguj
@@ -197,6 +215,11 @@ fun AccountScreen(
                 }
                 Spacer(Modifier.navigationBarsPadding())
             }
+        }
+    }
+    if (showAdminKey) {
+        AdminKeyDialog(adminKeySet, onDismiss = { showAdminKey = false }) { k ->
+            onSetAdminKey(k); showAdminKey = false; onRefreshCost()
         }
     }
 }

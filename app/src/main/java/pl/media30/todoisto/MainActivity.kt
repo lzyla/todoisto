@@ -328,6 +328,14 @@ fun TodoistoApp(
             onCloudSignOut = viewModel::cloudSignOut,
             onCloudBackup = viewModel::cloudBackup,
             onCloudRestore = viewModel::cloudRestore,
+            aiPromptTokens = aiPromptTokens,
+            aiCompletionTokens = aiCompletionTokens,
+            aiImageCount = aiImageCount,
+            onResetAiUsage = viewModel::resetAiUsage,
+            adminKeySet = adminKey.isNotBlank(),
+            aiCost = aiCost,
+            onSetAdminKey = viewModel::setOpenAiAdminKey,
+            onRefreshCost = viewModel::refreshAiCost,
             onBack = { showAccount = false }
         )
     }

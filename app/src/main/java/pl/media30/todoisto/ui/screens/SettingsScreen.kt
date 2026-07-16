@@ -265,10 +265,6 @@ private fun MainSettings(
         RowDivider()
         NavRow(Icons.Outlined.Lock, Color(0xFF34D399), "Dane", "Przechowywane lokalnie · offline, konto tylko na urządzeniu", trailing = {})
     }
-    Spacer(Modifier.height(22.dp))
-
-    // „Zużycie AI" na samym dole ustawień.
-    AiUsageCard(aiPromptTokens, aiCompletionTokens, aiImageCount, onResetAiUsage, adminKeySet, aiCost, onRefreshCost, onOpenAdminKey)
     Spacer(Modifier.height(18.dp))
     Text(
         "Zrobione z ♥ dla spokojnego dnia.",
@@ -278,7 +274,7 @@ private fun MainSettings(
 }
 
 @Composable
-private fun AiUsageCard(
+internal fun AiUsageCard(
     promptTokens: Long, completionTokens: Long, imageCount: Long, onReset: () -> Unit,
     adminKeySet: Boolean, aiCost: pl.media30.todoisto.ui.AiCostState?, onRefreshCost: () -> Unit, onOpenAdminKey: () -> Unit
 ) {
@@ -395,7 +391,7 @@ private fun LegendItem(color: Color, label: String, value: String) {
 }
 
 @Composable
-private fun AdminKeyDialog(hasKey: Boolean, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+internal fun AdminKeyDialog(hasKey: Boolean, onDismiss: () -> Unit, onSave: (String) -> Unit) {
     var key by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,

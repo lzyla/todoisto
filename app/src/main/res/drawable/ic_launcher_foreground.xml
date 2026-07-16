@@ -20,7 +20,7 @@
         <path
             android:fillColor="#FFFFFFFF"
             android:pathData="M265,165 H403 A17,17 0 0 1 403,199 H265 A17,17 0 0 1 265,165 Z" />
-        <!-- wiersz 2: odhaczenie + dymek AI z plywajacymi kropkami -->
+        <!-- wiersz 2: odhaczenie + dymek AI (obwódka + białe kropki) -->
         <path
             android:strokeColor="#FFFFFFFF"
             android:strokeWidth="32"
@@ -29,8 +29,12 @@
             android:strokeLineJoin="round"
             android:pathData="M116,334 L150,368 L214,286" />
         <path
-            android:fillColor="#FFFFFFFF"
-            android:fillType="evenOdd"
-            android:pathData="M300,278 H380 A52,52 0 0 1 380,382 H300 A52,52 0 0 1 300,278 Z M281,339 a13,13 0 1 0 26,0 a13,13 0 1 0 -26,0 Z M327,319 a13,13 0 1 0 26,0 a13,13 0 1 0 -26,0 Z M373,335 a13,13 0 1 0 26,0 a13,13 0 1 0 -26,0 Z" />
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="11"
+            android:fillColor="#00000000"
+            android:pathData="M300,278 H380 A52,52 0 0 1 380,382 H300 A52,52 0 0 1 300,278 Z" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M281,339 a13,13 0 1 0 26,0 a13,13 0 1 0 -26,0 Z" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M327,319 a13,13 0 1 0 26,0 a13,13 0 1 0 -26,0 Z" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M373,335 a13,13 0 1 0 26,0 a13,13 0 1 0 -26,0 Z" />
     </group>
 </vector>

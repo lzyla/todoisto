@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Koncept 5: „t = wskazówki" — litera t z Todoisto jest jednocześnie
+       wskazówkami zegara (godzina 12:15), wpisana w tarczę -->
+  <defs>
+    <linearGradient id="bg5" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5B35C4"/>
+      <stop offset="1" stop-color="#2563C9"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg5)"/>
+  <!-- tarcza -->
+  <circle cx="256" cy="256" r="164" fill="#FFFFFF" fill-opacity="0.10"/>
+  <circle cx="256" cy="256" r="164" fill="none" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="12"/>
+  <!-- litera „t" = wskazówka 12 (pion) + wskazówka 15 (poziom) -->
+  <rect x="238" y="128" width="36" height="240" rx="18" fill="#FFFFFF"/>
+  <rect x="238" y="238" width="126" height="36" rx="18" fill="#FFFFFF"/>
+  <!-- oś zegara -->
+  <circle cx="256" cy="256" r="14" fill="#5B35C4" stroke="#FFFFFF" stroke-width="8"/>
+  <!-- delikatny znacznik godziny 12 -->
+  <rect x="248" y="76" width="16" height="26" rx="8" fill="#FFFFFF" fill-opacity="0.7"/>
+</svg>

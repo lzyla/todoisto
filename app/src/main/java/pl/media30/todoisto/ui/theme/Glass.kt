@@ -140,8 +140,8 @@ private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
         // Świt — fiolet + niebieski + żółty: jasne pastele (fioletowe przyciski
         // muszą się wyraźnie odcinać od tła)
         listOf(Color(0xFFFDFBFF), Color(0xFFF6F1FE), Color(0xFFEFE8FC), Color(0xFFF3ECFF)),
-        Color(0xFFCBB4FF), Color(0xFFB0D0FF), Color(0xFFFFE9A6), Color(0xFFBFA8FF),
-        Color(0xFFA8C6FF), Color(0xFFFFE18C)
+        Color(0xFFB08CFF), Color(0xFF8FB8FF), Color(0xFFFFD97A), Color(0xFFA183FF),
+        Color(0xFF86AEFF), Color(0xFFFFD166)
     )
     // Południe — dzień: błękit + lawenda + mięta + róż + złoto
     DayPhase.NOON -> if (d) BgPalette(
@@ -151,8 +151,8 @@ private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
     ) else BgPalette(
         // Dzień — fiolet + niebieski + żółty
         listOf(Color(0xFFFDFBFF), Color(0xFFF6F1FE), Color(0xFFEFE8FC), Color(0xFFF4EEFF)),
-        Color(0xFFC6AEFF), Color(0xFFA9CBFF), Color(0xFFFFECA0), Color(0xFFB79CFF),
-        Color(0xFFBFE0FF), Color(0xFFFFE289)
+        Color(0xFFAB88FF), Color(0xFF85B0FF), Color(0xFFFFDF7E), Color(0xFF9C7BF5),
+        Color(0xFF9CCBFF), Color(0xFFFFD466)
     )
     // Wieczór — zmierzch: fiolet + czerwień/magenta + złoty + błękit + mięta
     DayPhase.EVENING -> if (d) BgPalette(
@@ -162,8 +162,8 @@ private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
     ) else BgPalette(
         // Zmierzch — fiolet + niebieski + ciepły żółty
         listOf(Color(0xFFF3EAFF), Color(0xFFF0F0FF), Color(0xFFFFF6E6), Color(0xFFF0E8FF)),
-        Color(0xFFCFB2FF), Color(0xFFAFC2FF), Color(0xFFFFDD92), Color(0xFFC9A4FF),
-        Color(0xFFB8CCFF), Color(0xFFFFD483)
+        Color(0xFFB48CFF), Color(0xFF8FA6FF), Color(0xFFFFC966), Color(0xFFA87FFF),
+        Color(0xFF94AEFF), Color(0xFFFFC24D)
     )
 }
 
@@ -275,7 +275,7 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
                 )
             )
         } else {
-            val meshA = if (dark) 0.68f else 0.72f
+            val meshA = if (dark) 0.68f else 0.84f
             // Baza — jasna lawenda wg palety (FDFBFF → EFE8FC).
             val baseTop = if (dark) Color(0xFF241E3C) else Color(0xFFFDFBFF)
             val baseBot = if (dark) Color(0xFF1B1630) else Color(0xFFEFE8FC)
@@ -290,19 +290,21 @@ private fun Modifier.glassBackdrop(): Modifier = composed {
                         // miękkie przejście do przezroczystości w 3 przystankach = mocno rozmyty, gładki blob
                         colors = listOf(color.copy(alpha = alpha), color.copy(alpha = alpha * 0.35f), Color.Transparent),
                         center = Offset(x, y),
-                        radius = big * (0.92f + 0.10f * kotlin.math.sin(a + phase))  // duży, bardzo rozmyty, pulsujący promień
+                        radius = big * (0.58f + 0.08f * kotlin.math.sin(a + phase))  // mniejszy promień = kolory mieszają się plamami, nie warstwami
                     )
                 )
             }
             // Większe amplitudy orbit = tło wyraźniej wędruje/mieni się.
-            blob(pal.meshL, 0f, 0.30f, 0.38f, 0.52f, 0.60f, meshA)
-            blob(pal.meshR, 1.7f, 0.68f, 0.54f, 0.50f, 0.62f, meshA)
-            blob(pal.meshTop, 3.3f, 0.50f, 0.42f, 0.58f, 0.64f, meshA * 0.95f)
-            blob(pal.meshAccent, 4.9f, 0.46f, 0.58f, 0.54f, 0.62f, meshA * (0.72f + 0.28f * p))
-            blob(pal.meshAccent2, 2.5f, 0.24f, 0.66f, 0.54f, 0.58f, meshA * (0.80f + 0.20f * (1f - p)))
-            blob(pal.meshAccent3, 5.6f, 0.76f, 0.30f, 0.52f, 0.60f, meshA * 0.85f)
-            // Mleczna zasłona — minimalna, żeby pastele tła były wyraźnie kolorowe.
-            if (!dark) drawRect(Color.White.copy(alpha = 0.12f))
+            // Centra rozrzucone po CAŁEJ planszy naprzemiennie kolorami — gradienty
+            // mieszają się plamami (mesh), a nie warstwami od góry do dołu.
+            blob(pal.meshL, 0f, 0.22f, 0.24f, 0.30f, 0.34f, meshA)                                    // fiolet ↖
+            blob(pal.meshR, 1.7f, 0.80f, 0.22f, 0.30f, 0.32f, meshA)                                   // niebieski ↗
+            blob(pal.meshTop, 3.3f, 0.74f, 0.78f, 0.32f, 0.30f, meshA * 0.95f)                         // żółty ↘
+            blob(pal.meshAccent, 4.9f, 0.58f, 0.50f, 0.34f, 0.34f, meshA * (0.72f + 0.28f * p))        // fiolet ·środek
+            blob(pal.meshAccent2, 2.5f, 0.26f, 0.80f, 0.32f, 0.30f, meshA * (0.80f + 0.20f * (1f - p))) // niebieski ↙
+            blob(pal.meshAccent3, 5.6f, 0.16f, 0.55f, 0.28f, 0.30f, meshA * 0.85f)                     // żółty ←
+            // Mleczna zasłona — ledwie muśnięcie; kolory mają zostać głębokie.
+            if (!dark) drawRect(Color.White.copy(alpha = 0.05f))
         }
     }
 }
@@ -449,11 +451,11 @@ fun Modifier.taskTile(onClick: () -> Unit): Modifier = composed {
     val shape = RoundedCornerShape(20.dp)
     val fill by animateColorAsState(
         targetValue = if (pressed) {
-            // dotknięcie — mocniejsza, prawie kryjąca karta w delikatnym fiolecie
-            if (dark) CardTint.copy(alpha = 0.34f) else CardTint.copy(alpha = 0.92f)
+            // dotknięcie — pełna biel
+            if (dark) CardTint.copy(alpha = 0.34f) else Color.White
         } else {
-            // spoczynek — wyraźna karta w delikatnym fiolecie (dobry kontrast z tłem)
-            if (dark) CardTint.copy(alpha = 0.22f) else CardTint.copy(alpha = 0.78f)
+            // spoczynek — biała karta (mocny kontrast z kolorowym tłem)
+            if (dark) CardTint.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.90f)
         },
         animationSpec = tween(280), label = "tileFill"
     )

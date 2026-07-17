@@ -76,6 +76,10 @@ fun AccountScreen(
     onCloudSignOut: () -> Unit,
     onCloudBackup: () -> Unit,
     onCloudRestore: () -> Unit,
+    gmailUser: String,
+    gmail: pl.media30.todoisto.ui.TodoViewModel.GmailState,
+    onSaveGmail: (String, String) -> Unit,
+    onSyncGmail: () -> Unit,
     aiPromptTokens: Long,
     aiCompletionTokens: Long,
     aiImageCount: Long,
@@ -196,6 +200,11 @@ fun AccountScreen(
                 CloudSection(cloud, onCloudConfig, onCloudSignIn, onCloudSignUp, onCloudSignOut, onCloudBackup, onCloudRestore)
                 Spacer(Modifier.height(24.dp))
 
+                // Gmail → zadania: maile z gwiazdką stają się zadaniami w Skrzynce.
+                Text("GMAIL (MAILE Z GWIAZDKĄ → ZADANIA)", fontSize = 11.5.sp, fontWeight = FontWeight.W800, color = GlassAccent, modifier = Modifier.padding(start = 6.dp, bottom = 10.dp))
+                GmailSection(gmailUser, gmail, onSaveGmail, onSyncGmail)
+                Spacer(Modifier.height(24.dp))
+
                 // Zużycie AI: tokeny, szacowany i realny koszt — rozliczenia przy koncie.
                 AiUsageCard(
                     aiPromptTokens, aiCompletionTokens, aiImageCount, onResetAiUsage,
@@ -295,6 +304,57 @@ private fun CloudSection(
             Spacer(Modifier.height(10.dp))
             Text(it, fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = Color(0xFFEB4034))
         }
+    }
+}
+
+/** Gmail przez hasło do aplikacji: zapis danych + ręczna synchronizacja. */
+@Composable
+private fun GmailSection(
+    savedUser: String,
+    state: pl.media30.todoisto.ui.TodoViewModel.GmailState,
+    onSave: (String, String) -> Unit,
+    onSync: () -> Unit
+) {
+    var user by remember { mutableStateOf(savedUser) }
+    var pass by remember { mutableStateOf("") }
+    val connected = savedUser.isNotBlank()
+    Column(Modifier.fillMaxWidth().glass(RoundedCornerShape(24.dp)).padding(18.dp)) {
+        if (!connected) {
+            Text(
+                "Oznacz maila gwiazdką w Gmailu, a Todoisto zamieni go w zadanie (z linkiem do wątku). " +
+                    "Potrzebne HASŁO DO APLIKACJI: włącz weryfikację dwuetapową, wejdź na myaccount.google.com/apppasswords i wygeneruj hasło dla poczty.",
+                fontSize = 12.5.sp, lineHeight = 18.sp, color = GlassTextSecondary
+            )
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(user, { user = it }, label = { Text("Adres Gmail") }, singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                colors = glassFieldColors(), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(pass, { pass = it }, label = { Text("Hasło do aplikacji (16 znaków)") }, singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                colors = glassFieldColors(), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(14.dp))
+            CloudButton("Połącz z Gmailem", primary = true, enabled = !state.loading) { onSave(user, pass) }
+        } else {
+            Text("Połączono:", fontSize = 12.5.sp, color = GlassTextSecondary)
+            Text(savedUser, fontSize = 14.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+            Spacer(Modifier.height(14.dp))
+            CloudButton(if (state.loading) "Pobieram…" else "Pobierz maile z gwiazdką", primary = true, enabled = !state.loading, onClick = onSync)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Rozłącz", fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = GlassTextSecondary,
+                modifier = Modifier.bouncy(1f) { onSave("", "") }.padding(top = 4.dp)
+            )
+        }
+        if (state.loading) {
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(color = GlassAccent, strokeWidth = 2.5.dp, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(10.dp)); Text("Łączę z Gmailem…", fontSize = 12.5.sp, color = GlassTextSecondary)
+            }
+        }
+        state.info?.let { Spacer(Modifier.height(10.dp)); Text(it, fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = Color(0xFF1F8A5B)) }
+        state.error?.let { Spacer(Modifier.height(10.dp)); Text(it, fontSize = 12.5.sp, lineHeight = 18.sp, fontWeight = FontWeight.W700, color = Color(0xFFEB4034)) }
     }
 }
 

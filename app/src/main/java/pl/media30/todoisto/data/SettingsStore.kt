@@ -94,6 +94,24 @@ class SettingsStore(context: Context) {
         _openAiAdminKey.value = v
     }
 
+    // --- Gmail (IMAP, hasło do aplikacji) — tylko lokalnie na urządzeniu ---
+    private val _gmailUser = MutableStateFlow(prefs.getString(KEY_GMAIL_USER, "").orEmpty())
+    val gmailUser: StateFlow<String> = _gmailUser.asStateFlow()
+    private val _gmailPass = MutableStateFlow(prefs.getString(KEY_GMAIL_PASS, "").orEmpty())
+    val gmailPass: StateFlow<String> = _gmailPass.asStateFlow()
+    fun setGmailCreds(user: String, pass: String) {
+        prefs.edit().putString(KEY_GMAIL_USER, user.trim()).putString(KEY_GMAIL_PASS, pass.trim()).apply()
+        _gmailUser.value = user.trim(); _gmailPass.value = pass.trim()
+    }
+
+    /** Message-ID maili już zamienionych na zadania (deduplikacja). */
+    fun gmailProcessed(): Set<String> = prefs.getStringSet(KEY_GMAIL_DONE, emptySet()) ?: emptySet()
+    fun gmailMarkProcessed(ids: Collection<String>) {
+        val all = gmailProcessed().toMutableSet().apply { addAll(ids) }
+        prefs.edit().putStringSet(KEY_GMAIL_DONE, all.takeLast(500).toSet()).apply()
+    }
+    private fun <T> Set<T>.takeLast(n: Int): List<T> = toList().takeLast(n)
+
     // --- Statystyki: przesunięcia + histogram godzin otwierania zadań ---
     private val _deferCount = MutableStateFlow(prefs.getLong(KEY_DEFERS, 0L))
     val deferCount: StateFlow<Long> = _deferCount.asStateFlow()
@@ -304,6 +322,9 @@ class SettingsStore(context: Context) {
         const val KEY_AREA = "active_area"
         const val KEY_OPENAI = "openai_key"
         const val KEY_OPENAI_ADMIN = "openai_admin_key"
+        const val KEY_GMAIL_USER = "gmail_user"
+        const val KEY_GMAIL_PASS = "gmail_app_pass"
+        const val KEY_GMAIL_DONE = "gmail_processed"
         const val KEY_CUSTOM_PHOTOS = "custom_photos"
         const val KEY_ACTIVE_CUSTOM = "active_custom_bg"
         const val KEY_PHASE_BG = "phase_backgrounds"

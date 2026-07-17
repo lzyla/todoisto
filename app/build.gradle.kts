@@ -14,8 +14,8 @@ android {
         applicationId = "pl.media30.todoisto"
         minSdk = 24
         targetSdk = 34
-        versionCode = 93
-        versionName = "93"
+        versionCode = 95
+        versionName = "95"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -45,6 +45,8 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/NOTICE.md"
+            excludes += "META-INF/LICENSE.md"
         }
     }
 }
@@ -64,6 +66,9 @@ dependencies {
     implementation("dev.chrisbanes.haze:haze:1.0.2")
     implementation("sh.calvin.reorderable:reorderable:2.4.3")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
+    // Gmail przez IMAP (hasło do aplikacji) — bez Google Cloud Console.
+    implementation("com.sun.mail:android-mail:1.6.7")
+    implementation("com.sun.mail:android-activation:1.6.7")
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

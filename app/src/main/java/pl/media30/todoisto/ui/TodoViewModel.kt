@@ -367,6 +367,42 @@ class TodoViewModel(
         }
     }
 
+    // --- Gmail → zadania (maile z gwiazdką) ---
+    data class GmailState(val loading: Boolean = false, val info: String? = null, val error: String? = null)
+    private val _gmail = MutableStateFlow(GmailState())
+    val gmailState: StateFlow<GmailState> = _gmail.asStateFlow()
+    val gmailUser: StateFlow<String> = settings.gmailUser
+    fun setGmailCreds(user: String, pass: String) {
+        settings.setGmailCreds(user, pass)
+        _gmail.value = GmailState(info = if (user.isBlank()) "Rozłączono z Gmailem." else "Zapisano dane Gmaila.")
+    }
+
+    /** Pobiera maile z gwiazdką i zamienia nowe na zadania w Skrzynce. */
+    fun syncGmail() {
+        val user = settings.gmailUser.value; val pass = settings.gmailPass.value
+        if (user.isBlank() || pass.isBlank()) { _gmail.value = GmailState(error = "Najpierw zapisz e-mail i hasło do aplikacji."); return }
+        _gmail.value = GmailState(loading = true)
+        viewModelScope.launch {
+            _gmail.value = try {
+                val mails = pl.media30.todoisto.data.GmailClient.fetchStarred(user, pass)
+                val done = settings.gmailProcessed()
+                val fresh = mails.filter { it.messageId !in done }
+                fresh.forEach { m ->
+                    repository.insert(pl.media30.todoisto.data.Task(
+                        title = m.subject.take(200),
+                        notes = "✉️ Od: ${m.from}",
+                        attachments = listOf(m.gmailLink),
+                        createdAt = System.currentTimeMillis()
+                    ))
+                }
+                settings.gmailMarkProcessed(fresh.map { it.messageId })
+                GmailState(info = if (fresh.isEmpty()) "Brak nowych maili z gwiazdką." else "Dodano ${fresh.size} zadań z Gmaila ⭐")
+            } catch (e: Exception) {
+                GmailState(error = pl.media30.todoisto.data.GmailClient.friendlyError(e))
+            }
+        }
+    }
+
     private val _bgBusy = MutableStateFlow(false)
     val bgBusy: StateFlow<Boolean> = _bgBusy.asStateFlow()
 

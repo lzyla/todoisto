@@ -173,6 +173,8 @@ fun TodoistoApp(
     val accountProfile by account.account.collectAsState()
     val accountAvatar by account.avatar.collectAsState()
     val cloudState by viewModel.cloudState.collectAsState()
+    val gmailState by viewModel.gmailState.collectAsState()
+    val gmailUser by viewModel.gmailUser.collectAsState()
     val estimateAi by viewModel.estimateAi.collectAsState()
     val avgActualMinutes by viewModel.avgActualMinutes.collectAsState()
     var detailAiExpanded by remember { mutableStateOf(false) }
@@ -339,6 +341,10 @@ fun TodoistoApp(
             onCloudSignOut = viewModel::cloudSignOut,
             onCloudBackup = viewModel::cloudBackup,
             onCloudRestore = viewModel::cloudRestore,
+            gmailUser = gmailUser,
+            gmail = gmailState,
+            onSaveGmail = viewModel::setGmailCreds,
+            onSyncGmail = viewModel::syncGmail,
             aiPromptTokens = aiPromptTokens,
             aiCompletionTokens = aiCompletionTokens,
             aiImageCount = aiImageCount,

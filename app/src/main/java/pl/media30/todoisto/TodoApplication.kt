@@ -32,6 +32,8 @@ class TodoApplication : Application() {
             runCatching {
                 pl.media30.todoisto.data.GeoReminders.check(this@TodoApplication, db.taskDao().getWithLocation())
             }
+            // Przypomnienia czasowe — odtwórz przyszłe alarmy (np. po aktualizacji apki).
+            runCatching { pl.media30.todoisto.data.Reminders.rescheduleAll(this@TodoApplication) }
         }
     }
 }

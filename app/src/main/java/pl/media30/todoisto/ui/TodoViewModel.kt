@@ -743,7 +743,13 @@ class TodoViewModel(
 
     fun updateTask(task: Task) {
         if (task.title.isBlank()) return
-        viewModelScope.launch { repository.update(task.copy(title = task.title.trim(), notes = task.notes.trim())) }
+        viewModelScope.launch {
+            repository.update(task.copy(title = task.title.trim(), notes = task.notes.trim()))
+            // Przypomnienie czasowe: ustaw/odwołaj dokładny alarm systemowy.
+            val at = task.reminderAt
+            if (at != null && !task.isCompleted) pl.media30.todoisto.data.Reminders.schedule(settings.appCtx, task.id, task.title, at)
+            else pl.media30.todoisto.data.Reminders.cancel(settings.appCtx, task.id)
+        }
     }
 
     fun addSubtask(parentId: Long, projectId: Long?, title: String) {
@@ -756,7 +762,10 @@ class TodoViewModel(
     }
 
     fun toggleCompleted(task: Task) = viewModelScope.launch {
-        if (!task.isCompleted) settings.recordActualCompletion(task.id) // liczymy realny czas przy ukończeniu
+        if (!task.isCompleted) {
+            settings.recordActualCompletion(task.id) // liczymy realny czas przy ukończeniu
+            pl.media30.todoisto.data.Reminders.cancel(settings.appCtx, task.id) // alarm już niepotrzebny
+        }
         repository.toggleCompleted(task)
     }
     fun markTaskOpened(id: Long) = settings.markTaskOpened(id)

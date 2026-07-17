@@ -262,6 +262,26 @@ fun TaskDetailSheet(
             }
         }
 
+        // Przypomnienie czasowe — dokładny alarm systemowy (dzwoni też przy zamkniętej apce).
+        DetailSection("Przypomnienie", Color(0xFFEB8909)) {
+            val zone = java.time.ZoneId.systemDefault()
+            fun at(epochDay: Long, minutes: Int): Long =
+                java.time.LocalDate.ofEpochDay(epochDay).atStartOfDay(zone).toInstant().toEpochMilli() + minutes * 60_000L
+            val dueAt = if (task.dueDate != null && task.dueTimeMinutes != null) at(task.dueDate!!, task.dueTimeMinutes!!) else null
+            val morning = task.dueDate?.let { at(it, 8 * 60) }
+            val inHour = System.currentTimeMillis() + 60 * 60_000L
+            PresetChip("Brak", task.reminderAt == null, Color(0xFFEB8909)) { onPatch(task.copy(reminderAt = null)) }
+            if (dueAt != null) {
+                PresetChip("O czasie", task.reminderAt == dueAt, Color(0xFFEB8909)) { onPatch(task.copy(reminderAt = dueAt)) }
+                PresetChip("15 min przed", task.reminderAt == dueAt - 15 * 60_000L, Color(0xFFEB8909)) { onPatch(task.copy(reminderAt = dueAt - 15 * 60_000L)) }
+                PresetChip("1 godz. przed", task.reminderAt == dueAt - 60 * 60_000L, Color(0xFFEB8909)) { onPatch(task.copy(reminderAt = dueAt - 60 * 60_000L)) }
+            }
+            if (morning != null && dueAt == null) {
+                PresetChip("Rano 8:00", task.reminderAt == morning, Color(0xFFEB8909)) { onPatch(task.copy(reminderAt = morning)) }
+            }
+            PresetChip("Za godzinę", task.reminderAt != null && kotlin.math.abs(task.reminderAt!! - inHour) < 90_000L, Color(0xFFEB8909)) { onPatch(task.copy(reminderAt = inHour)) }
+        }
+
         LocationSection(task, onPatch)
 
         if (labels.isNotEmpty()) {

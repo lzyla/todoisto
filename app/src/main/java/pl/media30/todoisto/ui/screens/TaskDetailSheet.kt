@@ -508,9 +508,10 @@ private fun AutomationCard(
     Column(Modifier.fillMaxWidth()) {
         // Zwinięta chmurka — awatar + dymek (styl czatu)
         if (!expanded) {
-            // CAŁY wiersz (awatar + dymek) jest klikalny — intuicyjnie stukasz gdziekolwiek.
+            // CAŁY wiersz (awatar + dymek) jest klikalny — stuknięcie od razu odpala AI
+            // (bez pośredniej planszy z krokami i przyciskiem „Zróbmy to z AI").
             Row(
-                Modifier.fillMaxWidth().bouncy(0.97f) { expanded = true },
+                Modifier.fillMaxWidth().bouncy(0.97f) { expanded = true; onAskAi(tip.aiPrompt) },
                 verticalAlignment = Alignment.Top
             ) {
                 Box(

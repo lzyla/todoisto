@@ -79,6 +79,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Insights
@@ -388,22 +389,21 @@ fun TaskListScreen(
                         Icon(Icons.Filled.MoreVert, "Więcej", tint = GlassTextSecondary, modifier = Modifier.size(18.dp))
                     }
                     GlassMenu(expanded = menuOpen, onDismiss = { menuOpen = false }) {
-                        GlassMenuItem("Sortowanie: ${uiState.sortMode.label}") { menuOpen = false; sortMenuOpen = true }
+                        GlassMenuItem("Sortowanie: ${uiState.sortMode.label}", Icons.Outlined.Autorenew) { menuOpen = false; sortMenuOpen = true }
+                        GlassMenuItem("Skanuj kartkę", Icons.Outlined.PhotoCamera) { menuOpen = false; scanSheetOpen = true }
                         uiState.currentProject?.let { project ->
-                            GlassMenuItem(if (project.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") { menuOpen = false; onToggleProjectFavorite(project.id) }
-                            GlassMenuItem("Dodaj sekcję") { menuOpen = false; dialog = DialogKind.NewSection }
-                            GlassMenuItem("Duplikuj projekt") { menuOpen = false; onDuplicateProject(project.id) }
-                            GlassMenuItem(if (project.isArchived) "Przywróć z archiwum" else "Archiwizuj projekt") { menuOpen = false; onArchiveProject(project.id, !project.isArchived) }
-                            GlassMenuItem("Usuń projekt") { menuOpen = false; onDeleteProject(project.id) }
+                            GlassMenuDivider()
+                            GlassMenuItem(if (project.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych", Icons.Filled.Star) { menuOpen = false; onToggleProjectFavorite(project.id) }
+                            GlassMenuItem("Dodaj sekcję", Icons.Filled.Add) { menuOpen = false; dialog = DialogKind.NewSection }
+                            GlassMenuItem("Duplikuj projekt", Icons.Outlined.CalendarToday) { menuOpen = false; onDuplicateProject(project.id) }
+                            GlassMenuItem(if (project.isArchived) "Przywróć z archiwum" else "Archiwizuj projekt", Icons.Outlined.Archive) { menuOpen = false; onArchiveProject(project.id, !project.isArchived) }
+                            GlassMenuItem("Usuń projekt", Icons.Outlined.Delete, danger = true) { menuOpen = false; onDeleteProject(project.id) }
                         }
                         uiState.currentLabel?.let { label ->
-                            GlassMenuItem(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") { menuOpen = false; onToggleLabelFavorite(label.id) }
-                            GlassMenuItem("Usuń etykietę") { menuOpen = false; onDeleteLabel(label.id) }
+                            GlassMenuDivider()
+                            GlassMenuItem(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych", Icons.Filled.Star) { menuOpen = false; onToggleLabelFavorite(label.id) }
+                            GlassMenuItem("Usuń etykietę", Icons.Outlined.Delete, danger = true) { menuOpen = false; onDeleteLabel(label.id) }
                         }
-                        GlassMenuItem("Czas wolny — sugestia") { menuOpen = false; onFreeTime() }
-                        GlassMenuItem("Skanuj kartkę") { menuOpen = false; scanSheetOpen = true }
-                        GlassMenuItem("Wyślij plan dnia") { menuOpen = false; onSharePlan() }
-                        GlassMenuItem("Usuń ukończone") { menuOpen = false; onClearCompleted() }
                     }
                 }
                 if (sortMenuOpen) {
@@ -762,11 +762,30 @@ private fun GlassMenu(expanded: Boolean, onDismiss: () -> Unit, content: @Compos
 }
 
 @Composable
-private fun GlassMenuItem(text: String, onClick: () -> Unit) {
-    Text(
-        text, fontSize = 14.sp, fontWeight = FontWeight.W600, color = GlassTextPrimary,
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-            .bouncy(0.98f, onClick).padding(horizontal = 16.dp, vertical = 12.dp)
+private fun GlassMenuItem(text: String, icon: ImageVector? = null, danger: Boolean = false, onClick: () -> Unit) {
+    val fg = if (danger) Color(0xFFD1453B) else GlassTextPrimary
+    val tint = if (danger) Color(0xFFD1453B) else GlassAccent
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 6.dp).clip(RoundedCornerShape(13.dp))
+            .bouncy(0.98f, onClick).padding(horizontal = 12.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (icon != null) {
+            Box(
+                Modifier.size(28.dp).clip(RoundedCornerShape(9.dp)).background(tint.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) { Icon(icon, null, tint = tint, modifier = Modifier.size(16.dp)) }
+            Spacer(Modifier.width(11.dp))
+        }
+        Text(text, fontSize = 14.sp, fontWeight = FontWeight.W600, color = fg)
+    }
+}
+
+@Composable
+private fun GlassMenuDivider() {
+    Box(
+        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 5.dp)
+            .height(1.dp).background(GlassRim.copy(alpha = 0.4f))
     )
 }
 

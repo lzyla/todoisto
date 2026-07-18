@@ -19,7 +19,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -70,23 +74,28 @@ class MainActivity : ComponentActivity() {
                 else -> null
             }
             TodoistoTheme {
-                GlassBackground {
-                    if (!loggedIn) {
-                        pl.media30.todoisto.ui.screens.AuthScreen(
-                            hasAccount = app.account.hasAccount,
-                            onLogin = { e, p -> app.account.login(e, p) },
-                            onRegister = { n, e, p -> app.account.register(n, e, p) }
-                        )
-                    } else {
-                        TodoistoApp(
-                            viewModel = viewModel(factory = TodoViewModel.Factory(app.repository, app.settings, app.cloud)),
-                            quickAddPrefill = sharedText,
-                            onPrefillConsumed = { sharedText = null },
-                            account = app.account,
-                            themeId = themeId,
-                            onSelectTheme = app.settings::setThemeId
-                        )
+                androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+                    GlassBackground {
+                        if (!loggedIn) {
+                            pl.media30.todoisto.ui.screens.AuthScreen(
+                                hasAccount = app.account.hasAccount,
+                                onLogin = { e, p -> app.account.login(e, p) },
+                                onRegister = { n, e, p -> app.account.register(n, e, p) }
+                            )
+                        } else {
+                            TodoistoApp(
+                                viewModel = viewModel(factory = TodoViewModel.Factory(app.repository, app.settings, app.cloud)),
+                                quickAddPrefill = sharedText,
+                                onPrefillConsumed = { sharedText = null },
+                                account = app.account,
+                                themeId = themeId,
+                                onSelectTheme = app.settings::setThemeId
+                            )
+                        }
                     }
+                    // Ekran startowy z logo — pokazuje się raz przy uruchomieniu, potem znika.
+                    var showSplash by remember { mutableStateOf(true) }
+                    if (showSplash) SplashOverlay(onDone = { showSplash = false })
                 }
             }
         }
@@ -523,4 +532,59 @@ private fun ImportActivitiesDialog(onDismiss: () -> Unit, onImport: (String) -> 
             }
         }
     )
+}
+
+/**
+ * Ekran startowy (splash): fioletowy gradient jak w ikonie apki, białe logo
+ * wskakuje z lekkim sprężystym powiększeniem, po chwili cała plansza znika.
+ */
+@Composable
+private fun SplashOverlay(onDone: () -> Unit) {
+    val logoScale = remember { androidx.compose.animation.core.Animatable(0.82f) }
+    val logoAlpha = remember { androidx.compose.animation.core.Animatable(0f) }
+    val overlayAlpha = remember { androidx.compose.animation.core.Animatable(1f) }
+    LaunchedEffect(Unit) {
+        launch {
+            logoAlpha.animateTo(1f, androidx.compose.animation.core.tween(300))
+        }
+        logoScale.animateTo(
+            1f,
+            androidx.compose.animation.core.spring(
+                dampingRatio = 0.5f,
+                stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+            )
+        )
+        kotlinx.coroutines.delay(680)
+        overlayAlpha.animateTo(0f, androidx.compose.animation.core.tween(380))
+        onDone()
+    }
+    androidx.compose.foundation.layout.Box(
+        Modifier.fillMaxSize()
+            .graphicsLayer { alpha = overlayAlpha.value }
+            .background(
+                androidx.compose.ui.graphics.Brush.linearGradient(
+                    listOf(androidx.compose.ui.graphics.Color(0xFFB558F6), androidx.compose.ui.graphics.Color(0xFF5B2BE0))
+                )
+            ),
+        contentAlignment = androidx.compose.ui.Alignment.Center
+    ) {
+        androidx.compose.foundation.layout.Column(
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+        ) {
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(pl.media30.todoisto.R.drawable.ic_launcher_foreground),
+                contentDescription = "Todoisto",
+                modifier = Modifier.size(168.dp).graphicsLayer {
+                    scaleX = logoScale.value; scaleY = logoScale.value; alpha = logoAlpha.value
+                }
+            )
+            androidx.compose.material3.Text(
+                "Todoisto",
+                fontSize = 26.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.W800,
+                color = androidx.compose.ui.graphics.Color.White,
+                modifier = Modifier.graphicsLayer { alpha = logoAlpha.value }
+            )
+        }
+    }
 }

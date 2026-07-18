@@ -64,6 +64,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -219,14 +220,17 @@ fun TaskDetailSheet(
             }
         }
 
-        DetailSection("Projekt", Color(0xFF4D6BFF)) {
+        val projName = projects.firstOrNull { it.id == task.projectId }?.name ?: "Skrzynka"
+        DetailSection("Projekt", Color(0xFF4D6BFF), summary = projName) {
             PresetChip("Skrzynka", task.projectId == null, Color(0xFF9E9E9E), dot = Color(0xFF9E9E9E)) { onPatch(task.copy(projectId = null)) }
             projects.filter { !it.isArchived }.forEach { pr ->
                 PresetChip(pr.name, task.projectId == pr.id, Color(pr.colorArgb), dot = Color(pr.colorArgb)) { onPatch(task.copy(projectId = pr.id)) }
             }
         }
 
-        DetailSection("Termin", Color(0xFF6B3FE0)) {
+        val timeStr = task.dueTimeMinutes?.let { " %d:%02d".format(it / 60, it % 60) } ?: ""
+        val termSummary = fmtDay(task.dueDate) + if (task.dueDate != null) timeStr else ""
+        DetailSection("Termin", Color(0xFF6B3FE0), summary = termSummary) {
             val due = task.dueDate
             PresetChip("Dzisiaj", due != null && due <= today, Color(0xFF6B3FE0), calendarIcon = true) { onPatch(task.copy(dueDate = today)) }
             PresetChip("Jutro", due == today + 1, Color(0xFF6B3FE0), calendarIcon = true) { onPatch(task.copy(dueDate = today + 1)) }
@@ -236,7 +240,7 @@ fun TaskDetailSheet(
             PresetChip("Data…", due != null && due > today + 1 && due != today + 3 && due != today + 7, Color(0xFF6B3FE0)) { showDuePicker = true }
         }
 
-        DetailSection("Deadline", Color(0xFFC24B1A)) {
+        DetailSection("Deadline", Color(0xFFC24B1A), summary = fmtDay(task.deadline)) {
             val friday = LocalDate.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.FRIDAY)).toEpochDay()
             val endOfMonth = LocalDate.now().with(TemporalAdjusters.lastDayOfMonth()).toEpochDay()
             PresetChip("Brak", task.deadline == null, Color(0xFFC24B1A)) { onPatch(task.copy(deadline = null)) }
@@ -246,7 +250,7 @@ fun TaskDetailSheet(
             PresetChip("Data…", task.deadline != null && task.deadline != today + 1 && task.deadline != friday && task.deadline != endOfMonth, Color(0xFFC24B1A)) { showDlPicker = true }
         }
 
-        DetailSection("Powtarzanie", Color(0xFF2DD4BF)) {
+        DetailSection("Powtarzanie", Color(0xFF2DD4BF), summary = task.recurrence?.label ?: "Nie") {
             PresetChip("Nie", task.recurrence == null, Color(0xFF6B3FE0)) { onPatch(task.copy(recurrence = null)) }
             Recurrence.entries.forEach { r ->
                 PresetChip(r.label, task.recurrence == r, Color(0xFF6B3FE0)) {
@@ -255,7 +259,7 @@ fun TaskDetailSheet(
             }
         }
 
-        DetailSection("Czas trwania", Color(0xFF34D399)) {
+        DetailSection("Czas trwania", Color(0xFF34D399), summary = fmtDuration(task.durationMinutes)) {
             PresetChip("Brak", task.durationMinutes == null, Color(0xFF6B3FE0)) { onPatch(task.copy(durationMinutes = null)) }
             listOf(15 to "15 min", 30 to "30 min", 45 to "45 min", 60 to "1h", 120 to "2h").forEach { (v, t) ->
                 PresetChip(t, task.durationMinutes == v, Color(0xFF6B3FE0)) { onPatch(task.copy(durationMinutes = v)) }
@@ -263,7 +267,11 @@ fun TaskDetailSheet(
         }
 
         // Przypomnienie czasowe — dokładny alarm systemowy (dzwoni też przy zamkniętej apce).
-        DetailSection("Przypomnienie", Color(0xFFEB8909)) {
+        val remSummary = task.reminderAt?.let {
+            val t = java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault())
+            "%d:%02d".format(t.hour, t.minute)
+        } ?: "Brak"
+        DetailSection("Przypomnienie", Color(0xFFEB8909), summary = remSummary) {
             val zone = java.time.ZoneId.systemDefault()
             fun at(epochDay: Long, minutes: Int): Long =
                 java.time.LocalDate.ofEpochDay(epochDay).atStartOfDay(zone).toInstant().toEpochMilli() + minutes * 60_000L
@@ -285,7 +293,9 @@ fun TaskDetailSheet(
         LocationSection(task, onPatch)
 
         if (labels.isNotEmpty()) {
-            DetailSection("Etykiety", Color(0xFFC24DFF)) {
+            val selNames = labels.filter { task.labelIds.contains(it.id) }.map { it.name }
+            val lblSummary = if (selNames.isEmpty()) "Brak" else selNames.joinToString(", ") { "@$it" }
+            DetailSection("Etykiety", Color(0xFFC24DFF), summary = lblSummary) {
                 labels.forEach { l ->
                     val on = task.labelIds.contains(l.id)
                     PresetChip("@${l.name}", on, Color(l.colorArgb)) {
@@ -669,7 +679,7 @@ private fun LocationSection(task: pl.media30.todoisto.data.Task, onPatch: (pl.me
         runCatching { permLauncher?.launch(perms.toTypedArray()) }
     }
 
-    DetailSection("Przypomnij w miejscu", Color(0xFF2E9CC8)) {
+    DetailSection("Przypomnij w miejscu", Color(0xFF2E9CC8), summary = task.locName ?: "Brak") {
         if (task.locName != null) {
             PresetChip("📍 ${task.locName}", true, Color(0xFF2E9CC8)) { }
             PresetChip("Usuń", false, Color(0xFF2E9CC8)) {
@@ -726,22 +736,69 @@ private fun LocationSection(task: pl.media30.todoisto.data.Task, onPatch: (pl.me
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DetailSection(title: String, accent: Color = GlassAccent, content: @Composable () -> Unit) {
+private fun DetailSection(
+    title: String,
+    accent: Color = GlassAccent,
+    summary: String = "",
+    defaultExpanded: Boolean = false,
+    content: @Composable () -> Unit
+) {
+    var open by remember(title) { mutableStateOf(defaultExpanded) }
+    val chevron by animateFloatAsState(if (open) 180f else 0f, tween(200), label = "chev")
     Column(
-        Modifier.fillMaxWidth().padding(top = 10.dp).softCard().padding(16.dp)
+        Modifier.fillMaxWidth().padding(top = 8.dp).softCard()
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // Wiersz nagłówka — zawsze widoczny, klikalny: tytuł + aktualna wartość + strzałka.
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).bouncy(0.99f) { open = !open }
+                .padding(horizontal = 16.dp, vertical = 15.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Box(Modifier.size(7.dp).clip(CircleShape).background(accent))
-            Spacer(Modifier.width(8.dp))
-            Text(title.uppercase(), fontSize = 11.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.46.sp, color = GlassTextSecondary)
+            Spacer(Modifier.width(9.dp))
+            Text(title, fontSize = 14.sp, fontWeight = FontWeight.W700, color = GlassTextPrimary)
+            Spacer(Modifier.weight(1f))
+            if (!open && summary.isNotBlank()) {
+                Text(summary, fontSize = 13.sp, fontWeight = FontWeight.W600, color = accent, maxLines = 1)
+                Spacer(Modifier.width(8.dp))
+            }
+            Icon(
+                Icons.Filled.KeyboardArrowDown, null, tint = GlassTextSecondary,
+                modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = chevron }
+            )
         }
-        Spacer(Modifier.height(10.dp))
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(7.dp),
-            verticalArrangement = Arrangement.spacedBy(7.dp),
-            content = { content() }
-        )
+        androidx.compose.animation.AnimatedVisibility(open) {
+            FlowRow(
+                Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                verticalArrangement = Arrangement.spacedBy(7.dp),
+                content = { content() }
+            )
+        }
     }
+}
+
+/** Krótki opis daty do podsumowania sekcji (Dzisiaj / Jutro / 5 lip / Brak). */
+private fun fmtDay(epochDay: Long?): String {
+    if (epochDay == null) return "Brak"
+    val today = LocalDate.now().toEpochDay()
+    return when (epochDay) {
+        today -> "Dzisiaj"
+        today + 1 -> "Jutro"
+        else -> {
+            val d = LocalDate.ofEpochDay(epochDay)
+            val ms = listOf("sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru")
+            "${d.dayOfMonth} ${ms[d.monthValue - 1]}"
+        }
+    }
+}
+
+/** Krótki opis czasu trwania (Brak / 15 min / 1h / 1h 30min). */
+private fun fmtDuration(min: Int?): String = when {
+    min == null -> "Brak"
+    min < 60 -> "$min min"
+    min % 60 == 0 -> "${min / 60}h"
+    else -> "${min / 60}h ${min % 60}min"
 }
 
 @Composable

@@ -3,8 +3,11 @@ package pl.media30.todoisto.ui.components
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -95,16 +98,28 @@ fun TaskRowZen(
                     }
                 }
             )
-            if (metaLine.isNotBlank()) {
+            val hasPrio = task.priority != Priority.P4 && !done
+            if (metaLine.isNotBlank() || hasPrio) {
                 Spacer(Modifier.height(3.dp))
-                Text(
-                    metaLine,
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.W600,
-                    color = GlassTextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Priorytet na pasku: sama kropka w kolorze P1/P2/P3.
+                    if (hasPrio) {
+                        Box(
+                            Modifier.size(7.dp)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(task.priority.color)
+                        )
+                        if (metaLine.isNotBlank()) Spacer(Modifier.width(6.dp))
+                    }
+                    if (metaLine.isNotBlank()) Text(
+                        metaLine,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.W600,
+                        color = GlassTextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
         if (trailing != null) {

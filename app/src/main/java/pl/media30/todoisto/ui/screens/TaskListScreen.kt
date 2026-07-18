@@ -1271,10 +1271,11 @@ private fun ZenRowWithSubs(
                             }
                         }
                     }
+                    // Fioletowe „szkło": bez kolorowych ikonek, nazwy dat, na końcu kalendarz.
                     androidx.compose.material3.ModalBottomSheet(
                         onDismissRequest = { reschedOpen = false },
-                        containerColor = Color.White,
-                        dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = Color(0xFFD8CFEA)) }
+                        containerColor = Color(0xFFF1EBFA),
+                        dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = Color(0xFFC9B8E8)) }
                     ) {
                         Column(Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, bottom = 30.dp)) {
                             Text(
@@ -1282,28 +1283,40 @@ private fun ZenRowWithSubs(
                                 color = Color(0xFF3B2E5A), modifier = Modifier.padding(bottom = 4.dp)
                             )
                             Text(
-                                task.title, fontSize = 12.sp, color = Color(0xFF8A80A0),
+                                task.title, fontSize = 12.sp, color = Color(0xFF8A78A8),
                                 maxLines = 1, modifier = Modifier.padding(bottom = 12.dp)
                             )
-                            ReschedOption("☀️", "Dziś", shortDate(todayEpoch)) { onPick(todayEpoch) }
-                            ReschedOption("🌅", "Jutro", shortDate(todayEpoch + 1)) { onPick(todayEpoch + 1) }
-                            ReschedOption("📆", "Pojutrze", shortDate(todayEpoch + 2)) { onPick(todayEpoch + 2) }
-                            ReschedOption("🛋️", "Weekend", shortDate(nextWeekend(todayEpoch))) { onPick(nextWeekend(todayEpoch)) }
-                            ReschedOption("➕", "Za tydzień", shortDate(todayEpoch + 7)) { onPick(todayEpoch + 7) }
-                            ReschedOption("🗓️", "Wybierz datę…", null) { showDatePicker = true }
+                            ReschedOption("Dziś") { onPick(todayEpoch) }
+                            ReschedOption("Jutro") { onPick(todayEpoch + 1) }
+                            ReschedOption("Pojutrze") { onPick(todayEpoch + 2) }
+                            ReschedOption("Weekend") { onPick(nextWeekend(todayEpoch)) }
+                            ReschedOption("Za tydzień") { onPick(todayEpoch + 7) }
+                            Spacer(Modifier.height(6.dp))
+                            // Inny dzień → od razu pełny kalendarz (akcent pomarańczowy).
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                                    .background(Color(0x2BEB8909))
+                                    .bouncy(0.97f) { showDatePicker = true }
+                                    .padding(horizontal = 14.dp, vertical = 13.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Outlined.DateRange, null, tint = Color(0xFFC2410C), modifier = Modifier.size(17.dp))
+                                Spacer(Modifier.width(10.dp))
+                                Text("Kalendarz", fontSize = 14.sp, fontWeight = FontWeight.W700, color = Color(0xFF9A3412))
+                            }
                             Spacer(Modifier.height(10.dp))
                             // Duży przycisk zamykający — opcje dat znikają bez zmiany zadania.
                             Row(
                                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                                    .background(Color(0xFFEFEAF8))
+                                    .background(Color(0x2E6B3FE0))
                                     .bouncy(0.96f) { reschedOpen = false }
                                     .padding(vertical = 14.dp),
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Filled.Close, null, tint = Color(0xFF5B4A85), modifier = Modifier.size(18.dp))
+                                Icon(Icons.Filled.Close, null, tint = Color(0xFF4C3585), modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text("Zamknij", fontSize = 14.sp, fontWeight = FontWeight.W800, color = Color(0xFF5B4A85))
+                                Text("Zamknij", fontSize = 14.sp, fontWeight = FontWeight.W800, color = Color(0xFF4C3585))
                             }
                         }
                     }
@@ -1443,19 +1456,16 @@ val LocalSwipeRightCompletes = androidx.compose.runtime.staticCompositionLocalOf
 /** Callback przełożenia zaległego zadania na konkretny dzień (epochDay). */
 val LocalReschedule = androidx.compose.runtime.staticCompositionLocalOf<(Task, Long) -> Unit> { { _, _ -> } }
 
-/** Wiersz opcji w arkuszu „Przełóż na": emoji, nazwa, data po prawej. */
+/** Wiersz opcji w arkuszu „Przełóż na": sama nazwa dnia, fioletowe szkło. */
 @Composable
-private fun ReschedOption(emoji: String, label: String, date: String?, onClick: () -> Unit) {
+private fun ReschedOption(label: String, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
-            .bouncy(0.97f, onClick).padding(horizontal = 10.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().padding(bottom = 6.dp).clip(RoundedCornerShape(14.dp))
+            .background(Color(0x99FFFFFF))
+            .bouncy(0.97f, onClick).padding(horizontal = 14.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(emoji, fontSize = 17.sp)
-        Spacer(Modifier.width(12.dp))
-        Text(label, fontSize = 14.sp, fontWeight = FontWeight.W600, color = Color(0xFF2E2542))
-        Spacer(Modifier.weight(1f))
-        if (date != null) Text(date, fontSize = 12.5.sp, fontWeight = FontWeight.W600, color = Color(0xFF9A8FB8))
+        Text(label, fontSize = 14.sp, fontWeight = FontWeight.W700, color = Color(0xFF3B2E5A))
     }
 }
 

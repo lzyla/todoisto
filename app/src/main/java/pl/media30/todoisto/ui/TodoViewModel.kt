@@ -78,12 +78,12 @@ data class AiCostState(
     val error: String? = null
 )
 
-enum class SortMode(val label: String) {
-    SMART("Sprytne"),
-    PRIORITY("Priorytet"),
-    DATE("Data"),
-    ALPHA("Alfabetycznie"),
-    NEWEST("Najnowsze")
+enum class SortMode(val label: String, val hint: String) {
+    SMART("Sprytne", "Termin, priorytet i kontekst razem"),
+    PRIORITY("Priorytet", "Od P1 do P4, potem najbliższy termin"),
+    DATE("Data", "Najbliższy termin na górze"),
+    ALPHA("Alfabetycznie", "Od A do Z"),
+    NEWEST("Najnowsze", "Ostatnio dodane na górze")
 }
 
 /** A top-level task together with its subtasks. */

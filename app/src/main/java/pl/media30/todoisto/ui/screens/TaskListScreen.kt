@@ -414,11 +414,13 @@ fun TaskListScreen(
                         GlassMenuItem("Wyślij plan dnia") { menuOpen = false; onSharePlan() }
                         GlassMenuItem("Usuń ukończone") { menuOpen = false; onClearCompleted() }
                     }
-                    GlassMenu(expanded = sortMenuOpen, onDismiss = { sortMenuOpen = false }) {
-                        SortMode.entries.forEach { mode ->
-                            GlassMenuItem((if (mode == uiState.sortMode) "✓ " else "") + mode.label) { sortMenuOpen = false; onSort(mode) }
-                        }
-                    }
+                }
+                if (sortMenuOpen) {
+                    SortSheet(
+                        current = uiState.sortMode,
+                        onPick = { onSort(it); sortMenuOpen = false },
+                        onDismiss = { sortMenuOpen = false }
+                    )
                 }
             }
 
@@ -1439,6 +1441,46 @@ val LocalSwipeRightCompletes = androidx.compose.runtime.staticCompositionLocalOf
 
 /** Callback przełożenia zaległego zadania na konkretny dzień (epochDay). */
 val LocalReschedule = androidx.compose.runtime.staticCompositionLocalOf<(Task, Long) -> Unit> { { _, _ -> } }
+
+/** Dolny arkusz wyboru sortowania — czytelne wiersze z opisem i „ptaszkiem". */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SortSheet(current: SortMode, onPick: (SortMode) -> Unit, onDismiss: () -> Unit) {
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFFF2ECFB),
+        dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = Color(0xFFC9B8E8)) }
+    ) {
+        Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 26.dp)) {
+            Text(
+                "Sortuj zadania", fontSize = 15.sp, fontWeight = FontWeight.W800,
+                color = Color(0xFF3B2E5A), modifier = Modifier.padding(start = 6.dp, bottom = 10.dp)
+            )
+            SortMode.entries.forEach { mode ->
+                val sel = mode == current
+                Row(
+                    Modifier.fillMaxWidth().padding(bottom = 7.dp).clip(RoundedCornerShape(15.dp))
+                        .background(if (sel) Color(0xFF6B3FE0) else Color(0xCCFFFFFF))
+                        .bouncy(0.97f) { onPick(mode) }
+                        .padding(horizontal = 15.dp, vertical = 13.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            mode.label, fontSize = 14.sp, fontWeight = FontWeight.W800,
+                            color = if (sel) Color.White else Color(0xFF3B2E5A)
+                        )
+                        Text(
+                            mode.hint, fontSize = 11.5.sp, fontWeight = FontWeight.W500,
+                            color = if (sel) Color(0xFFE4D8FA) else Color(0xFF897BAE)
+                        )
+                    }
+                    if (sel) Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(19.dp))
+                }
+            }
+        }
+    }
+}
 
 /** Kompaktowy pomarańczowy boks z nazwą dnia w arkuszu „Przełóż na". */
 @Composable

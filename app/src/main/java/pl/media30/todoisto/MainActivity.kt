@@ -266,7 +266,6 @@ fun TodoistoApp(
         onReorder = viewModel::reorderTasks,
         onScanNote = viewModel::scanNoteImage,
         onReschedule = viewModel::rescheduleTask,
-        onDeleteTask = viewModel::deleteTask,
         weekTasks = allTasks
     )
 

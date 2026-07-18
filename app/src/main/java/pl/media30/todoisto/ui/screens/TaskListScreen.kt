@@ -78,7 +78,6 @@ import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DarkMode
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Inbox
@@ -237,7 +236,6 @@ fun TaskListScreen(
     onReorder: (List<Long>) -> Unit = {},
     onScanNote: (ByteArray) -> Unit = {},
     onReschedule: (Task, Long) -> Unit = { _, _ -> },
-    onDeleteTask: (Task) -> Unit = {},
     routinesExpandedInitially: Boolean = false,
     weekTasks: List<Task> = emptyList()
 ) {
@@ -326,8 +324,7 @@ fun TaskListScreen(
         androidx.compose.runtime.CompositionLocalProvider(
             LocalHazeState provides hazeState,
             LocalSwipeRightCompletes provides swipeRightCompletes,
-            LocalReschedule provides onReschedule,
-            LocalDeleteTask provides onDeleteTask
+            LocalReschedule provides onReschedule
         ) {
         // Kolejność „stron" do swipowania w lewo/prawo (główne widoki).
         val pageOrder = remember { listOf(AppView.Today, AppView.Upcoming, AppView.Inbox, AppView.Completed) }
@@ -1295,28 +1292,18 @@ private fun ZenRowWithSubs(
                             ReschedOption("➕", "Za tydzień", shortDate(todayEpoch + 7)) { onPick(todayEpoch + 7) }
                             ReschedOption("🗓️", "Wybierz datę…", null) { showDatePicker = true }
                             Spacer(Modifier.height(10.dp))
-                            // Duży przycisk „Usuń" — dla zadań, których nie ma sensu przekładać.
-                            val doDelete = LocalDeleteTask.current
+                            // Duży przycisk zamykający — opcje dat znikają bez zmiany zadania.
                             Row(
                                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                                    .background(Color(0xFFFEE2E2))
-                                    .bouncy(0.96f) {
-                                        reschedOpen = false
-                                        if (!leaving) {
-                                            leaving = true
-                                            rowScope.launch {
-                                                kotlinx.coroutines.delay(430); doDelete(task)
-                                                kotlinx.coroutines.delay(300); leaving = false
-                                            }
-                                        }
-                                    }
+                                    .background(Color(0xFFEFEAF8))
+                                    .bouncy(0.96f) { reschedOpen = false }
                                     .padding(vertical = 14.dp),
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Outlined.Delete, null, tint = Color(0xFFB91C1C), modifier = Modifier.size(18.dp))
+                                Icon(Icons.Filled.Close, null, tint = Color(0xFF5B4A85), modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text("Usuń zadanie", fontSize = 14.sp, fontWeight = FontWeight.W800, color = Color(0xFFB91C1C))
+                                Text("Zamknij", fontSize = 14.sp, fontWeight = FontWeight.W800, color = Color(0xFF5B4A85))
                             }
                         }
                     }
@@ -1455,9 +1442,6 @@ val LocalSwipeRightCompletes = androidx.compose.runtime.staticCompositionLocalOf
 
 /** Callback przełożenia zaległego zadania na konkretny dzień (epochDay). */
 val LocalReschedule = androidx.compose.runtime.staticCompositionLocalOf<(Task, Long) -> Unit> { { _, _ -> } }
-
-/** Callback usunięcia zadania (przycisk „Usuń" w arkuszu przełożenia). */
-val LocalDeleteTask = androidx.compose.runtime.staticCompositionLocalOf<(Task) -> Unit> { { } }
 
 /** Wiersz opcji w arkuszu „Przełóż na": emoji, nazwa, data po prawej. */
 @Composable

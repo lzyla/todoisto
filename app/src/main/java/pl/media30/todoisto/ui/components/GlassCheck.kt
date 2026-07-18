@@ -41,13 +41,21 @@ fun GlassCheck(
     checked: Boolean,
     ringColor: Color = GlassAccent,
     size: Dp = 23.dp,
+    /** Uwydatnij priorytet: delikatne tło + grubszy pierścień w kolorze priorytetu. */
+    emphasize: Boolean = false,
     onToggle: () -> Unit,
 ) {
     val fill by animateColorAsState(
-        targetValue = if (checked) ringColor else Color.Transparent,
+        // Nieodhaczone: przy priorytecie delikatne tło w jego kolorze, inaczej przezroczyste.
+        targetValue = when {
+            checked -> ringColor
+            emphasize -> ringColor.copy(alpha = 0.18f)
+            else -> Color.Transparent
+        },
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "checkFill",
     )
+    val borderWidth = if (emphasize) 3.dp else 2.dp
     // „Pop" (przeskalowanie z odbiciem) + rozchodzący się pierścień przy zaznaczeniu.
     val pop = remember { Animatable(1f) }
     val burst = remember { Animatable(0f) }
@@ -78,7 +86,7 @@ fun GlassCheck(
             .graphicsLayer { scaleX = pop.value; scaleY = pop.value }
             .clip(CircleShape)
             .background(fill)
-            .border(2.dp, ringColor, CircleShape)
+            .border(borderWidth, ringColor, CircleShape)
             .bouncy(scaleDown = 0.8f, onClick = onToggle),
         contentAlignment = Alignment.Center,
     ) {

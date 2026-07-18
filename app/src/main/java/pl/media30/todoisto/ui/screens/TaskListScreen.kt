@@ -243,6 +243,7 @@ fun TaskListScreen(
     val scope = rememberCoroutineScope()
     var menuOpen by remember { mutableStateOf(false) }
     var sortMenuOpen by remember { mutableStateOf(false) }
+    var scanSheetOpen by remember { mutableStateOf(false) }
     var voiceOpen by remember { mutableStateOf(false) }
     var qaOpen by remember { mutableStateOf(false) }
     var qaText by remember { mutableStateOf("") }
@@ -400,17 +401,7 @@ fun TaskListScreen(
                             GlassMenuItem("Usuń etykietę") { menuOpen = false; onDeleteLabel(label.id) }
                         }
                         GlassMenuItem("Czas wolny — sugestia") { menuOpen = false; onFreeTime() }
-                        GlassMenuItem("Zeskanuj kartkę (aparat)") {
-                            menuOpen = false
-                            if (takePhoto != null) {
-                                val (u, _) = pl.media30.todoisto.data.NoteScan.newCaptureUri(scanCtx)
-                                scanUri = u; takePhoto.launch(u)
-                            }
-                        }
-                        GlassMenuItem("Wybierz zdjęcie kartki") {
-                            menuOpen = false
-                            pickPhoto?.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
-                        }
+                        GlassMenuItem("Skanuj kartkę") { menuOpen = false; scanSheetOpen = true }
                         GlassMenuItem("Wyślij plan dnia") { menuOpen = false; onSharePlan() }
                         GlassMenuItem("Usuń ukończone") { menuOpen = false; onClearCompleted() }
                     }
@@ -420,6 +411,22 @@ fun TaskListScreen(
                         current = uiState.sortMode,
                         onPick = { onSort(it); sortMenuOpen = false },
                         onDismiss = { sortMenuOpen = false }
+                    )
+                }
+                if (scanSheetOpen) {
+                    ScanChooserSheet(
+                        onCamera = {
+                            scanSheetOpen = false
+                            if (takePhoto != null) {
+                                val (u, _) = pl.media30.todoisto.data.NoteScan.newCaptureUri(scanCtx)
+                                scanUri = u; takePhoto.launch(u)
+                            }
+                        },
+                        onGallery = {
+                            scanSheetOpen = false
+                            pickPhoto?.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        },
+                        onDismiss = { scanSheetOpen = false }
                     )
                 }
             }
@@ -1441,6 +1448,55 @@ val LocalSwipeRightCompletes = androidx.compose.runtime.staticCompositionLocalOf
 
 /** Callback przełożenia zaległego zadania na konkretny dzień (epochDay). */
 val LocalReschedule = androidx.compose.runtime.staticCompositionLocalOf<(Task, Long) -> Unit> { { _, _ -> } }
+
+/** Dolny arkusz skanowania kartki — dwa duże kafelki: Aparat / Galeria. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ScanChooserSheet(onCamera: () -> Unit, onGallery: () -> Unit, onDismiss: () -> Unit) {
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFFF2ECFB),
+        dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = Color(0xFFC9B8E8)) }
+    ) {
+        Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 28.dp)) {
+            Text("Skanuj kartkę", fontSize = 16.sp, fontWeight = FontWeight.W800, color = Color(0xFF3B2E5A))
+            Spacer(Modifier.height(2.dp))
+            Text("AI wyciągnie zadania ze zdjęcia listy lub notatki", fontSize = 12.5.sp, color = Color(0xFF897BAE))
+            Spacer(Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ScanTile(
+                    "Zrób zdjęcie", "Aparat", Icons.Outlined.PhotoCamera,
+                    Color(0xFF6B3FE0), Modifier.weight(1f), onCamera
+                )
+                ScanTile(
+                    "Wybierz z galerii", "Zdjęcie", Icons.Outlined.Image,
+                    Color(0xFFEB8909), Modifier.weight(1f), onGallery
+                )
+            }
+        }
+    }
+}
+
+/** Duży kafelek w arkuszu skanowania. */
+@Composable
+private fun ScanTile(
+    title: String, sub: String, icon: androidx.compose.ui.graphics.vector.ImageVector,
+    accent: Color, modifier: Modifier = Modifier, onClick: () -> Unit
+) {
+    Column(
+        modifier.clip(RoundedCornerShape(20.dp)).background(Color.White)
+            .bouncy(0.96f, onClick).padding(vertical = 20.dp, horizontal = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            Modifier.size(52.dp).clip(CircleShape).background(accent.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center
+        ) { Icon(icon, null, tint = accent, modifier = Modifier.size(26.dp)) }
+        Spacer(Modifier.height(11.dp))
+        Text(title, fontSize = 13.5.sp, fontWeight = FontWeight.W800, color = Color(0xFF2E2542))
+        Text(sub, fontSize = 11.sp, fontWeight = FontWeight.W600, color = Color(0xFF897BAE))
+    }
+}
 
 /** Dolny arkusz wyboru sortowania — czytelne wiersze z opisem i „ptaszkiem". */
 @OptIn(ExperimentalMaterial3Api::class)

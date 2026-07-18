@@ -79,9 +79,8 @@ data class AiCostState(
 )
 
 enum class SortMode(val label: String, val hint: String) {
-    SMART("Sprytne", "Termin, priorytet i kontekst razem"),
+    NEAREST("Najbliższe", "Najbliższy termin i godzina na górze"),
     PRIORITY("Priorytet", "Od P1 do P4, potem najbliższy termin"),
-    DATE("Data", "Najbliższy termin na górze"),
     ALPHA("Alfabetycznie", "Od A do Z"),
     NEWEST("Najnowsze", "Ostatnio dodane na górze")
 }
@@ -106,7 +105,7 @@ data class TodoUiState(
     val isEmpty: Boolean = true,
     val todayCount: Int = 0,
     val inboxCount: Int = 0,
-    val sortMode: SortMode = SortMode.SMART,
+    val sortMode: SortMode = SortMode.NEAREST,
     val doneToday: Int = 0,
     val doneWeek: Int = 0,
     val goalDaily: Int = 5,
@@ -143,7 +142,7 @@ class TodoViewModel(
     private val _view = MutableStateFlow<AppView>(
         if (settings.startView.value == "upcoming") AppView.Upcoming else AppView.Today
     )
-    private val _sort = MutableStateFlow(SortMode.SMART)
+    private val _sort = MutableStateFlow(SortMode.NEAREST)
 
     val darkTheme: StateFlow<Boolean> = settings.darkTheme
     fun setDarkTheme(value: Boolean) = settings.setDarkTheme(value)
@@ -651,9 +650,11 @@ class TodoViewModel(
         }
 
         val sorted = when (prefs.sort) {
-            SortMode.SMART -> matching
+            // Najbliższe: sortuj po dniu, a przy równym dniu po godzinie (nulle na koniec).
+            SortMode.NEAREST -> matching.sortedWith(
+                compareBy({ it.dueDate ?: Long.MAX_VALUE }, { it.dueTimeMinutes ?: Int.MAX_VALUE })
+            )
             SortMode.PRIORITY -> matching.sortedWith(compareBy({ it.priority.ordinal }, { it.dueDate ?: Long.MAX_VALUE }))
-            SortMode.DATE -> matching.sortedWith(compareBy(nullsLast()) { it.dueDate })
             SortMode.ALPHA -> matching.sortedBy { it.title.lowercase() }
             SortMode.NEWEST -> matching.sortedByDescending { it.createdAt }
         }

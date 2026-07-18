@@ -72,6 +72,7 @@ fun TaskRowZen(
             checked = done || forceChecked,
             ringColor = ring,
             size = if (compact) 19.dp else 23.dp,
+            emphasize = task.priority != Priority.P4 && !done,
             onToggle = onToggle
         )
         Spacer(Modifier.width(13.dp))

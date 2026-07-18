@@ -44,7 +44,9 @@ fun GlassCheck(
     onToggle: () -> Unit,
 ) {
     val fill by animateColorAsState(
-        targetValue = if (checked) ringColor else Color.Transparent,
+        // Nieodhaczone kółko: delikatne wypełnienie kolorem priorytetu (jak w Todoist),
+        // żeby kolor był widoczny z daleka, nie tylko jako cienki pierścień.
+        targetValue = if (checked) ringColor else ringColor.copy(alpha = 0.16f),
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "checkFill",
     )

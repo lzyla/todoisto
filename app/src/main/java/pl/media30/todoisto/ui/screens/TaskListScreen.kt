@@ -1256,14 +1256,11 @@ private fun ZenRowWithSubs(
                 node.subtasks.forEach { sub ->
                     TaskRowZen(sub, "", { onToggle(sub) }, { onTaskClick(sub) }, compact = true)
                 }
-                // Rozwinięte opcje dat (otwierane swipe'em); zwija po wyborze.
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = reschedOpen,
-                    enter = androidx.compose.animation.expandVertically(tween(220, easing = EASE)) + androidx.compose.animation.fadeIn(tween(180)),
-                    exit = androidx.compose.animation.shrinkVertically(tween(200, easing = EASE)) + androidx.compose.animation.fadeOut(tween(140))
-                ) {
+                // Swipe „przełóż" → dolny arkusz z wyborem daty (jak w Todoist),
+                // zamiast rozwijanego boxa w liście.
+                if (reschedOpen) {
                     val resched = LocalReschedule.current
-                    // Przełożenie z animacją: panel się zwija, kafelek „odpływa" w dół, potem zapis.
+                    // Przełożenie z animacją: arkusz znika, kafelek „odpływa" w dół, potem zapis.
                     val onPick: (Long) -> Unit = { day ->
                         reschedOpen = false
                         if (!leaving) {
@@ -1274,29 +1271,27 @@ private fun ZenRowWithSubs(
                             }
                         }
                     }
-                    androidx.compose.foundation.layout.FlowRow(
-                        Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 9.dp)
-                            .livingGradient(RoundedCornerShape(14.dp), 0.14f)
-                            .padding(horizontal = 8.dp, vertical = 7.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    androidx.compose.material3.ModalBottomSheet(
+                        onDismissRequest = { reschedOpen = false },
+                        containerColor = Color.White,
+                        dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = Color(0xFFD8CFEA)) }
                     ) {
-                        Text(
-                            "Przełóż do:", fontSize = 11.sp, fontWeight = FontWeight.W700, color = Color(0xFFC2410C),
-                            modifier = Modifier.align(Alignment.CenterVertically).bouncy(1f) { reschedOpen = false }
-                        )
-                        OverdueChip("Dziś") { onPick(todayEpoch) }
-                        OverdueChip("Jutro") { onPick(todayEpoch + 1) }
-                        OverdueChip("Pojutrze") { onPick(todayEpoch + 2) }
-                        OverdueChip("Weekend") { onPick(nextWeekend(todayEpoch)) }
-                        OverdueChip("+7 dni") { onPick(todayEpoch + 7) }
-                        OverdueChip("Data…") { showDatePicker = true }
-                        // Zwiń opcje bez wybierania daty.
-                        Box(
-                            Modifier.align(Alignment.CenterVertically).size(24.dp).clip(CircleShape)
-                                .background(Color(0x22C2410C)).bouncy(0.9f) { reschedOpen = false },
-                            contentAlignment = Alignment.Center
-                        ) { Icon(Icons.Filled.Close, "Zwiń", tint = Color(0xFF9A3412), modifier = Modifier.size(13.dp)) }
+                        Column(Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, bottom = 30.dp)) {
+                            Text(
+                                "Przełóż na", fontSize = 15.sp, fontWeight = FontWeight.W800,
+                                color = Color(0xFF3B2E5A), modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                            Text(
+                                task.title, fontSize = 12.sp, color = Color(0xFF8A80A0),
+                                maxLines = 1, modifier = Modifier.padding(bottom = 12.dp)
+                            )
+                            ReschedOption("☀️", "Dziś", shortDate(todayEpoch)) { onPick(todayEpoch) }
+                            ReschedOption("🌅", "Jutro", shortDate(todayEpoch + 1)) { onPick(todayEpoch + 1) }
+                            ReschedOption("📆", "Pojutrze", shortDate(todayEpoch + 2)) { onPick(todayEpoch + 2) }
+                            ReschedOption("🛋️", "Weekend", shortDate(nextWeekend(todayEpoch))) { onPick(nextWeekend(todayEpoch)) }
+                            ReschedOption("➕", "Za tydzień", shortDate(todayEpoch + 7)) { onPick(todayEpoch + 7) }
+                            ReschedOption("🗓️", "Wybierz datę…", null) { showDatePicker = true }
+                        }
                     }
                 }
                 if (showDatePicker) {
@@ -1434,14 +1429,20 @@ val LocalSwipeRightCompletes = androidx.compose.runtime.staticCompositionLocalOf
 /** Callback przełożenia zaległego zadania na konkretny dzień (epochDay). */
 val LocalReschedule = androidx.compose.runtime.staticCompositionLocalOf<(Task, Long) -> Unit> { { _, _ -> } }
 
+/** Wiersz opcji w arkuszu „Przełóż na": emoji, nazwa, data po prawej. */
 @Composable
-private fun OverdueChip(label: String, onClick: () -> Unit) {
-    Text(
-        label, fontSize = 11.sp, fontWeight = FontWeight.W800, color = Color(0xFF9A3412),
-        maxLines = 1, softWrap = false,
-        modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0x33F59E0B))
-            .bouncy(0.9f, onClick).padding(horizontal = 10.dp, vertical = 5.dp)
-    )
+private fun ReschedOption(emoji: String, label: String, date: String?, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+            .bouncy(0.97f, onClick).padding(horizontal = 10.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(emoji, fontSize = 17.sp)
+        Spacer(Modifier.width(12.dp))
+        Text(label, fontSize = 14.sp, fontWeight = FontWeight.W600, color = Color(0xFF2E2542))
+        Spacer(Modifier.weight(1f))
+        if (date != null) Text(date, fontSize = 12.5.sp, fontWeight = FontWeight.W600, color = Color(0xFF9A8FB8))
+    }
 }
 
 @Composable

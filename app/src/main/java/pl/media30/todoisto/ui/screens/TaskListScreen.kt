@@ -1256,27 +1256,7 @@ private fun ZenRowWithSubs(
                 node.subtasks.forEach { sub ->
                     TaskRowZen(sub, "", { onToggle(sub) }, { onTaskClick(sub) }, compact = true)
                 }
-                // Zaległe: JEDEN przycisk „Przełóż" (rozwija opcje) — bez zaśmiecania listy.
-                val overdue = task.dueDate != null && task.dueDate!! < todayEpoch && !task.isCompleted
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = overdue && !reschedOpen,
-                    enter = androidx.compose.animation.fadeIn(tween(150)),
-                    exit = androidx.compose.animation.fadeOut(tween(120))
-                ) {
-                    Row(Modifier.padding(start = 14.dp, top = 1.dp, bottom = 6.dp)) {
-                        Row(
-                            Modifier.shadow(2.dp, RoundedCornerShape(50), spotColor = Color(0x66C2410C))
-                                .clip(RoundedCornerShape(50)).background(Color(0xFFFFE9DD))
-                                .bouncy(0.92f) { reschedOpen = true }.padding(horizontal = 10.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Outlined.DateRange, null, tint = Color(0xFFC2410C), modifier = Modifier.size(12.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Przełóż", fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = Color(0xFF9A3412))
-                        }
-                    }
-                }
-                // Rozwinięte opcje dat (swipe albo po kliknięciu „Przełóż"); zwija po wyborze.
+                // Rozwinięte opcje dat (otwierane swipe'em); zwija po wyborze.
                 androidx.compose.animation.AnimatedVisibility(
                     visible = reschedOpen,
                     enter = androidx.compose.animation.expandVertically(tween(220, easing = EASE)) + androidx.compose.animation.fadeIn(tween(180)),
@@ -1363,8 +1343,7 @@ private fun SwipeBg(dir: androidx.compose.material3.SwipeToDismissBoxValue, righ
             if (isComplete) Icons.Filled.Check else Icons.Outlined.DateRange,
             null, tint = Color.White, modifier = Modifier.size(22.dp)
         )
-        // Strona „przełóż": sama ikona — napis dublował się z chipem „Przełóż"
-        // widocznym na kafelku zaległego zadania podczas przesuwania.
+        // Strona „przełóż": sama ikona — bez napisu, żeby nie zaśmiecać kafelka.
         if (isComplete) {
             Spacer(Modifier.width(8.dp))
             Text("Ukończ", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W800)

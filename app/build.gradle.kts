@@ -14,8 +14,8 @@ android {
         applicationId = "pl.media30.todoisto"
         minSdk = 24
         targetSdk = 34
-        versionCode = 95
-        versionName = "95"
+        versionCode = 96
+        versionName = "96"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

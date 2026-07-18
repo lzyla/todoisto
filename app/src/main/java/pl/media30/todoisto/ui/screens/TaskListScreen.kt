@@ -1459,9 +1459,15 @@ private fun ScanChooserSheet(onCamera: () -> Unit, onGallery: () -> Unit, onDism
         dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = Color(0xFFC9B8E8)) }
     ) {
         Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 28.dp)) {
-            Text("Skanuj kartkę", fontSize = 16.sp, fontWeight = FontWeight.W800, color = Color(0xFF3B2E5A))
-            Spacer(Modifier.height(2.dp))
-            Text("AI wyciągnie zadania ze zdjęcia listy lub notatki", fontSize = 12.5.sp, color = Color(0xFF897BAE))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(34.dp).clip(CircleShape)
+                        .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFA47CFF), Color(0xFF6B3FE0)))),
+                    contentAlignment = Alignment.Center
+                ) { Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(18.dp)) }
+                Spacer(Modifier.width(11.dp))
+                Text("Skanuj kartkę", fontSize = 16.sp, fontWeight = FontWeight.W800, color = Color(0xFF3B2E5A))
+            }
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 ScanTile(
@@ -1473,6 +1479,13 @@ private fun ScanChooserSheet(onCamera: () -> Unit, onGallery: () -> Unit, onDism
                     Color(0xFFEB8909), Modifier.weight(1f), onGallery
                 )
             }
+            Spacer(Modifier.height(14.dp))
+            // Wyjaśnienie POD kaflami — najpierw wybór, opis potem.
+            Text(
+                "AI wyciągnie zadania ze zdjęcia listy lub notatki.",
+                fontSize = 12.5.sp, color = Color(0xFF897BAE),
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
         }
     }
 }
@@ -1484,17 +1497,22 @@ private fun ScanTile(
     accent: Color, modifier: Modifier = Modifier, onClick: () -> Unit
 ) {
     Column(
-        modifier.clip(RoundedCornerShape(20.dp)).background(Color.White)
-            .bouncy(0.96f, onClick).padding(vertical = 20.dp, horizontal = 14.dp),
+        modifier
+            .shadow(12.dp, RoundedCornerShape(22.dp), spotColor = accent.copy(alpha = 0.5f))
+            .clip(RoundedCornerShape(22.dp))
+            .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.White, Color(0xFFF6F1FE))))
+            .border(1.dp, accent.copy(alpha = 0.14f), RoundedCornerShape(22.dp))
+            .bouncy(0.96f, onClick).padding(vertical = 22.dp, horizontal = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
-            Modifier.size(52.dp).clip(CircleShape).background(accent.copy(alpha = 0.14f)),
+            Modifier.size(54.dp).clip(CircleShape)
+                .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(accent.copy(alpha = 0.20f), accent.copy(alpha = 0.10f)))),
             contentAlignment = Alignment.Center
-        ) { Icon(icon, null, tint = accent, modifier = Modifier.size(26.dp)) }
-        Spacer(Modifier.height(11.dp))
+        ) { Icon(icon, null, tint = accent, modifier = Modifier.size(27.dp)) }
+        Spacer(Modifier.height(12.dp))
         Text(title, fontSize = 13.5.sp, fontWeight = FontWeight.W800, color = Color(0xFF2E2542))
-        Text(sub, fontSize = 11.sp, fontWeight = FontWeight.W600, color = Color(0xFF897BAE))
+        Text(sub, fontSize = 11.sp, fontWeight = FontWeight.W600, color = accent.copy(alpha = 0.85f))
     }
 }
 

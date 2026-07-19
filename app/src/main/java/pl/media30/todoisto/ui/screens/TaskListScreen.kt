@@ -461,16 +461,17 @@ fun TaskListScreen(
                 val dayFrac = if (doneToday + uiState.todayCount == 0) 0f else doneToday.toFloat() / (doneToday + uiState.todayCount)
                 val ringFrac by animateFloatAsState(if (uiState.view == AppView.Today) dayFrac else 0f, tween(650, easing = EASE), label = "dayRing")
                 val ringColor by animateColorAsState(if (dayFrac >= 1f) Color(0xFFF4B740) else GlassAccent, tween(500), label = "dayRingC")
-                DockAction(
+                DockItem(
                     icon = if (uiState.routines.isEmpty() && uiState.routinesDone > 0) Icons.Outlined.CheckCircle else Icons.Outlined.Autorenew,
                     label = "Rutyny",
+                    selected = false,
                     badge = uiState.routines.size.takeIf { it > 0 },
                     ringFrac = ringFrac,
                     ringColor = ringColor
                 ) { routOpen = !routOpen }
-                DockTab(Icons.Outlined.CalendarToday, "Dziś", uiState.view == AppView.Today) { onSelectView(AppView.Today) }
-                DockTab(Icons.Outlined.DateRange, "Nadchodzące", uiState.view == AppView.Upcoming) { onSelectView(AppView.Upcoming) }
-                DockAction(Icons.Filled.Mic, "Mikrofon") { voiceOpen = true }
+                DockItem(Icons.Outlined.CalendarToday, "Dziś", uiState.view == AppView.Today) { onSelectView(AppView.Today) }
+                DockItem(Icons.Outlined.DateRange, "Nadchodz.", uiState.view == AppView.Upcoming) { onSelectView(AppView.Upcoming) }
+                DockItem(Icons.Filled.Mic, "Mikrofon", selected = false) { voiceOpen = true }
             }
 
             // ── Scrim Quick Add ─────────────────────────────────────────────
@@ -762,40 +763,26 @@ private fun CircleGlassButton(onClick: () -> Unit, content: @Composable () -> Un
 }
 
 @Composable
-private fun DockTab(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
-    // Zaznaczona zakładka rozwija się w akcentową pigułkę z etykietą;
-    // niezaznaczona = sama ikona (żeby cztery elementy zmieściły się w pasku).
-    val bg by animateColorAsState(if (selected) GlassAccent else Color.Transparent, tween(350), label = "dockBg")
-    val fg by animateColorAsState(if (selected) Color.White else GlassTextPrimary, tween(350), label = "dockFg")
-    Row(
-        Modifier.clip(RoundedCornerShape(24.dp)).background(bg).bouncy(0.92f, onClick)
-            .padding(horizontal = if (selected) 16.dp else 13.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, label, tint = fg, modifier = Modifier.size(18.dp))
-        androidx.compose.animation.AnimatedVisibility(selected) {
-            Row {
-                Spacer(Modifier.width(7.dp))
-                Text(label, fontSize = 12.5.sp, fontWeight = FontWeight.W800, color = fg, maxLines = 1, softWrap = false)
-            }
-        }
-    }
-}
-
-/** Ikona-akcja w dolnym pasku (Rutyny / Mikrofon): opcjonalna odznaka i pierścień. */
-@Composable
-private fun DockAction(
+private fun DockItem(
     icon: ImageVector,
     label: String,
+    selected: Boolean,
     badge: Int? = null,
     ringFrac: Float = 0f,
     ringColor: Color = GlassAccent,
     onClick: () -> Unit
 ) {
-    Box {
-        Box(
-            Modifier.size(44.dp).clip(CircleShape).bouncy(0.9f, onClick)
-                .drawWithContent {
+    // Stały rozmiar i pozycja — zaznaczenie zmienia tylko kolor, nic się nie
+    // rozjeżdża ani nie zwiększa. Ikona nad krótką etykietą.
+    val fg by animateColorAsState(if (selected) GlassAccent else GlassTextPrimary, tween(300), label = "dockFg")
+    Column(
+        Modifier.width(70.dp).clip(RoundedCornerShape(18.dp)).bouncy(0.92f, onClick)
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Box(
+                Modifier.size(28.dp).drawWithContent {
                     drawContent()
                     if (ringFrac > 0f) {
                         val stroke = 2.5.dp.toPx()
@@ -808,21 +795,24 @@ private fun DockAction(
                         )
                     }
                 },
-            contentAlignment = Alignment.Center
-        ) { Icon(icon, label, tint = GlassTextPrimary, modifier = Modifier.size(19.dp)) }
-        if (badge != null) {
-            Box(
-                Modifier.align(Alignment.TopEnd).offset(3.dp, (-3).dp)
-                    .size(18.dp).background(Color.White, CircleShape).padding(2.dp)
-                    .background(GlassAccent, CircleShape),
                 contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    "$badge", color = Color.White, fontSize = 9.5.sp,
-                    fontWeight = FontWeight.W800, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 9.5.sp
-                )
+            ) { Icon(icon, label, tint = fg, modifier = Modifier.size(20.dp)) }
+            if (badge != null) {
+                Box(
+                    Modifier.align(Alignment.TopEnd).offset(7.dp, (-6).dp)
+                        .size(17.dp).background(Color.White, CircleShape).padding(2.dp)
+                        .background(GlassAccent, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "$badge", color = Color.White, fontSize = 9.sp,
+                        fontWeight = FontWeight.W800, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 9.sp
+                    )
+                }
             }
         }
+        Spacer(Modifier.height(3.dp))
+        Text(label, fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = fg, maxLines = 1, softWrap = false)
     }
 }
 

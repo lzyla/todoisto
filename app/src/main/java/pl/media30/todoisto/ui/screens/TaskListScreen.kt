@@ -382,10 +382,7 @@ fun TaskListScreen(
                 CircleGlassButton({ briefOpen = !briefOpen }) {
                     Icon(Icons.Outlined.AutoAwesome, "Podsumowanie tygodnia", tint = GlassAccent, modifier = Modifier.size(18.dp))
                 }
-                // Dodawanie głosowe — kółko
-                CircleGlassButton({ voiceOpen = true }) {
-                    Icon(Icons.Filled.Mic, "Dodaj głosowo", tint = GlassAccent, modifier = Modifier.size(18.dp))
-                }
+                // (Mikrofon przeniesiony na dolny pasek.)
                 // Menu akcji ⋮ — kółko z rozwijanym menu
                 Box {
                     CircleGlassButton({ menuOpen = true }) {
@@ -451,66 +448,29 @@ fun TaskListScreen(
                 }
             }
 
-            // ── Dock: kółko Rutyn + Dzisiaj/Nadchodzące ─────────────────────
+            // ── Dock: cztery ikony — Rutyny · Dziś · Nadchodzące · Mikrofon ──
             Row(
-                Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 12.dp),
+                Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 12.dp)
+                    .controlCenterGlass(RoundedCornerShape(30.dp)).padding(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                if (uiState.view == AppView.Today) {
-                    // Postęp dnia: ukończone dziś / (ukończone dziś + otwarte) → pierścień
-                    // wokół kółka Rutyn; przy 100% robi się złoty.
-                    val todayStartMs = remember { AppClock.today().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() }
-                    val doneToday = weekTasks.count { it.isCompleted && (it.completedAt ?: 0L) >= todayStartMs }
-                    val dayFrac = if (doneToday + uiState.todayCount == 0) 0f else doneToday.toFloat() / (doneToday + uiState.todayCount)
-                    val ringFrac by animateFloatAsState(dayFrac, tween(650, easing = EASE), label = "dayRing")
-                    val ringColor by animateColorAsState(if (dayFrac >= 1f) Color(0xFFF4B740) else GlassAccent, tween(500), label = "dayRingC")
-                    Box {
-                        Box(
-                            Modifier.size(54.dp).controlCenterGlass(CircleShape)
-                                .drawWithContent {
-                                    drawContent()
-                                    if (ringFrac > 0f) {
-                                        val stroke = 2.5.dp.toPx()
-                                        drawArc(
-                                            color = ringColor,
-                                            startAngle = -90f, sweepAngle = 360f * ringFrac, useCenter = false,
-                                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round),
-                                            topLeft = Offset(stroke / 2f, stroke / 2f),
-                                            size = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke)
-                                        )
-                                    }
-                                }
-                                .bouncy(0.9f) { routOpen = !routOpen },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (uiState.routines.isEmpty() && uiState.routinesDone > 0) {
-                                Icon(Icons.Outlined.CheckCircle, "Rutyny zrobione", tint = GlassAccent, modifier = Modifier.size(19.dp))
-                            } else {
-                                Icon(Icons.Outlined.Autorenew, "Rutyny", tint = GlassTextPrimary, modifier = Modifier.size(19.dp))
-                            }
-                        }
-                        if (uiState.routines.isNotEmpty()) {
-                            // Odznaka z białą obwódką (halo) — czytelnie odcina się od kółka.
-                            Box(
-                                Modifier.align(Alignment.TopEnd).offset(5.dp, (-5).dp)
-                                    .size(20.dp).background(Color.White, CircleShape).padding(2.dp)
-                                    .background(GlassAccent, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    "${uiState.routines.size}", color = Color.White, fontSize = 10.sp,
-                                    fontWeight = FontWeight.W800, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                    lineHeight = 10.sp
-                                )
-                            }
-                        }
-                    }
-                }
-                Row(Modifier.controlCenterGlass(RoundedCornerShape(30.dp)).padding(6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    DockTab(Icons.Outlined.CalendarToday, "Dzisiaj", uiState.view == AppView.Today) { onSelectView(AppView.Today) }
-                    DockTab(Icons.Outlined.DateRange, "Nadchodzące", uiState.view == AppView.Upcoming) { onSelectView(AppView.Upcoming) }
-                }
+                // Rutyny: ikona z odznaką liczby + (na widoku Dziś) pierścień postępu dnia.
+                val todayStartMs = remember { AppClock.today().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() }
+                val doneToday = weekTasks.count { it.isCompleted && (it.completedAt ?: 0L) >= todayStartMs }
+                val dayFrac = if (doneToday + uiState.todayCount == 0) 0f else doneToday.toFloat() / (doneToday + uiState.todayCount)
+                val ringFrac by animateFloatAsState(if (uiState.view == AppView.Today) dayFrac else 0f, tween(650, easing = EASE), label = "dayRing")
+                val ringColor by animateColorAsState(if (dayFrac >= 1f) Color(0xFFF4B740) else GlassAccent, tween(500), label = "dayRingC")
+                DockAction(
+                    icon = if (uiState.routines.isEmpty() && uiState.routinesDone > 0) Icons.Outlined.CheckCircle else Icons.Outlined.Autorenew,
+                    label = "Rutyny",
+                    badge = uiState.routines.size.takeIf { it > 0 },
+                    ringFrac = ringFrac,
+                    ringColor = ringColor
+                ) { routOpen = !routOpen }
+                DockTab(Icons.Outlined.CalendarToday, "Dziś", uiState.view == AppView.Today) { onSelectView(AppView.Today) }
+                DockTab(Icons.Outlined.DateRange, "Nadchodzące", uiState.view == AppView.Upcoming) { onSelectView(AppView.Upcoming) }
+                DockAction(Icons.Filled.Mic, "Mikrofon") { voiceOpen = true }
             }
 
             // ── Scrim Quick Add ─────────────────────────────────────────────
@@ -803,16 +763,66 @@ private fun CircleGlassButton(onClick: () -> Unit, content: @Composable () -> Un
 
 @Composable
 private fun DockTab(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
+    // Zaznaczona zakładka rozwija się w akcentową pigułkę z etykietą;
+    // niezaznaczona = sama ikona (żeby cztery elementy zmieściły się w pasku).
     val bg by animateColorAsState(if (selected) GlassAccent else Color.Transparent, tween(350), label = "dockBg")
     val fg by animateColorAsState(if (selected) Color.White else GlassTextPrimary, tween(350), label = "dockFg")
     Row(
         Modifier.clip(RoundedCornerShape(24.dp)).background(bg).bouncy(0.92f, onClick)
-            .padding(horizontal = 18.dp, vertical = 10.dp),
+            .padding(horizontal = if (selected) 16.dp else 13.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, null, tint = fg, modifier = Modifier.size(16.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(label, fontSize = 12.5.sp, fontWeight = FontWeight.W800, color = fg, maxLines = 1, softWrap = false)
+        Icon(icon, label, tint = fg, modifier = Modifier.size(18.dp))
+        androidx.compose.animation.AnimatedVisibility(selected) {
+            Row {
+                Spacer(Modifier.width(7.dp))
+                Text(label, fontSize = 12.5.sp, fontWeight = FontWeight.W800, color = fg, maxLines = 1, softWrap = false)
+            }
+        }
+    }
+}
+
+/** Ikona-akcja w dolnym pasku (Rutyny / Mikrofon): opcjonalna odznaka i pierścień. */
+@Composable
+private fun DockAction(
+    icon: ImageVector,
+    label: String,
+    badge: Int? = null,
+    ringFrac: Float = 0f,
+    ringColor: Color = GlassAccent,
+    onClick: () -> Unit
+) {
+    Box {
+        Box(
+            Modifier.size(44.dp).clip(CircleShape).bouncy(0.9f, onClick)
+                .drawWithContent {
+                    drawContent()
+                    if (ringFrac > 0f) {
+                        val stroke = 2.5.dp.toPx()
+                        drawArc(
+                            color = ringColor,
+                            startAngle = -90f, sweepAngle = 360f * ringFrac, useCenter = false,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round),
+                            topLeft = Offset(stroke / 2f, stroke / 2f),
+                            size = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke)
+                        )
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) { Icon(icon, label, tint = GlassTextPrimary, modifier = Modifier.size(19.dp)) }
+        if (badge != null) {
+            Box(
+                Modifier.align(Alignment.TopEnd).offset(3.dp, (-3).dp)
+                    .size(18.dp).background(Color.White, CircleShape).padding(2.dp)
+                    .background(GlassAccent, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "$badge", color = Color.White, fontSize = 9.5.sp,
+                    fontWeight = FontWeight.W800, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 9.5.sp
+                )
+            }
+        }
     }
 }
 
@@ -1645,10 +1655,10 @@ private fun QuickAddMorph(
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraintsFix(modifier.navigationBarsPadding().imePadding()) { maxW, maxH ->
-        val width by animateDpAsState(if (open) maxW - 28.dp else 58.dp, tween(500, easing = EASE), label = "qaW")
+        val width by animateDpAsState(if (open) maxW - 28.dp else 64.dp, tween(500, easing = EASE), label = "qaW")
         // Wysokość dopasowana do dostępnego miejsca (nad klawiaturą) — panel się mieści w całości.
         val openH = 460.dp.coerceAtMost(maxH - 20.dp)
-        val height by animateDpAsState(if (open) openH else 58.dp, tween(500, easing = EASE), label = "qaH")
+        val height by animateDpAsState(if (open) openH else 64.dp, tween(500, easing = EASE), label = "qaH")
         val bottomPad by animateDpAsState(if (open) 16.dp else 84.dp, tween(500, easing = EASE), label = "qaB")
         val bg by animateColorAsState(if (open) GlassSurface else GlassAccent, tween(400), label = "qaBg")
         val rot by animateFloatAsState(if (open) 45f else 0f, tween(500, easing = EASE), label = "qaRot")
@@ -1681,20 +1691,20 @@ private fun QuickAddMorph(
                         .livingGradient(RoundedCornerShape(29.dp), 0.08f)
                         .border(1.dp, GlassRim.copy(alpha = 0.6f), RoundedCornerShape(29.dp))
                     else Modifier
-                        .shadow(12.dp, RoundedCornerShape(29.dp), spotColor = GlassAccent, ambientColor = GlassAccent.copy(alpha = 0.6f))
-                        .clip(RoundedCornerShape(29.dp)).background(GlassAccent)
+                        .shadow(20.dp, CircleShape, spotColor = GlassAccent, ambientColor = GlassAccent.copy(alpha = 0.7f))
+                        .clip(CircleShape).background(GlassAccent)
                 )
         ) {
             // Plus / X
             Box(
-                Modifier.align(Alignment.TopEnd).size(58.dp)
+                Modifier.align(Alignment.TopEnd).size(if (open) 58.dp else 64.dp)
                     .bouncy(0.88f, onClick = onToggleOpen),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Filled.Add, if (open) "Zamknij" else "Dodaj zadanie",
                     tint = if (open) GlassTextSecondary else Color.White,
-                    modifier = Modifier.size(22.dp).rotate(rot)
+                    modifier = Modifier.size(24.dp).rotate(rot)
                 )
             }
             if (open) {

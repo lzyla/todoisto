@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.cash.paparazzi.DeviceConfig
 import app.cash.paparazzi.Paparazzi
+import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import pl.media30.todoisto.data.Label
@@ -62,7 +64,17 @@ class ScreenshotTest {
         theme = "android:Theme.Material.Light.NoActionBar"
     )
 
-    private val today = LocalDate.now().toEpochDay()
+    // Stałe „dziś" — dzięki temu snapshoty są deterministyczne niezależnie od
+    // dnia uruchomienia testów (daty w danych i w renderze liczą od tej samej daty).
+    private val fixedToday = LocalDate.of(2026, 7, 18)
+
+    @Before
+    fun fixClock() { pl.media30.todoisto.data.AppClock.todayOverride = fixedToday }
+
+    @After
+    fun releaseClock() { pl.media30.todoisto.data.AppClock.todayOverride = null }
+
+    private val today = fixedToday.toEpochDay()
 
     private val projects = listOf(
         Project(1, "Praca", 0xFF4D6BFF, isFavorite = true),

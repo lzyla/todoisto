@@ -82,7 +82,7 @@ fun StatsScreen(
     )
     // Ostatnie 30 dni + passa (streak)
     fun dayOf(ms: Long) = Instant.ofEpochMilli(ms).atZone(zone).toLocalDate().toEpochDay()
-    val today = java.time.LocalDate.now().toEpochDay()
+    val today = pl.media30.todoisto.data.AppClock.today().toEpochDay()
     val daysSet = completed.map { dayOf(it.completedAt!!) }.toHashSet()
     val last30 = (0..29).map { off -> val d = today - 29 + off; completed.count { dayOf(it.completedAt!!) == d } }
     var streak = 0

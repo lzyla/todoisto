@@ -78,6 +78,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import pl.media30.todoisto.data.AppClock
 import pl.media30.todoisto.data.Label
 import pl.media30.todoisto.data.Priority
 import pl.media30.todoisto.data.Project
@@ -141,7 +142,7 @@ fun TaskDetailSheet(
     var lightboxUrl by remember { mutableStateOf<String?>(null) }
     var titleEdit by remember(task.id) { mutableStateOf(false) }
 
-    val today = LocalDate.now().toEpochDay()
+    val today = AppClock.today().toEpochDay()
     val done = task.isCompleted
 
     Column(
@@ -241,8 +242,8 @@ fun TaskDetailSheet(
         }
 
         DetailSection("Deadline", Color(0xFFC24B1A), summary = fmtDay(task.deadline)) {
-            val friday = LocalDate.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.FRIDAY)).toEpochDay()
-            val endOfMonth = LocalDate.now().with(TemporalAdjusters.lastDayOfMonth()).toEpochDay()
+            val friday = AppClock.today().with(TemporalAdjusters.nextOrSame(DayOfWeek.FRIDAY)).toEpochDay()
+            val endOfMonth = AppClock.today().with(TemporalAdjusters.lastDayOfMonth()).toEpochDay()
             PresetChip("Brak", task.deadline == null, Color(0xFFC24B1A)) { onPatch(task.copy(deadline = null)) }
             PresetChip("Do jutra", task.deadline == today + 1, Color(0xFFC24B1A)) { onPatch(task.copy(deadline = today + 1)) }
             PresetChip("Do piątku", task.deadline == friday, Color(0xFFC24B1A)) { onPatch(task.copy(deadline = friday)) }
@@ -781,7 +782,7 @@ private fun DetailSection(
 /** Krótki opis daty do podsumowania sekcji (Dzisiaj / Jutro / 5 lip / Brak). */
 private fun fmtDay(epochDay: Long?): String {
     if (epochDay == null) return "Brak"
-    val today = LocalDate.now().toEpochDay()
+    val today = AppClock.today().toEpochDay()
     return when (epochDay) {
         today -> "Dzisiaj"
         today + 1 -> "Jutro"

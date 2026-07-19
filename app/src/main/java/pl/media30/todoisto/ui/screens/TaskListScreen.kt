@@ -136,6 +136,7 @@ import pl.media30.todoisto.data.QuickAddParser
 import pl.media30.todoisto.data.Task
 import pl.media30.todoisto.ui.AppView
 import pl.media30.todoisto.ui.QuickAddOverrides
+import pl.media30.todoisto.data.AppClock
 import pl.media30.todoisto.ui.SortMode
 import pl.media30.todoisto.ui.TaskNode
 import pl.media30.todoisto.ui.TodoUiState
@@ -457,7 +458,7 @@ fun TaskListScreen(
                 if (uiState.view == AppView.Today) {
                     // Postęp dnia: ukończone dziś / (ukończone dziś + otwarte) → pierścień
                     // wokół kółka Rutyn; przy 100% robi się złoty.
-                    val todayStartMs = remember { LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() }
+                    val todayStartMs = remember { AppClock.today().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() }
                     val doneToday = weekTasks.count { it.isCompleted && (it.completedAt ?: 0L) >= todayStartMs }
                     val dayFrac = if (doneToday + uiState.todayCount == 0) 0f else doneToday.toFloat() / (doneToday + uiState.todayCount)
                     val ringFrac by animateFloatAsState(dayFrac, tween(650, easing = EASE), label = "dayRing")
@@ -827,7 +828,7 @@ private fun ZenContent(
     statusTop: androidx.compose.ui.unit.Dp,
     onReorder: (List<Long>) -> Unit = {}
 ) {
-    val today = LocalDate.now()
+    val today = AppClock.today()
     val collapsed = remember { mutableStateMapOf<String, Boolean>() }
 
     // Bucket pory dnia (dla widoku Dzisiaj).
@@ -1148,7 +1149,7 @@ private fun ZenRowWithSubs(
     onOpenAutomation: (Task) -> Unit
 ) {
     val task = node.task
-    val todayEpoch = LocalDate.now().toEpochDay()
+    val todayEpoch = AppClock.today().toEpochDay()
     val dueChip: String? = task.dueDate?.let { due ->
         val show = when (uiState.view) {
             AppView.Today -> due < todayEpoch
@@ -1630,7 +1631,7 @@ private fun QuickAddMorph(
         var showCal by remember { mutableStateOf(false) }
         if (showCal) {
             ReschedDatePicker(
-                initialEpochDay = parsed.dueDate ?: LocalDate.now().toEpochDay(),
+                initialEpochDay = parsed.dueDate ?: AppClock.today().toEpochDay(),
                 onDismiss = { showCal = false },
                 onPick = { day ->
                     // Wstaw wybrany dzień jako datę ISO — parser rozpozna go jako termin.
@@ -1703,7 +1704,7 @@ private fun QuickAddMorph(
                         if (text.isBlank()) {
                             Text("Rozpoznam datę, godzinę, #projekt, @etykietę, priorytet i cykl.", fontSize = 11.5.sp, color = GlassTextSecondary.copy(alpha = 0.75f))
                         } else {
-                            parsed.dueDate?.let { QAChip(if (it == LocalDate.now().toEpochDay()) "Dzisiaj" else if (it == LocalDate.now().toEpochDay() + 1) "Jutro" else shortDate(it), Color(0xFF1F8A5B)) }
+                            parsed.dueDate?.let { QAChip(if (it == AppClock.today().toEpochDay()) "Dzisiaj" else if (it == AppClock.today().toEpochDay() + 1) "Jutro" else shortDate(it), Color(0xFF1F8A5B)) }
                             parsed.dueTimeMinutes?.let { QAChip("%d:%02d".format(it / 60, it % 60), GlassAccent) }
                             parsed.recurrence?.let { QAChip("⟳ " + it.label.lowercase(), GlassTextSecondary) }
                             if (parsed.priority != Priority.P4) QAChip("P${parsed.priority.ordinal + 1}", parsed.priority.color)
@@ -1828,7 +1829,7 @@ private fun WeekBrief(
     onItemClick: (Task) -> Unit,
     onClose: () -> Unit
 ) {
-    val today = LocalDate.now()
+    val today = AppClock.today()
     Column(
         Modifier
             .fillMaxWidth()

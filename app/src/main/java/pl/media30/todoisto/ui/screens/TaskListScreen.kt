@@ -85,6 +85,8 @@ import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.WbSunny
+import androidx.compose.material.icons.outlined.Weekend
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DatePicker
@@ -1193,7 +1195,6 @@ private fun ZenRowWithSubs(
         val rightCompletes = LocalSwipeRightCompletes.current
         // Swipe „przełóż" rozwija w dół wybór daty (do kiedy); po wyborze się zwija.
         var reschedOpen by remember { mutableStateOf(false) }
-        var showDatePicker by remember { mutableStateOf(false) }
         // Animacje wyjścia: ukończenie (kreska + zanik) / przełożenie (zanik w dół).
         var completing by remember { mutableStateOf(false) }
         var leaving by remember { mutableStateOf(false) }
@@ -1300,55 +1301,11 @@ private fun ZenRowWithSubs(
                             }
                         }
                     }
-                    // Mocno fioletowe „szkło" + kompaktowe pomarańczowe boksy w wierszach.
-                    androidx.compose.material3.ModalBottomSheet(
-                        onDismissRequest = { reschedOpen = false },
-                        containerColor = Color(0xFFD8C3F4),
-                        dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = Color(0xFF9F7FD6)) }
-                    ) {
-                        Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 24.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
-                                Column(Modifier.weight(1f)) {
-                                    Text("Przełóż na", fontSize = 14.sp, fontWeight = FontWeight.W800, color = Color(0xFF3B2E5A))
-                                    Text(task.title, fontSize = 11.5.sp, color = Color(0xFF6D5794), maxLines = 1)
-                                }
-                                // Zamknięcie bez zmian — mały okrąg ×.
-                                Box(
-                                    Modifier.size(30.dp).clip(CircleShape).background(Color(0x336B3FE0))
-                                        .bouncy(0.9f) { reschedOpen = false },
-                                    contentAlignment = Alignment.Center
-                                ) { Icon(Icons.Filled.Close, "Zamknij", tint = Color(0xFF4C3585), modifier = Modifier.size(15.dp)) }
-                            }
-                            androidx.compose.foundation.layout.FlowRow(
-                                Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                                verticalArrangement = Arrangement.spacedBy(7.dp)
-                            ) {
-                                ReschedOption("Dziś") { onPick(todayEpoch) }
-                                ReschedOption("Jutro") { onPick(todayEpoch + 1) }
-                                ReschedOption("Pojutrze") { onPick(todayEpoch + 2) }
-                                ReschedOption("Weekend") { onPick(nextWeekend(todayEpoch)) }
-                                ReschedOption("Za tydzień") { onPick(todayEpoch + 7) }
-                                ReschedOption("Kalendarz…") { showDatePicker = true }
-                            }
-                        }
-                    }
-                }
-                if (showDatePicker) {
-                    val resched = LocalReschedule.current
-                    ReschedDatePicker(
+                    ReschedSheet(
+                        todayEpoch = todayEpoch,
                         initialEpochDay = task.dueDate ?: todayEpoch,
-                        onDismiss = { showDatePicker = false },
-                        onPick = { day ->
-                            showDatePicker = false; reschedOpen = false
-                            if (!leaving) {
-                                leaving = true
-                                rowScope.launch {
-                                    kotlinx.coroutines.delay(430); resched(task, day)
-                                    kotlinx.coroutines.delay(300); leaving = false
-                                }
-                            }
-                        }
+                        onPick = onPick,
+                        onDismiss = { reschedOpen = false }
                     )
                 }
             }
@@ -1445,7 +1402,86 @@ private fun nextWeekend(todayEpoch: Long): Long {
     return next.toEpochDay()
 }
 
-/** Pełny kalendarz do przełożenia zadania na dowolny dzień. */
+/** Skrót dnia tygodnia po polsku (pon. / wt. / …) dla wybranego dnia. */
+private fun weekdayShort(epochDay: Long): String =
+    LocalDate.ofEpochDay(epochDay).dayOfWeek.getDisplayName(JTextStyle.SHORT, PL)
+
+/**
+ * Arkusz przełożenia w stylu Todoist: szybkie wiersze (Dziś/Jutro/Weekend
+ * z dniem tygodnia) + wbudowany kalendarz i przycisk „Zapisz".
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReschedSheet(
+    todayEpoch: Long,
+    initialEpochDay: Long,
+    onPick: (Long) -> Unit,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFFF3EEFB),
+        dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = Color(0xFFC9B8E8)) }
+    ) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                .padding(start = 16.dp, end = 16.dp, bottom = 22.dp)
+        ) {
+            Text("Termin", fontSize = 17.sp, fontWeight = FontWeight.W800, color = Color(0xFF2E2542),
+                modifier = Modifier.padding(start = 6.dp, bottom = 12.dp))
+            // Szybkie wybory jako wiersze — z dniem tygodnia po prawej (jak w Todoist).
+            ReschedRow(Icons.Outlined.WbSunny, "Dziś", weekdayShort(todayEpoch)) { onPick(todayEpoch) }
+            ReschedRow(Icons.Outlined.WbSunny, "Jutro", weekdayShort(todayEpoch + 1)) { onPick(todayEpoch + 1) }
+            ReschedRow(Icons.Outlined.Weekend, "Następny weekend", weekdayShort(nextWeekend(todayEpoch))) { onPick(nextWeekend(todayEpoch)) }
+            Spacer(Modifier.height(12.dp))
+            // Wbudowany kalendarz — wybór dowolnego dnia bez osobnego okienka.
+            val state = rememberDatePickerState(initialSelectedDateMillis = initialEpochDay * 86_400_000L)
+            androidx.compose.material3.DatePicker(
+                state = state,
+                title = null,
+                headline = null,
+                showModeToggle = false,
+                colors = androidx.compose.material3.DatePickerDefaults.colors(
+                    containerColor = Color.White,
+                    selectedDayContainerColor = Color(0xFF6B3FE0),
+                    todayDateBorderColor = Color(0xFF6B3FE0),
+                    todayContentColor = Color(0xFF6B3FE0)
+                ),
+                modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White)
+            )
+            Spacer(Modifier.height(16.dp))
+            // „Zapisz" — zatwierdza wybrany w kalendarzu dzień.
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF6B3FE0))
+                    .bouncy(0.97f) {
+                        state.selectedDateMillis?.let { ms ->
+                            onPick(java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneOffset.UTC).toLocalDate().toEpochDay())
+                        }
+                    }
+                    .padding(vertical = 15.dp),
+                horizontalArrangement = Arrangement.Center
+            ) { Text("Zapisz", color = Color.White, fontSize = 14.5.sp, fontWeight = FontWeight.W800) }
+        }
+    }
+}
+
+/** Wiersz szybkiego wyboru daty: ikona + nazwa + dzień tygodnia po prawej. */
+@Composable
+private fun ReschedRow(icon: ImageVector, label: String, weekday: String, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(14.dp))
+            .background(Color.White).bouncy(0.98f, onClick)
+            .padding(horizontal = 15.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = Color(0xFF6B3FE0), modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(13.dp))
+        Text(label, fontSize = 14.5.sp, fontWeight = FontWeight.W600, color = Color(0xFF2E2542))
+        Spacer(Modifier.weight(1f))
+        Text(weekday, fontSize = 13.sp, fontWeight = FontWeight.W600, color = Color(0xFF9A8FB8))
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ReschedDatePicker(initialEpochDay: Long, onDismiss: () -> Unit, onPick: (Long) -> Unit) {
@@ -1574,17 +1610,6 @@ private fun SortSheet(current: SortMode, onPick: (SortMode) -> Unit, onDismiss: 
             }
         }
     }
-}
-
-/** Kompaktowy pomarańczowy boks z nazwą dnia w arkuszu „Przełóż na". */
-@Composable
-private fun ReschedOption(label: String, onClick: () -> Unit) {
-    Text(
-        label, fontSize = 12.5.sp, fontWeight = FontWeight.W800, color = Color.White,
-        maxLines = 1, softWrap = false,
-        modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xFFEB8909))
-            .bouncy(0.93f, onClick).padding(horizontal = 13.dp, vertical = 8.dp)
-    )
 }
 
 @Composable

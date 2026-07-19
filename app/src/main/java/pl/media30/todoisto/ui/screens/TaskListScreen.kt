@@ -450,8 +450,8 @@ fun TaskListScreen(
 
             // ── Dock: cztery ikony — Rutyny · Dziś · Nadchodzące · Mikrofon ──
             Row(
-                Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 12.dp)
-                    .controlCenterGlass(RoundedCornerShape(30.dp)).padding(6.dp),
+                Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 2.dp)
+                    .controlCenterGlass(RoundedCornerShape(26.dp)).padding(horizontal = 4.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
@@ -776,13 +776,13 @@ private fun DockItem(
     // rozjeżdża ani nie zwiększa. Ikona nad krótką etykietą.
     val fg by animateColorAsState(if (selected) GlassAccent else GlassTextPrimary, tween(300), label = "dockFg")
     Column(
-        Modifier.width(70.dp).clip(RoundedCornerShape(18.dp)).bouncy(0.92f, onClick)
-            .padding(vertical = 8.dp),
+        Modifier.width(68.dp).clip(RoundedCornerShape(16.dp)).bouncy(0.92f, onClick)
+            .padding(vertical = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(contentAlignment = Alignment.Center) {
             Box(
-                Modifier.size(28.dp).drawWithContent {
+                Modifier.size(24.dp).drawWithContent {
                     drawContent()
                     if (ringFrac > 0f) {
                         val stroke = 2.5.dp.toPx()
@@ -796,23 +796,23 @@ private fun DockItem(
                     }
                 },
                 contentAlignment = Alignment.Center
-            ) { Icon(icon, label, tint = fg, modifier = Modifier.size(20.dp)) }
+            ) { Icon(icon, label, tint = fg, modifier = Modifier.size(19.dp)) }
             if (badge != null) {
                 Box(
                     Modifier.align(Alignment.TopEnd).offset(7.dp, (-6).dp)
-                        .size(17.dp).background(Color.White, CircleShape).padding(2.dp)
+                        .size(16.dp).background(Color.White, CircleShape).padding(2.dp)
                         .background(GlassAccent, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        "$badge", color = Color.White, fontSize = 9.sp,
-                        fontWeight = FontWeight.W800, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 9.sp
+                        "$badge", color = Color.White, fontSize = 8.5.sp,
+                        fontWeight = FontWeight.W800, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 8.5.sp
                     )
                 }
             }
         }
-        Spacer(Modifier.height(3.dp))
-        Text(label, fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = fg, maxLines = 1, softWrap = false)
+        Spacer(Modifier.height(2.dp))
+        Text(label, fontSize = 10.sp, fontWeight = FontWeight.W800, color = fg, maxLines = 1, softWrap = false)
     }
 }
 

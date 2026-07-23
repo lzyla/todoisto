@@ -14,3 +14,6 @@ local.properties
 
 # Kotlin compiler daemon logs
 .kotlin/
+
+# Desktop module build output
+/desktop/build

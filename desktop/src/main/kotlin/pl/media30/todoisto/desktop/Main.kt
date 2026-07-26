@@ -166,7 +166,14 @@ private fun TaskRow(task: Task, onToggle: () -> Unit) {
 private fun metaLine(task: Task): String {
     val parts = mutableListOf<String>()
     task.durationMinutes?.let { parts += if (it < 60) "$it min" else "${it / 60}h" }
-    task.recurrence?.let { parts += it.name.lowercase() }
+    task.recurrence?.let {
+        parts += when (it) {
+            pl.media30.todoisto.data.Recurrence.DAILY -> "codziennie"
+            pl.media30.todoisto.data.Recurrence.WEEKLY -> "co tydzień"
+            pl.media30.todoisto.data.Recurrence.MONTHLY -> "co miesiąc"
+            pl.media30.todoisto.data.Recurrence.YEARLY -> "co rok"
+        }
+    }
     task.projectName?.let { parts += "#$it" }
     task.labelNames.forEach { parts += "@$it" }
     return parts.joinToString("  ·  ")

@@ -56,7 +56,8 @@ object CloudBackupCodec {
         put("attachments", JSONArray().apply { t.attachments.forEach { put(it) } })
         put("position", t.position)
         put("createdAt", t.createdAt)
-        if (t.updatedAt > 0) put("updatedAt", t.updatedAt) // pole dodatkowe, zgodne wstecz
+        if (t.updatedAt > 0) put("updatedAt", t.updatedAt) // pola dodatkowe, zgodne wstecz
+        if (t.deleted) put("deleted", true)
     }
 
     private fun taskFromJson(o: JSONObject): CloudTask = CloudTask(
@@ -80,7 +81,8 @@ object CloudBackupCodec {
         attachments = o.optJSONArray("attachments")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList(),
         position = o.optInt("position"),
         createdAt = o.optLong("createdAt"),
-        updatedAt = o.optLong("updatedAt", 0L)
+        updatedAt = o.optLong("updatedAt", 0L),
+        deleted = o.optBoolean("deleted", false)
     )
 
     private fun projectToJson(p: CloudProject): JSONObject = JSONObject().apply {

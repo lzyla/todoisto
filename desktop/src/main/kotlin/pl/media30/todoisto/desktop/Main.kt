@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.CloudSync
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -136,7 +137,11 @@ private fun App() {
 
             LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 items(tasks, key = { it.id }) { task ->
-                    TaskRow(task) { repo.toggle(task.id); tick++; dirty++ }
+                    TaskRow(
+                        task,
+                        onToggle = { repo.toggle(task.id); tick++; dirty++ },
+                        onDelete = { repo.delete(task.id); tick++; dirty++ }
+                    )
                 }
                 item { Spacer(Modifier.height(20.dp)) }
             }
@@ -186,7 +191,7 @@ private fun QuickAdd(text: String, onText: (String) -> Unit, onSubmit: () -> Uni
 }
 
 @Composable
-private fun TaskRow(task: CloudTask, onToggle: () -> Unit) {
+private fun TaskRow(task: CloudTask, onToggle: () -> Unit, onDelete: () -> Unit) {
     val hasPrio = task.priority != "P4"
     val ring = priorityColor(task.priority)
     Row(
@@ -218,8 +223,15 @@ private fun TaskRow(task: CloudTask, onToggle: () -> Unit) {
                 }
             }
         }
-        task.dueTimeMinutes?.let { m ->
-            Text("%d:%02d".format(m / 60, m % 60), fontSize = 12.sp, fontWeight = FontWeight.W800, color = Accent)
+        Column(horizontalAlignment = Alignment.End) {
+            task.dueTimeMinutes?.let { m ->
+                Text("%d:%02d".format(m / 60, m % 60), fontSize = 12.sp, fontWeight = FontWeight.W800, color = Accent)
+                Spacer(Modifier.height(6.dp))
+            }
+            Icon(
+                Icons.Outlined.DeleteOutline, "Usuń zadanie", tint = TextSecondary,
+                modifier = Modifier.size(17.dp).clip(CircleShape).clickable { onDelete() }
+            )
         }
     }
 }

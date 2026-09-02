@@ -19,7 +19,8 @@ class TaskRepository {
     private val _tasks = mutableListOf<CloudTask>()
     private var nextId = System.currentTimeMillis()
 
-    val tasks: List<CloudTask> get() = _tasks.sortedBy { it.position }
+    // Widoczne zadania: bez nagrobków (usunięte kryją się, ale zostają w migawce).
+    val tasks: List<CloudTask> get() = _tasks.filter { !it.deleted }.sortedBy { it.position }
 
     init { load() }
 
@@ -43,7 +44,11 @@ class TaskRepository {
         }
     }
 
-    fun delete(id: Long) { _tasks.removeAll { it.id == id }; save() }
+    /** Usuwa jako nagrobek — zostaje w migawce, żeby usunięcie się zsynchronizowało. */
+    fun delete(id: Long) {
+        val i = _tasks.indexOfFirst { it.id == id }
+        if (i >= 0) { _tasks[i] = _tasks[i].copy(deleted = true, updatedAt = System.currentTimeMillis()); save() }
+    }
 
     /** Podmienia całe dane migawką z chmury (sync = ostatni zapis wygrywa). */
     fun replaceAll(snapshot: CloudSnapshot) {
@@ -59,10 +64,17 @@ class TaskRepository {
             if (dataFile.exists()) {
                 val snap = CloudBackupCodec.fromJson(dataFile.readText())
                 _tasks.clear(); _tasks.addAll(snap.tasks)
+                purgeOldTombstones()
                 nextId = (_tasks.maxOfOrNull { it.id } ?: 0L) + 1
             }
         }
-        if (_tasks.isEmpty()) { seedDemo(); save() }
+        if (_tasks.none { !it.deleted }) { seedDemo(); save() }
+    }
+
+    /** Kasuje stare nagrobki (>30 dni), żeby migawka nie puchła w nieskończoność. */
+    private fun purgeOldTombstones() {
+        val cutoff = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
+        _tasks.removeAll { it.deleted && it.updatedAt in 1 until cutoff }
     }
 
     private fun save() {

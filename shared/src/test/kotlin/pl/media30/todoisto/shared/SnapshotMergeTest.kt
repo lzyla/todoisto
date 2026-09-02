@@ -39,6 +39,20 @@ class SnapshotMergeTest {
         assertTrue(merged.tasks.single { it.id == 1L }.isCompleted)
     }
 
+    @Test fun `nagrobek (usuniecie) wygrywa nad zywa starsza wersja`() {
+        // Usunięte na Macu (nagrobek, nowszy) vs wciąż żywe w chmurze (starsze).
+        val local = CloudSnapshot(tasks = listOf(task(1, "x", updatedAt = 5000).copy(deleted = true)))
+        val remote = CloudSnapshot(tasks = listOf(task(1, "x", updatedAt = 2000)))
+        val merged = SnapshotMerge.merge(local, remote)
+        assertTrue("usunięcie powinno się utrzymać", merged.tasks.single { it.id == 1L }.deleted)
+    }
+
+    @Test fun `kodek zachowuje nagrobek (round-trip)`() {
+        val snap = CloudSnapshot(tasks = listOf(CloudTask(id = 9, title = "usuniete", deleted = true, updatedAt = 123)))
+        val back = CloudBackupCodec.fromJson(CloudBackupCodec.toJson(snap))
+        assertTrue(back.tasks.single().deleted)
+    }
+
     @Test fun `kodek zachowuje pola i updatedAt (round-trip)`() {
         val snap = CloudSnapshot(
             tasks = listOf(CloudTask(id = 7, title = "Zadanie", priority = "P2", dueDate = 20000,

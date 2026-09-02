@@ -91,9 +91,17 @@ uzupełnione), cyklicznie co ~2 min i wkrótce po każdej zmianie (debounce
 ~4 s). Można wyłączyć w Ustawieniach chmury; przycisk „☁ Synchronizuj"
 zawsze wymusza sync ręcznie.
 
-> Znane ograniczenie: scalanie jest „bez nagrobków" — świadome usunięcie
-> zadania na jednym urządzeniu może wrócić z drugiego, które go jeszcze
-> ma. Prawdziwe usuwania (tombstones) to następny krok.
+**Usuwanie z nagrobkami (tombstones):** skasowane zadanie nie znika od
+razu z danych — zostaje jako ślad (`deleted`) z nowym znacznikiem czasu,
+więc usunięcie **wygrywa przy scalaniu** i nie wraca z drugiego
+urządzenia. Nagrobki starsze niż 30 dni są czyszczone. W interfejsie
+usuniętych zadań nie widać (ikonka kosza na wierszu).
+
+> Uwaga (Android): pełna propagacja usunięć na telefon zadziała, gdy
+> aplikacja Android też będzie honorować pole `deleted` — czyli po
+> przejściu Androida na moduł `shared`. Na razie tombstones działają
+> Mac ↔ Mac i w chmurze; wersja mobilna (dopóki ma własny kodek bez
+> `deleted`) może pokazać usunięte zadanie ponownie.
 
 Dane logowania i hasło zostają **tylko na tym Macu** (java.util.prefs).
 Lokalnie zadania zapisują się do `~/.todoisto/data.json` (ten sam format
@@ -115,7 +123,8 @@ własną, ale **format identyczny**, więc interoperują już teraz).
 - ✅ Synchronizacja Mac ↔ Android przez Supabase
 - ✅ Bezpieczne scalanie per-zadanie (nic nie ginie) + testy
 - ✅ Automatyczny sync w tle (start / cyklicznie / po zmianie)
-- Usuwanie z nagrobkami (tombstones), żeby delete się propagował
+- ✅ Usuwanie z nagrobkami (tombstones) — desktop/chmura + testy
+- Android również na module `shared` (jedna kopia kodu + tombstones
+  działające także na telefonie)
 - Kolejne ekrany: szczegóły zadania, Nadchodzące, projekty, etykiety
-- Android również na module `shared` (jedna kopia kodu)
 - Powiadomienia macOS, skróty klawiszowe, menu aplikacji

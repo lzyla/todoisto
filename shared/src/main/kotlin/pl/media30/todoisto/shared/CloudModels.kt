@@ -33,7 +33,13 @@ data class CloudTask(
      * zapisuje, więc dla zadań z telefonu bywa 0 — scalanie ma wtedy fallback
      * na completedAt/createdAt.
      */
-    val updatedAt: Long = 0L
+    val updatedAt: Long = 0L,
+    /**
+     * Nagrobek (tombstone): true = zadanie usunięte. Zostaje w migawce jako
+     * ślad, żeby usunięcie propagowało się przy synchronizacji (a nie wracało
+     * z drugiego urządzenia). Pole dodatkowe, zgodne wstecz.
+     */
+    val deleted: Boolean = false
 )
 
 data class CloudProject(

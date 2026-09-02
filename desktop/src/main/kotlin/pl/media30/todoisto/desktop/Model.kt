@@ -1,57 +1,115 @@
 package pl.media30.todoisto.desktop
 
-import pl.media30.todoisto.data.Priority
-import pl.media30.todoisto.data.Recurrence
+import pl.media30.todoisto.shared.CloudBackupCodec
+import pl.media30.todoisto.shared.CloudSnapshot
+import pl.media30.todoisto.shared.CloudTask
+import pl.media30.todoisto.shared.SupabaseSync
+import java.io.File
 import java.time.LocalDate
+import java.util.prefs.Preferences
 
 /**
- * Lekki model zadania dla desktopu — bez Room (ta warstwa jest androidowa).
- * Reużywamy natomiast czyste typy domenowe: Priority, Recurrence, QuickAddParser.
+ * Repozytorium desktopu — trzyma pełne [CloudTask] (bez utraty pól przy
+ * synchronizacji), zapisuje lokalnie na dysk w tym samym formacie co chmura,
+ * i synchronizuje z Supabase przez wspólny moduł `shared`.
  */
-data class Task(
-    val id: Long,
-    val title: String,
-    val notes: String = "",
-    val isCompleted: Boolean = false,
-    val priority: Priority = Priority.P4,
-    val dueDate: Long? = null,          // epoch-day
-    val dueTimeMinutes: Int? = null,    // minuty od północy
-    val durationMinutes: Int? = null,
-    val recurrence: Recurrence? = null,
-    val projectName: String? = null,
-    val labelNames: List<String> = emptyList()
-)
-
-/** Prosta pamięciowa „baza" zadań (desktop). Faza 2: SQLite/DataStore. */
 class TaskRepository {
-    private var nextId = 1L
-    private val _tasks = mutableListOf<Task>()
+    private val dataFile = File(System.getProperty("user.home"), ".todoisto/data.json")
+    private val _tasks = mutableListOf<CloudTask>()
+    private var nextId = System.currentTimeMillis()
 
-    val tasks: List<Task> get() = _tasks.toList()
+    val tasks: List<CloudTask> get() = _tasks.sortedBy { it.position }
 
-    fun add(task: Task): Task {
-        val withId = task.copy(id = nextId++)
-        _tasks.add(withId)
-        return withId
+    init { load() }
+
+    fun add(task: CloudTask): CloudTask {
+        val withId = task.copy(id = nextId++, position = _tasks.size, createdAt = System.currentTimeMillis())
+        _tasks.add(withId); save(); return withId
     }
 
     fun toggle(id: Long) {
         val i = _tasks.indexOfFirst { it.id == id }
-        if (i >= 0) _tasks[i] = _tasks[i].copy(isCompleted = !_tasks[i].isCompleted)
+        if (i >= 0) {
+            val t = _tasks[i]
+            _tasks[i] = t.copy(isCompleted = !t.isCompleted, completedAt = if (!t.isCompleted) System.currentTimeMillis() else null)
+            save()
+        }
     }
 
-    fun delete(id: Long) { _tasks.removeAll { it.id == id } }
+    fun delete(id: Long) { _tasks.removeAll { it.id == id }; save() }
+
+    /** Podmienia całe dane migawką z chmury (sync = ostatni zapis wygrywa). */
+    fun replaceAll(snapshot: CloudSnapshot) {
+        _tasks.clear(); _tasks.addAll(snapshot.tasks)
+        nextId = (_tasks.maxOfOrNull { it.id } ?: 0L) + 1
+        save()
+    }
+
+    fun snapshot(): CloudSnapshot = CloudSnapshot(tasks = _tasks.toList())
+
+    private fun load() {
+        runCatching {
+            if (dataFile.exists()) {
+                val snap = CloudBackupCodec.fromJson(dataFile.readText())
+                _tasks.clear(); _tasks.addAll(snap.tasks)
+                nextId = (_tasks.maxOfOrNull { it.id } ?: 0L) + 1
+            }
+        }
+        if (_tasks.isEmpty()) { seedDemo(); save() }
+    }
+
+    private fun save() {
+        runCatching {
+            dataFile.parentFile.mkdirs()
+            dataFile.writeText(CloudBackupCodec.toJson(snapshot()))
+        }
+    }
+
+    private fun seedDemo() {
+        val today = LocalDate.now().toEpochDay()
+        var pos = 0
+        fun t(title: String, prio: String, min: Int?, dur: Int?, rec: String?, proj: Long?, labels: List<Long>) =
+            CloudTask(id = nextId++, title = title, priority = prio, dueDate = today, dueTimeMinutes = min,
+                durationMinutes = dur, recurrence = rec, projectId = proj, labelIds = labels, position = pos++)
+        _tasks.addAll(listOf(
+            t("Przygotować raport miesięczny", "P1", 600, 90, null, 1, listOf(1)),
+            t("Stand-up zespołu", "P4", 570, null, "DAILY", 1, emptyList()),
+            t("Nadać paczkę na poczcie", "P4", null, null, null, 2, emptyList()),
+            t("Przegląd pull requestów", "P3", 14 * 60, 45, null, 1, emptyList()),
+            t("Kupić prezent dla Zosi", "P2", 15 * 60, null, null, 2, listOf(2)),
+            t("Trening — siłownia", "P4", 18 * 60 + 30, null, "WEEKLY", 3, emptyList())
+        ))
+    }
 }
 
-/** Dane demo — jak w wersji androidowej, żeby ekran od razu żył. */
-fun seedDemo(repo: TaskRepository) {
-    val today = LocalDate.now().toEpochDay()
-    listOf(
-        Task(0, "Przygotować raport miesięczny", "Wysłać do Anny przed spotkaniem", priority = Priority.P1, dueDate = today, dueTimeMinutes = 600, durationMinutes = 90, projectName = "Praca", labelNames = listOf("pilne")),
-        Task(0, "Stand-up zespołu", priority = Priority.P4, dueDate = today, dueTimeMinutes = 570, recurrence = Recurrence.DAILY, projectName = "Praca"),
-        Task(0, "Nadać paczkę na poczcie", priority = Priority.P4, dueDate = today, projectName = "Dom"),
-        Task(0, "Przegląd pull requestów", priority = Priority.P3, dueDate = today, dueTimeMinutes = 14 * 60, durationMinutes = 45, projectName = "Praca"),
-        Task(0, "Kupić prezent dla Zosi", priority = Priority.P2, dueDate = today, dueTimeMinutes = 15 * 60, projectName = "Dom", labelNames = listOf("zakupy")),
-        Task(0, "Trening — siłownia", priority = Priority.P4, dueDate = today, dueTimeMinutes = 18 * 60 + 30, recurrence = Recurrence.WEEKLY, projectName = "Zdrowie")
-    ).forEach { repo.add(it) }
+/** Ustawienia Supabase + sesja — przechowywane lokalnie (java.util.prefs). */
+class SyncSettings {
+    private val prefs = Preferences.userRoot().node("pl/media30/todoisto/desktop")
+    var url: String get() = prefs.get("url", ""); set(v) = prefs.put("url", v)
+    var anonKey: String get() = prefs.get("anonKey", ""); set(v) = prefs.put("anonKey", v)
+    var email: String get() = prefs.get("email", ""); set(v) = prefs.put("email", v)
+    val configured: Boolean get() = url.isNotBlank() && anonKey.isNotBlank()
+}
+
+/** Wynik synchronizacji do pokazania w UI. */
+data class SyncResult(val ok: Boolean, val message: String)
+
+/**
+ * Pełna synchronizacja: logowanie → pobierz z chmury (jeśli jest, nadpisz
+ * lokalne) → wyślij aktualny stan. Tak samo jak backup/restore w Androidzie,
+ * przez tę samą tabelę, więc dane latają Mac ↔ telefon.
+ */
+fun sync(repo: TaskRepository, settings: SyncSettings, password: String): SyncResult {
+    if (!settings.configured) return SyncResult(false, "Uzupełnij URL i klucz anon Supabase.")
+    val auth = SupabaseSync.signIn(settings.url, settings.anonKey, settings.email, password)
+    if (auth.token == null || auth.userId == null) {
+        return SyncResult(false, auth.error ?: "Logowanie nie powiodło się.")
+    }
+    val remote = SupabaseSync.pull(settings.url, settings.anonKey, auth.token!!, auth.userId!!)
+    if (remote != null) {
+        runCatching { repo.replaceAll(CloudBackupCodec.fromJson(remote)) }
+    }
+    val err = SupabaseSync.push(settings.url, settings.anonKey, auth.token!!, auth.userId!!, CloudBackupCodec.toJson(repo.snapshot()))
+    return if (err == null) SyncResult(true, "Zsynchronizowano z chmurą ⭐")
+    else SyncResult(false, "Pobrano, ale wysyłka nie wyszła: $err")
 }

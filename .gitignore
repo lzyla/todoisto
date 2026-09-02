@@ -17,3 +17,4 @@ local.properties
 
 # Desktop module build output
 /desktop/build
+/shared/build

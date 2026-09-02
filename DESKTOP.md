@@ -66,11 +66,44 @@ desktop/
         └── Main.kt                  # okno macOS + UI (lista, szybkie dodawanie)
 ```
 
+## Synchronizacja z wersją Android (Supabase)
+
+Desktop i Android **synchronizują się przez tę samą chmurę Supabase** —
+wspólny moduł `shared` mówi tym samym protokołem i **tym samym formatem
+danych** (tabela `todoisto_backups`, blob zgodny bajt-w-bajt z tym, co
+zapisuje aplikacja mobilna). Dzięki temu zadania latają Mac ↔ telefon.
+
+Jak włączyć na Macu:
+1. W apce desktop kliknij **ⓘ Ustawienia chmury** (koło zębate na górze).
+2. Wpisz dane **tego samego** projektu Supabase, którego używa Android:
+   URL projektu (`https://…supabase.co`), klucz **anon (public)**, e-mail
+   i hasło konta.
+3. Kliknij **☁ Synchronizuj** — desktop pobiera dane z chmury (nadpisuje
+   lokalne), a potem wysyła aktualny stan.
+
+> Model synchronizacji (faza obecna): **pełna migawka, ostatni zapis
+> wygrywa** — dokładnie jak backup/restore w Androidzie. Faza następna:
+> synchronizacja per-zadanie i automatyczny sync w tle.
+
+Dane logowania i hasło zostają **tylko na tym Macu** (java.util.prefs).
+Lokalnie zadania zapisują się do `~/.todoisto/data.json` (ten sam format
+co chmura), więc przeżywają zamknięcie aplikacji.
+
+## Wspólny moduł `shared`
+
+`shared/` (czysty Kotlin/JVM, bez Androida i bez Compose) zawiera:
+- `CloudModels` — neutralne modele (`CloudTask/Project/Label`),
+- `CloudBackupCodec` — (de)serializacja blobu, zgodna z wersją Android,
+- `SupabaseSync` — logowanie + push/pull przez REST Supabase.
+
+Docelowo również aplikacja Android przełączy się na ten moduł (dziś ma
+własną, ale **format identyczny**, więc interoperują już teraz).
+
 ## Roadmap wersji desktop
 
-- Trwała baza (SQLite/DataStore zamiast pamięci)
+- ✅ Trwałe dane lokalne (`~/.todoisto/data.json`)
+- ✅ Synchronizacja Mac ↔ Android przez Supabase (migawka)
+- Synchronizacja per-zadanie + automatyczny sync w tle
 - Kolejne ekrany: szczegóły zadania, Nadchodzące, projekty, etykiety
-- Wspólny moduł `shared` (żeby Android i Desktop miały jedną kopię kodu
-  domenowego zamiast kopiowanej)
+- Android również na module `shared` (jedna kopia kodu)
 - Powiadomienia macOS, skróty klawiszowe, menu aplikacji
-- Integracje (AI, pogoda) — te same klienty co w wersji mobilnej

@@ -19,6 +19,8 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":shared"))
+    implementation("org.json:json:20240303")
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
     implementation(compose.materialIconsExtended)

@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -133,11 +135,36 @@ private data class Prefs(
     val goalWeekly: Int
 )
 
+@kotlinx.coroutines.FlowPreview
 class TodoViewModel(
     private val repository: TaskRepository,
     private val settings: SettingsStore,
     private val cloud: pl.media30.todoisto.data.CloudStore? = null
 ) : ViewModel() {
+
+    // Auto-sync w tle (gdy zalogowany w chmurze): przy starcie, cyklicznie
+    // i wkrótce po zmianach. Cooldown chroni przed pętlą sync↔zapis.
+    private var autoSyncBusy = false
+    private var lastSyncAt = 0L
+    init {
+        viewModelScope.launch {
+            if (cloud?.signedIn == true) cloudSync(silent = true)
+            while (true) {
+                kotlinx.coroutines.delay(180_000)
+                if (cloud?.signedIn == true && !autoSyncBusy) cloudSync(silent = true)
+            }
+        }
+        viewModelScope.launch {
+            repository.allTasks
+                .drop(1)
+                .debounce(5000)
+                .collect {
+                    if (cloud?.signedIn == true && !autoSyncBusy &&
+                        System.currentTimeMillis() - lastSyncAt > 10_000
+                    ) cloudSync(silent = true)
+                }
+        }
+    }
 
     private val _view = MutableStateFlow<AppView>(
         if (settings.startView.value == "upcoming") AppView.Upcoming else AppView.Today
@@ -304,6 +331,7 @@ class TodoViewModel(
                 r.token != null && r.userId != null -> {
                     c.setSession(r.email ?: email, r.token, r.userId)
                     _cloud.value = cloudSnapshot(message = "Zalogowano w chmurze.")
+                    cloudSync(silent = true) // od razu podciągnij i wyślij dane
                 }
                 r.error != null -> _cloud.value = cloudSnapshot(error = r.error)
                 else -> _cloud.value = cloudSnapshot(error = "Nie udało się zalogować.")
@@ -339,6 +367,27 @@ class TodoViewModel(
             if (json == null) { _cloud.value = cloudSnapshot(error = "Brak kopii w chmurze albo błąd pobierania."); return@launch }
             val count = runCatching { repository.importBackupJson(json) }.getOrDefault(0)
             _cloud.value = cloudSnapshot(message = "Pobrano z chmury ($count zadań).")
+        }
+    }
+
+    /** Pełna synchronizacja: pobierz z chmury i scal (nic nie ginie), potem wyślij. */
+    fun cloudSync(silent: Boolean = false) {
+        val c = cloud ?: return
+        if (!c.signedIn || !c.configured || autoSyncBusy) return
+        autoSyncBusy = true
+        if (!silent) _cloud.value = cloudSnapshot(busy = true)
+        viewModelScope.launch {
+            try {
+                val remote = pl.media30.todoisto.data.SupabaseClient.pullBackup(c.url0, c.anonKey0, c.token0, c.userId)
+                if (remote != null) runCatching { repository.importBackupJson(remote) }
+                val json = repository.exportBackupJson()
+                val err = pl.media30.todoisto.data.SupabaseClient.pushBackup(c.url0, c.anonKey0, c.token0, c.userId, json)
+                if (!silent) _cloud.value = if (err == null) cloudSnapshot(message = "Zsynchronizowano z chmurą.")
+                                            else cloudSnapshot(error = err)
+            } finally {
+                lastSyncAt = System.currentTimeMillis()
+                autoSyncBusy = false
+            }
         }
     }
 

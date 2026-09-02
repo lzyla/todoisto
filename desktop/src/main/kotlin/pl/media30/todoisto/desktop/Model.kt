@@ -44,6 +44,12 @@ class TaskRepository {
         }
     }
 
+    /** Zapisuje edycję zadania (szczegóły). */
+    fun update(task: CloudTask) {
+        val i = _tasks.indexOfFirst { it.id == task.id }
+        if (i >= 0) { _tasks[i] = task.copy(updatedAt = System.currentTimeMillis()); save() }
+    }
+
     /** Usuwa jako nagrobek — zostaje w migawce, żeby usunięcie się zsynchronizowało. */
     fun delete(id: Long) {
         val i = _tasks.indexOfFirst { it.id == id }

@@ -73,6 +73,16 @@ private fun App() {
     var password by remember { mutableStateOf("") }
     var autoSync by remember { mutableStateOf(true) }
     var dirty by remember { mutableStateOf(0) }
+    var view by remember { mutableStateOf("today") }        // "today" | "upcoming"
+    var editing by remember { mutableStateOf<CloudTask?>(null) }
+
+    val today = LocalDate.now().toEpochDay()
+    val shown = remember(tasks, view) {
+        when (view) {
+            "upcoming" -> tasks.filter { it.dueDate != null && it.dueDate!! > today }
+            else -> tasks.filter { it.dueDate == null || it.dueDate!! <= today }
+        }
+    }
 
     val credsReady = settings.configured && settings.email.isNotBlank() && password.isNotBlank()
 
@@ -105,7 +115,7 @@ private fun App() {
             Spacer(Modifier.height(22.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Dzisiaj", fontSize = 30.sp, fontWeight = FontWeight.W800, color = TextPrimary)
+                    Text(if (view == "upcoming") "Nadchodzące" else "Dzisiaj", fontSize = 30.sp, fontWeight = FontWeight.W800, color = TextPrimary)
                     Text(dateCaption(), fontSize = 13.sp, color = TextSecondary)
                 }
                 CircleBtn(Icons.Outlined.CloudSync, "Synchronizuj", enabled = !syncing) { runSync(auto = false) }
@@ -133,18 +143,40 @@ private fun App() {
                     fontSize = 12.sp, color = if (ok) Color(0xFF1F8A5B) else TextSecondary
                 )
             }
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
+            // Zakładki widoku: Dziś / Nadchodzące
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ViewTab("Dziś", view == "today") { view = "today" }
+                ViewTab("Nadchodzące", view == "upcoming") { view = "upcoming" }
+            }
+            Spacer(Modifier.height(12.dp))
 
             LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                items(tasks, key = { it.id }) { task ->
+                items(shown, key = { it.id }) { task ->
                     TaskRow(
                         task,
                         onToggle = { repo.toggle(task.id); tick++; dirty++ },
-                        onDelete = { repo.delete(task.id); tick++; dirty++ }
+                        onDelete = { repo.delete(task.id); tick++; dirty++ },
+                        onOpen = { editing = task }
+                    )
+                }
+                if (shown.isEmpty()) item {
+                    Text(
+                        if (view == "upcoming") "Brak nadchodzących zadań." else "Nic na dziś — odpocznij ✨",
+                        fontSize = 13.sp, color = TextSecondary, modifier = Modifier.padding(top = 20.dp)
                     )
                 }
                 item { Spacer(Modifier.height(20.dp)) }
             }
+        }
+
+        editing?.let { task ->
+            TaskDetailDialog(
+                task,
+                onSave = { repo.update(it); editing = null; tick++; dirty++ },
+                onDelete = { repo.delete(task.id); editing = null; tick++; dirty++ },
+                onClose = { editing = null }
+            )
         }
 
         if (showSettings) {
@@ -191,11 +223,23 @@ private fun QuickAdd(text: String, onText: (String) -> Unit, onSubmit: () -> Uni
 }
 
 @Composable
-private fun TaskRow(task: CloudTask, onToggle: () -> Unit, onDelete: () -> Unit) {
+private fun ViewTab(label: String, selected: Boolean, onClick: () -> Unit) {
+    Text(
+        label, fontSize = 13.sp, fontWeight = FontWeight.W800,
+        color = if (selected) Color.White else TextSecondary,
+        modifier = Modifier.clip(RoundedCornerShape(50))
+            .background(if (selected) Accent else Color.White)
+            .clickable { onClick() }.padding(horizontal = 16.dp, vertical = 8.dp)
+    )
+}
+
+@Composable
+private fun TaskRow(task: CloudTask, onToggle: () -> Unit, onDelete: () -> Unit, onOpen: () -> Unit) {
     val hasPrio = task.priority != "P4"
     val ring = priorityColor(task.priority)
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color.White).padding(horizontal = 14.dp, vertical = 14.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color.White)
+            .clickable { onOpen() }.padding(horizontal = 14.dp, vertical = 14.dp),
         verticalAlignment = Alignment.Top
     ) {
         Box(
@@ -272,6 +316,53 @@ private fun SettingsDialog(
                     Text("Synchronizuj automatycznie (w tle)", fontSize = 13.sp, color = TextPrimary)
                 }
                 Text("Dane logowania i hasło zostają tylko na tym Macu.", fontSize = 11.sp, color = TextSecondary)
+            }
+        }
+    )
+}
+
+@Composable
+private fun TaskDetailDialog(task: CloudTask, onSave: (CloudTask) -> Unit, onDelete: () -> Unit, onClose: () -> Unit) {
+    var title by remember { mutableStateOf(task.title) }
+    var notes by remember { mutableStateOf(task.notes) }
+    var priority by remember { mutableStateOf(task.priority) }
+    var dueText by remember { mutableStateOf(task.dueDate?.let { LocalDate.ofEpochDay(it).toString() } ?: "") }
+    AlertDialog(
+        onDismissRequest = onClose,
+        confirmButton = {
+            TextButton(enabled = title.isNotBlank(), onClick = {
+                val due = dueText.trim().takeIf { it.isNotBlank() }?.let { runCatching { LocalDate.parse(it).toEpochDay() }.getOrNull() }
+                onSave(task.copy(title = title.trim(), notes = notes.trim(), priority = priority, dueDate = due))
+            }) { Text("Zapisz") }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onDelete) { Text("Usuń", color = Color(0xFFD1453B)) }
+                TextButton(onClick = onClose) { Text("Anuluj") }
+            }
+        },
+        title = { Text("Szczegóły zadania") },
+        text = {
+            Column {
+                OutlinedTextField(title, { title = it }, label = { Text("Tytuł") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(notes, { notes = it }, label = { Text("Notatki") }, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(12.dp))
+                Text("Priorytet", fontSize = 12.sp, fontWeight = FontWeight.W700, color = TextSecondary)
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    listOf("P1", "P2", "P3", "P4").forEach { p ->
+                        val c = priorityColor(p)
+                        Box(
+                            Modifier.size(26.dp).clip(CircleShape).border(2.dp, c, CircleShape)
+                                .background(if (p == priority) c else Color.Transparent)
+                                .clickable { priority = p },
+                            contentAlignment = Alignment.Center
+                        ) { if (p == priority) Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(14.dp)) }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(dueText, { dueText = it }, label = { Text("Termin (RRRR-MM-DD, puste = brak)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             }
         }
     )

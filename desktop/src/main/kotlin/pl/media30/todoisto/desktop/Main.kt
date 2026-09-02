@@ -79,8 +79,9 @@ private fun App() {
     val today = LocalDate.now().toEpochDay()
     val shown = remember(tasks, view) {
         when (view) {
-            "upcoming" -> tasks.filter { it.dueDate != null && it.dueDate!! > today }
-            else -> tasks.filter { it.dueDate == null || it.dueDate!! <= today }
+            "upcoming" -> tasks.filter { !it.isCompleted && it.dueDate != null && it.dueDate!! > today }
+            "done" -> tasks.filter { it.isCompleted }
+            else -> tasks.filter { !it.isCompleted && (it.dueDate == null || it.dueDate!! <= today) }
         }
     }
 
@@ -108,6 +109,22 @@ private fun App() {
     // Sync wkrótce po lokalnej zmianie (debounce ~4 s).
     LaunchedEffect(dirty) {
         if (dirty > 0 && autoSync && credsReady) { delay(4000); if (!syncing) runSync(auto = true) }
+    }
+    // Powiadomienia macOS o przypomnieniach (także z zadań zsynchronizowanych z telefonu).
+    LaunchedEffect(Unit) {
+        var lastCheck = System.currentTimeMillis()
+        val notified = mutableSetOf<Long>()
+        while (true) {
+            delay(30_000)
+            val now = System.currentTimeMillis()
+            repo.tasks.forEach { t ->
+                val at = t.reminderAt
+                if (!t.isCompleted && at != null && at in (lastCheck + 1)..now && t.id !in notified) {
+                    DesktopNotifier.notify("Przypomnienie", t.title); notified += t.id
+                }
+            }
+            lastCheck = now
+        }
     }
 
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(BgTop, BgBottom)))) {
@@ -148,13 +165,14 @@ private fun App() {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ViewTab("Dziś", view == "today") { view = "today" }
                 ViewTab("Nadchodzące", view == "upcoming") { view = "upcoming" }
+                ViewTab("Ukończone", view == "done") { view = "done" }
             }
             Spacer(Modifier.height(12.dp))
 
             LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 items(shown, key = { it.id }) { task ->
                     TaskRow(
-                        task,
+                        task, repo,
                         onToggle = { repo.toggle(task.id); tick++; dirty++ },
                         onDelete = { repo.delete(task.id); tick++; dirty++ },
                         onOpen = { editing = task }
@@ -162,7 +180,11 @@ private fun App() {
                 }
                 if (shown.isEmpty()) item {
                     Text(
-                        if (view == "upcoming") "Brak nadchodzących zadań." else "Nic na dziś — odpocznij ✨",
+                        when (view) {
+                            "upcoming" -> "Brak nadchodzących zadań."
+                            "done" -> "Nic jeszcze nieukończone."
+                            else -> "Nic na dziś — odpocznij ✨"
+                        },
                         fontSize = 13.sp, color = TextSecondary, modifier = Modifier.padding(top = 20.dp)
                     )
                 }
@@ -172,7 +194,7 @@ private fun App() {
 
         editing?.let { task ->
             TaskDetailDialog(
-                task,
+                task, repo,
                 onSave = { repo.update(it); editing = null; tick++; dirty++ },
                 onDelete = { repo.delete(task.id); editing = null; tick++; dirty++ },
                 onClose = { editing = null }
@@ -234,7 +256,7 @@ private fun ViewTab(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun TaskRow(task: CloudTask, onToggle: () -> Unit, onDelete: () -> Unit, onOpen: () -> Unit) {
+private fun TaskRow(task: CloudTask, repo: TaskRepository, onToggle: () -> Unit, onDelete: () -> Unit, onOpen: () -> Unit) {
     val hasPrio = task.priority != "P4"
     val ring = priorityColor(task.priority)
     Row(
@@ -256,7 +278,7 @@ private fun TaskRow(task: CloudTask, onToggle: () -> Unit, onDelete: () -> Unit,
                 color = if (task.isCompleted) TextSecondary else TextPrimary,
                 textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null
             )
-            val meta = metaLine(task)
+            val meta = metaLine(task, repo)
             if (meta.isNotBlank()) {
                 Spacer(Modifier.height(3.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -321,18 +343,20 @@ private fun SettingsDialog(
     )
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun TaskDetailDialog(task: CloudTask, onSave: (CloudTask) -> Unit, onDelete: () -> Unit, onClose: () -> Unit) {
+private fun TaskDetailDialog(task: CloudTask, repo: TaskRepository, onSave: (CloudTask) -> Unit, onDelete: () -> Unit, onClose: () -> Unit) {
     var title by remember { mutableStateOf(task.title) }
     var notes by remember { mutableStateOf(task.notes) }
     var priority by remember { mutableStateOf(task.priority) }
+    var projectId by remember { mutableStateOf(task.projectId) }
     var dueText by remember { mutableStateOf(task.dueDate?.let { LocalDate.ofEpochDay(it).toString() } ?: "") }
     AlertDialog(
         onDismissRequest = onClose,
         confirmButton = {
             TextButton(enabled = title.isNotBlank(), onClick = {
                 val due = dueText.trim().takeIf { it.isNotBlank() }?.let { runCatching { LocalDate.parse(it).toEpochDay() }.getOrNull() }
-                onSave(task.copy(title = title.trim(), notes = notes.trim(), priority = priority, dueDate = due))
+                onSave(task.copy(title = title.trim(), notes = notes.trim(), priority = priority, projectId = projectId, dueDate = due))
             }) { Text("Zapisz") }
         },
         dismissButton = {
@@ -362,13 +386,33 @@ private fun TaskDetailDialog(task: CloudTask, onSave: (CloudTask) -> Unit, onDel
                     }
                 }
                 Spacer(Modifier.height(12.dp))
+                Text("Projekt", fontSize = 12.sp, fontWeight = FontWeight.W700, color = TextSecondary)
+                Spacer(Modifier.height(6.dp))
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ProjectChip("Skrzynka", projectId == null) { projectId = null }
+                    repo.projects.forEach { p ->
+                        ProjectChip(p.name, projectId == p.id) { projectId = p.id }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
                 OutlinedTextField(dueText, { dueText = it }, label = { Text("Termin (RRRR-MM-DD, puste = brak)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             }
         }
     )
 }
 
-private fun metaLine(task: CloudTask): String {
+@Composable
+private fun ProjectChip(name: String, selected: Boolean, onClick: () -> Unit) {
+    Text(
+        name, fontSize = 12.sp, fontWeight = FontWeight.W700,
+        color = if (selected) Color.White else Accent,
+        modifier = Modifier.clip(RoundedCornerShape(50))
+            .background(if (selected) Accent else Accent.copy(alpha = 0.12f))
+            .clickable { onClick() }.padding(horizontal = 12.dp, vertical = 6.dp)
+    )
+}
+
+private fun metaLine(task: CloudTask, repo: TaskRepository): String {
     val parts = mutableListOf<String>()
     task.durationMinutes?.let { parts += if (it < 60) "$it min" else "${it / 60}h" }
     task.recurrence?.let {
@@ -376,14 +420,10 @@ private fun metaLine(task: CloudTask): String {
             "DAILY" -> "codziennie"; "WEEKLY" -> "co tydzień"; "MONTHLY" -> "co miesiąc"; "YEARLY" -> "co rok"; else -> it.lowercase()
         }
     }
-    task.projectId?.let { parts += projectName(it) }
-    task.labelIds.forEach { parts += labelName(it) }
+    task.projectId?.let { parts += "#" + repo.projectName(it) }
+    task.labelIds.forEach { parts += "@" + repo.labelName(it) }
     return parts.joinToString("  ·  ")
 }
-
-// Prosty słownik nazw dla danych demo (faza 2: prawdziwe projekty/etykiety).
-private fun projectName(id: Long): String = when (id) { 1L -> "#Praca"; 2L -> "#Dom"; 3L -> "#Zdrowie"; else -> "#projekt" }
-private fun labelName(id: Long): String = when (id) { 1L -> "@pilne"; 2L -> "@zakupy"; else -> "@etykieta" }
 
 private val MS = listOf("stycznia","lutego","marca","kwietnia","maja","czerwca","lipca","sierpnia","września","października","listopada","grudnia")
 private fun dateCaption(): String { val d = LocalDate.now(); return "${d.dayOfMonth} ${MS[d.monthValue - 1]}" }

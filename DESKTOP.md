@@ -127,5 +127,14 @@ własną, ale **format identyczny**, więc interoperują już teraz).
 - ✅ Usuwanie z nagrobkami (tombstones) — desktop/chmura + testy
 - ✅ Android na module `shared` (jedna kopia kodeka; scalanie i usunięcia
   działają end-to-end Mac ↔ telefon)
-- Kolejne ekrany: szczegóły zadania, Nadchodzące, projekty, etykiety
+- ✅ Auto-sync w tle również w Androidzie (start / co 3 min / po zmianie)
+- ✅ Ekrany desktopu: Dziś / Nadchodzące / Ukończone
+- ✅ Szczegóły zadania (edycja tytułu, notatek, priorytetu, projektu,
+  terminu) + usuwanie
+- ✅ Projekty i etykiety (synchronizowane) — prawdziwe nazwy, wybór
+  projektu w szczegółach
+- ✅ Zadania cykliczne — po odhaczeniu przechodzą na kolejny termin
+- ✅ Powiadomienia macOS o przypomnieniach (także z zadań z telefonu)
+- Skróty klawiszowe i menu aplikacji macOS
+- Sekcje w projektach, deadline, załączniki (pełna parzystość z mobilną)
 - Powiadomienia macOS, skróty klawiszowe, menu aplikacji

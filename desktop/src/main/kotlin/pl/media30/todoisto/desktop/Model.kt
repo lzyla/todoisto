@@ -1,6 +1,9 @@
 package pl.media30.todoisto.desktop
 
+import pl.media30.todoisto.data.Recurrence
 import pl.media30.todoisto.shared.CloudBackupCodec
+import pl.media30.todoisto.shared.CloudLabel
+import pl.media30.todoisto.shared.CloudProject
 import pl.media30.todoisto.shared.CloudSnapshot
 import pl.media30.todoisto.shared.CloudTask
 import pl.media30.todoisto.shared.SnapshotMerge
@@ -17,10 +20,16 @@ import java.util.prefs.Preferences
 class TaskRepository {
     private val dataFile = File(System.getProperty("user.home"), ".todoisto/data.json")
     private val _tasks = mutableListOf<CloudTask>()
+    private val _projects = mutableListOf<CloudProject>()
+    private val _labels = mutableListOf<CloudLabel>()
     private var nextId = System.currentTimeMillis()
 
     // Widoczne zadania: bez nagrobków (usunięte kryją się, ale zostają w migawce).
     val tasks: List<CloudTask> get() = _tasks.filter { !it.deleted }.sortedBy { it.position }
+    val projects: List<CloudProject> get() = _projects.sortedBy { it.position }
+    val labels: List<CloudLabel> get() = _labels.toList()
+    fun projectName(id: Long?): String = id?.let { pid -> _projects.firstOrNull { it.id == pid }?.name } ?: "Skrzynka"
+    fun labelName(id: Long): String = _labels.firstOrNull { it.id == id }?.name ?: "etykieta"
 
     init { load() }
 
@@ -32,16 +41,17 @@ class TaskRepository {
 
     fun toggle(id: Long) {
         val i = _tasks.indexOfFirst { it.id == id }
-        if (i >= 0) {
-            val t = _tasks[i]
-            val now = System.currentTimeMillis()
-            _tasks[i] = t.copy(
-                isCompleted = !t.isCompleted,
-                completedAt = if (!t.isCompleted) now else null,
-                updatedAt = now
-            )
-            save()
+        if (i < 0) return
+        val t = _tasks[i]
+        val now = System.currentTimeMillis()
+        // Zadanie cykliczne po odhaczeniu NIE znika — przechodzi na kolejny termin.
+        val rec = t.recurrence?.let { runCatching { Recurrence.valueOf(it) }.getOrNull() }
+        _tasks[i] = if (!t.isCompleted && rec != null && t.dueDate != null) {
+            t.copy(dueDate = rec.next(t.dueDate!!), updatedAt = now)
+        } else {
+            t.copy(isCompleted = !t.isCompleted, completedAt = if (!t.isCompleted) now else null, updatedAt = now)
         }
+        save()
     }
 
     /** Zapisuje edycję zadania (szczegóły). */
@@ -56,20 +66,24 @@ class TaskRepository {
         if (i >= 0) { _tasks[i] = _tasks[i].copy(deleted = true, updatedAt = System.currentTimeMillis()); save() }
     }
 
-    /** Podmienia całe dane migawką z chmury (sync = ostatni zapis wygrywa). */
+    /** Podmienia całe dane migawką z chmury (po scaleniu). */
     fun replaceAll(snapshot: CloudSnapshot) {
         _tasks.clear(); _tasks.addAll(snapshot.tasks)
+        _projects.clear(); _projects.addAll(snapshot.projects)
+        _labels.clear(); _labels.addAll(snapshot.labels)
         nextId = (_tasks.maxOfOrNull { it.id } ?: 0L) + 1
         save()
     }
 
-    fun snapshot(): CloudSnapshot = CloudSnapshot(tasks = _tasks.toList())
+    fun snapshot(): CloudSnapshot = CloudSnapshot(tasks = _tasks.toList(), projects = _projects.toList(), labels = _labels.toList())
 
     private fun load() {
         runCatching {
             if (dataFile.exists()) {
                 val snap = CloudBackupCodec.fromJson(dataFile.readText())
                 _tasks.clear(); _tasks.addAll(snap.tasks)
+                _projects.clear(); _projects.addAll(snap.projects)
+                _labels.clear(); _labels.addAll(snap.labels)
                 purgeOldTombstones()
                 nextId = (_tasks.maxOfOrNull { it.id } ?: 0L) + 1
             }
@@ -92,6 +106,15 @@ class TaskRepository {
 
     private fun seedDemo() {
         val today = LocalDate.now().toEpochDay()
+        _projects.addAll(listOf(
+            CloudProject(id = 1, name = "Praca", colorArgb = 0xFF4D6BFFL, position = 0),
+            CloudProject(id = 2, name = "Dom", colorArgb = 0xFF2DD4BFL, position = 1),
+            CloudProject(id = 3, name = "Zdrowie", colorArgb = 0xFFF4737DL, position = 2)
+        ))
+        _labels.addAll(listOf(
+            CloudLabel(id = 1, name = "pilne", colorArgb = 0xFFF4737DL),
+            CloudLabel(id = 2, name = "zakupy", colorArgb = 0xFFF4B740L)
+        ))
         var pos = 0
         fun t(title: String, prio: String, min: Int?, dur: Int?, rec: String?, proj: Long?, labels: List<Long>) =
             CloudTask(id = nextId++, title = title, priority = prio, dueDate = today, dueTimeMinutes = min,
@@ -114,6 +137,31 @@ class SyncSettings {
     var anonKey: String get() = prefs.get("anonKey", ""); set(v) = prefs.put("anonKey", v)
     var email: String get() = prefs.get("email", ""); set(v) = prefs.put("email", v)
     val configured: Boolean get() = url.isNotBlank() && anonKey.isNotBlank()
+}
+
+/**
+ * Powiadomienia macOS (pasek menu) dla przypomnień. Działa też dla zadań z
+ * `reminderAt` ustawionym na telefonie — po synchronizacji Mac przypomni.
+ * Wszystko w try/catch, żeby nigdy nie wywalić aplikacji.
+ */
+object DesktopNotifier {
+    private var tray: java.awt.TrayIcon? = null
+
+    private fun ensure() {
+        if (tray != null || !java.awt.SystemTray.isSupported()) return
+        runCatching {
+            val img = java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+            val g = img.createGraphics()
+            g.color = java.awt.Color(0x6B, 0x3F, 0xE0); g.fillOval(2, 2, 12, 12); g.dispose()
+            val t = java.awt.TrayIcon(img, "Todoisto").apply { isImageAutoSize = true }
+            java.awt.SystemTray.getSystemTray().add(t); tray = t
+        }
+    }
+
+    fun notify(title: String, text: String) {
+        ensure()
+        runCatching { tray?.displayMessage(title, text, java.awt.TrayIcon.MessageType.INFO) }
+    }
 }
 
 /** Wynik synchronizacji do pokazania w UI. */

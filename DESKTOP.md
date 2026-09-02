@@ -97,11 +97,12 @@ więc usunięcie **wygrywa przy scalaniu** i nie wraca z drugiego
 urządzenia. Nagrobki starsze niż 30 dni są czyszczone. W interfejsie
 usuniętych zadań nie widać (ikonka kosza na wierszu).
 
-> Uwaga (Android): pełna propagacja usunięć na telefon zadziała, gdy
-> aplikacja Android też będzie honorować pole `deleted` — czyli po
-> przejściu Androida na moduł `shared`. Na razie tombstones działają
-> Mac ↔ Mac i w chmurze; wersja mobilna (dopóki ma własny kodek bez
-> `deleted`) może pokazać usunięte zadanie ponownie.
+**Android też jest na module `shared`** (od v115): telefon używa tego
+samego kodeka i logiki scalania, honoruje `deleted` i niesie nagrobki,
+więc **usunięcia i scalanie działają end-to-end Mac ↔ telefon** (nic nie
+ginie, delete się propaguje w obie strony). Room dostał pola `updatedAt`
+i `deleted`; usuwanie zadania jest miękkie (nagrobek), a restore z chmury
+SCALA zamiast nadpisywać.
 
 Dane logowania i hasło zostają **tylko na tym Macu** (java.util.prefs).
 Lokalnie zadania zapisują się do `~/.todoisto/data.json` (ten sam format
@@ -124,7 +125,7 @@ własną, ale **format identyczny**, więc interoperują już teraz).
 - ✅ Bezpieczne scalanie per-zadanie (nic nie ginie) + testy
 - ✅ Automatyczny sync w tle (start / cyklicznie / po zmianie)
 - ✅ Usuwanie z nagrobkami (tombstones) — desktop/chmura + testy
-- Android również na module `shared` (jedna kopia kodu + tombstones
-  działające także na telefonie)
+- ✅ Android na module `shared` (jedna kopia kodeka; scalanie i usunięcia
+  działają end-to-end Mac ↔ telefon)
 - Kolejne ekrany: szczegóły zadania, Nadchodzące, projekty, etykiety
 - Powiadomienia macOS, skróty klawiszowe, menu aplikacji

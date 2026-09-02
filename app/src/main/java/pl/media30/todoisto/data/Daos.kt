@@ -11,16 +11,20 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface TaskDao {
 
-    @Query("SELECT * FROM tasks ORDER BY isCompleted ASC, (dueDate IS NULL), dueDate ASC, priority ASC, position ASC, createdAt DESC")
+    @Query("SELECT * FROM tasks WHERE deleted = 0 ORDER BY isCompleted ASC, (dueDate IS NULL), dueDate ASC, priority ASC, position ASC, createdAt DESC")
     fun getAllTasks(): Flow<List<Task>>
 
-    @Query("SELECT COUNT(*) FROM tasks")
+    /** Wszystkie zadania łącznie z nagrobkami — do kopii/synchronizacji. */
+    @Query("SELECT * FROM tasks")
+    suspend fun getAllRaw(): List<Task>
+
+    @Query("SELECT COUNT(*) FROM tasks WHERE deleted = 0")
     suspend fun count(): Int
 
-    @Query("SELECT * FROM tasks WHERE isCompleted = 0 AND locLat IS NOT NULL")
+    @Query("SELECT * FROM tasks WHERE isCompleted = 0 AND deleted = 0 AND locLat IS NOT NULL")
     suspend fun getWithLocation(): List<Task>
 
-    @Query("SELECT * FROM tasks WHERE isCompleted = 0 AND reminderAt IS NOT NULL")
+    @Query("SELECT * FROM tasks WHERE isCompleted = 0 AND deleted = 0 AND reminderAt IS NOT NULL")
     suspend fun getWithReminder(): List<Task>
 
     @Query("SELECT * FROM tasks WHERE id = :id LIMIT 1")
@@ -44,8 +48,16 @@ interface TaskDao {
     @Query("DELETE FROM tasks WHERE id = :id OR parentId = :id")
     suspend fun deleteWithSubtasks(id: Long)
 
+    /** Miękkie usunięcie (nagrobek) — usunięcie propaguje się przy synchronizacji. */
+    @Query("UPDATE tasks SET deleted = 1, updatedAt = :now WHERE id = :id OR parentId = :id")
+    suspend fun softDeleteWithSubtasks(id: Long, now: Long)
+
     @Query("DELETE FROM tasks WHERE isCompleted = 1")
     suspend fun deleteCompleted()
+
+    /** Czyści stare nagrobki (>30 dni), żeby baza nie puchła. */
+    @Query("DELETE FROM tasks WHERE deleted = 1 AND updatedAt > 0 AND updatedAt < :cutoff")
+    suspend fun purgeOldTombstones(cutoff: Long)
 
     @Query("DELETE FROM tasks WHERE projectId = :projectId")
     suspend fun deleteByProject(projectId: Long)

@@ -38,5 +38,9 @@ data class Task(
     val locLon: Double? = null,
     val locName: String? = null,
     val position: Int = 0,
-    val createdAt: Long = 0L
+    val createdAt: Long = 0L,
+    /** Znacznik ostatniej modyfikacji (ms) — do scalania przy synchronizacji. */
+    val updatedAt: Long = 0L,
+    /** Nagrobek: true = usunięte (ukryte w UI, ale niesione dalej dla synchronizacji). */
+    val deleted: Boolean = false
 )

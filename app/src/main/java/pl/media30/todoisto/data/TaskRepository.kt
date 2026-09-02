@@ -19,17 +19,27 @@ class TaskRepository(
     val allActivities: Flow<List<Activity>> = activityDao.getAll()
     val allAreas: Flow<List<Area>> = areaDao.getAll()
 
-    // --- kopia w chmurze (eksport/import JSON) ---
-    suspend fun exportBackupJson(): String =
-        CloudBackup.toJson(taskDao.getAllTasks().first(), projectDao.getAll().first(), labelDao.getAll().first())
+    // --- kopia/synchronizacja w chmurze (wspólny moduł `shared`) ---
+    /** Eksport WSZYSTKICH zadań (łącznie z nagrobkami) w formacie chmury. */
+    suspend fun exportBackupJson(): String {
+        val snap = CloudMapper.snapshot(taskDao.getAllRaw(), projectDao.getAll().first(), labelDao.getAll().first())
+        return pl.media30.todoisto.shared.CloudBackupCodec.toJson(snap)
+    }
 
-    /** Wczytuje kopię: wstawia z REPLACE (nadpisuje po id). */
+    /**
+     * Wczytuje kopię z chmury ze SCALANIEM (nic nie ginie): łączymy lokalne z
+     * pobranymi po id, wygrywa nowsza wersja; usunięcia (nagrobki) też się
+     * propagują. Zwraca liczbę WIDOCZNYCH (nieusuniętych) zadań po scaleniu.
+     */
     suspend fun importBackupJson(json: String): Int {
-        val parsed = CloudBackup.fromJson(json)
-        parsed.labels.forEach { labelDao.insert(it) }
-        parsed.projects.forEach { projectDao.insert(it) }
-        parsed.tasks.forEach { taskDao.insert(it) }
-        return parsed.tasks.size
+        val remote = pl.media30.todoisto.shared.CloudBackupCodec.fromJson(json)
+        val local = CloudMapper.snapshot(taskDao.getAllRaw(), projectDao.getAll().first(), labelDao.getAll().first())
+        val merged = pl.media30.todoisto.shared.SnapshotMerge.merge(local, remote)
+        merged.labels.forEach { labelDao.insert(CloudMapper.labelFromCloud(it)) }
+        merged.projects.forEach { projectDao.insert(CloudMapper.projectFromCloud(it)) }
+        merged.tasks.forEach { taskDao.insert(CloudMapper.fromCloud(it)) }
+        taskDao.purgeOldTombstones(System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000)
+        return merged.tasks.count { !it.deleted }
     }
 
     // --- areas (obszary) ---
@@ -40,13 +50,14 @@ class TaskRepository(
     // --- tasks ---
     suspend fun getTaskById(id: Long): Task? = taskDao.getTaskById(id)
     suspend fun getSubtasks(parentId: Long): List<Task> = taskDao.getSubtasks(parentId)
-    suspend fun insert(task: Task): Long = taskDao.insert(task)
-    suspend fun update(task: Task) = taskDao.update(task)
+    suspend fun insert(task: Task): Long = taskDao.insert(task.copy(updatedAt = System.currentTimeMillis()))
+    suspend fun update(task: Task) = taskDao.update(task.copy(updatedAt = System.currentTimeMillis()))
     /** Zapisuje ręczną kolejność: pozycja = indeks na liście. */
     suspend fun reorderTasks(orderedIds: List<Long>) {
         orderedIds.forEachIndexed { index, id -> taskDao.updatePosition(id, index) }
     }
-    suspend fun deleteWithSubtasks(id: Long) = taskDao.deleteWithSubtasks(id)
+    /** Usuwa jako nagrobek — usunięcie propaguje się przy synchronizacji. */
+    suspend fun deleteWithSubtasks(id: Long) = taskDao.softDeleteWithSubtasks(id, System.currentTimeMillis())
     suspend fun deleteCompleted() = taskDao.deleteCompleted()
 
     /**

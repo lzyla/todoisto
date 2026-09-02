@@ -135,6 +135,29 @@ własną, ale **format identyczny**, więc interoperują już teraz).
   projektu w szczegółach
 - ✅ Zadania cykliczne — po odhaczeniu przechodzą na kolejny termin
 - ✅ Powiadomienia macOS o przypomnieniach (także z zadań z telefonu)
+- ✅ Motywy (6 palet) — akcent jak w wersji mobilnej
+- ✅ Asystent AI („Zapytaj AI: jak zrobić szybciej") w szczegółach zadania
+- ✅ Deadline, czas trwania i przypomnienie w szczegółach
+- ✅ Gmail — maile z gwiazdką → zadania (IMAP, hasło do aplikacji)
 - Skróty klawiszowe i menu aplikacji macOS
-- Sekcje w projektach, deadline, załączniki (pełna parzystość z mobilną)
+- Sekcje w projektach, załączniki (pełna parzystość z mobilną)
+
+## Parytet z wersją Android — co jest, a czego nie
+
+**Na Macu (przenośne, wdrożone):** zadania (Dziś/Nadchodzące/Ukończone),
+szybkie dodawanie z parserem, szczegóły (tytuł, notatki, priorytet,
+projekt, termin, deadline, czas trwania, przypomnienie), cykliczne,
+projekty i etykiety, synchronizacja + auto-sync, powiadomienia macOS,
+motywy, **AI („Zapytaj AI")**, **Gmail** (maile z gwiazdką).
+
+**Nieprzenośne (API tylko Androida — świadomie pominięte):**
+- **Przypomnienia lokalizacyjne / geofencing** — Mac nie ma GPS ani
+  WorkManagera; przypomnienia czasowe działają (powiadomienia).
+- **Dodawanie głosowe** — `SpeechRecognizer` jest androidowy.
+- **Skan aparatem na żywo** — desktop nie ma aparatu (skan z pliku przez
+  AI-wizję jest możliwy do dołożenia later — kod AI już jest przenośny).
+- **Planer pogodowy** wg bieżącej lokalizacji — brak GPS na Macu.
+
+Reszta różnic to kwestia dopisania UI, nie architektury — wspólny moduł
+`shared` i przenośne klienty (AI, Gmail) są właśnie po to.
 - Powiadomienia macOS, skróty klawiszowe, menu aplikacji

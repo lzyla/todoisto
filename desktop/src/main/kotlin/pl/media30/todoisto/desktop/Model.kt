@@ -136,6 +136,15 @@ class SyncSettings {
     var url: String get() = prefs.get("url", ""); set(v) = prefs.put("url", v)
     var anonKey: String get() = prefs.get("anonKey", ""); set(v) = prefs.put("anonKey", v)
     var email: String get() = prefs.get("email", ""); set(v) = prefs.put("email", v)
+    var openAiKey: String get() = prefs.get("openai", ""); set(v) = prefs.put("openai", v)
+    var themeId: String get() = prefs.get("theme", "violet"); set(v) = prefs.put("theme", v)
+    var gmailUser: String get() = prefs.get("gmailUser", ""); set(v) = prefs.put("gmailUser", v)
+    var gmailPass: String get() = prefs.get("gmailPass", ""); set(v) = prefs.put("gmailPass", v)
+    private var gmailDone: String get() = prefs.get("gmailDone", ""); set(v) = prefs.put("gmailDone", v)
+    fun gmailProcessed(): Set<String> = gmailDone.split("|").filter { it.isNotBlank() }.toSet()
+    fun gmailMarkProcessed(ids: Collection<String>) {
+        gmailDone = (gmailProcessed() + ids).toList().takeLast(500).joinToString("|")
+    }
     val configured: Boolean get() = url.isNotBlank() && anonKey.isNotBlank()
 }
 
@@ -189,4 +198,22 @@ fun sync(repo: TaskRepository, settings: SyncSettings, password: String): SyncRe
     val err = SupabaseSync.push(settings.url, settings.anonKey, auth.token!!, auth.userId!!, CloudBackupCodec.toJson(merged))
     return if (err == null) SyncResult(true, "Zsynchronizowano z chmurą ⭐")
     else SyncResult(false, "Scalone lokalnie, ale wysyłka nie wyszła: $err")
+}
+
+/** Gmail: maile z gwiazdką → zadania (IMAP, hasło do aplikacji). */
+suspend fun fetchGmail(repo: TaskRepository, settings: SyncSettings): String {
+    val user = settings.gmailUser; val pass = settings.gmailPass
+    if (user.isBlank() || pass.isBlank()) return "Uzupełnij dane Gmail w Ustawieniach."
+    return try {
+        val mails = pl.media30.todoisto.data.GmailClient.fetchStarred(user, pass)
+        val done = settings.gmailProcessed()
+        val fresh = mails.filter { it.messageId !in done }
+        fresh.forEach { m ->
+            repo.add(CloudTask(id = 0, title = m.subject.take(200), notes = "✉️ Od: ${m.from}", attachments = listOf(m.gmailLink)))
+        }
+        settings.gmailMarkProcessed(fresh.map { it.messageId })
+        if (fresh.isEmpty()) "Brak nowych maili z gwiazdką." else "Dodano ${fresh.size} zadań z Gmaila ⭐"
+    } catch (e: Exception) {
+        pl.media30.todoisto.data.GmailClient.friendlyError(e)
+    }
 }

@@ -3,6 +3,8 @@ package pl.media30.todoisto.desktop
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -40,11 +42,14 @@ import pl.media30.todoisto.data.QuickAddParser
 import java.time.LocalDate
 
 // ─── Paleta (spójna z wersją mobilną) ────────────────────────────────────────
-private val Accent = Color(0xFF6B3FE0)
+private val Accent = Color(0xFF6B3FE0)   // domyślny akcent (motyw „Fiolet")
 private val TextPrimary = Color(0xFF241844)
 private val TextSecondary = Color(0xFF6E5F93)
 private val BgTop = Color(0xFFEDE6FA)
 private val BgBottom = Color(0xFFDCE4FB)
+
+/** Bieżący kolor akcentu z wybranego motywu — steruje przyciskami, chipami itp. */
+private val LocalAccent = androidx.compose.runtime.staticCompositionLocalOf { Accent }
 
 private fun priorityColor(p: String): Color = when (p) {
     "P1" -> Color(0xFFD1453B); "P2" -> Color(0xFFEB8909); "P3" -> Color(0xFF246FE0); else -> Accent
@@ -73,8 +78,11 @@ private fun App() {
     var password by remember { mutableStateOf("") }
     var autoSync by remember { mutableStateOf(true) }
     var dirty by remember { mutableStateOf(0) }
-    var view by remember { mutableStateOf("today") }        // "today" | "upcoming"
+    var view by remember { mutableStateOf("today") }        // "today" | "upcoming" | "done"
     var editing by remember { mutableStateOf<CloudTask?>(null) }
+    var themeId by remember { mutableStateOf(settings.themeId) }
+    var apiKey by remember { mutableStateOf(settings.openAiKey) }
+    val palette = pl.media30.todoisto.ui.theme.ThemePalettes.byId(themeId)
 
     val today = LocalDate.now().toEpochDay()
     val shown = remember(tasks, view) {
@@ -127,12 +135,13 @@ private fun App() {
         }
     }
 
+    androidx.compose.runtime.CompositionLocalProvider(LocalAccent provides palette.accentLight) {
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(BgTop, BgBottom)))) {
         Column(Modifier.fillMaxSize().padding(horizontal = 22.dp)) {
             Spacer(Modifier.height(22.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(if (view == "upcoming") "Nadchodzące" else "Dzisiaj", fontSize = 30.sp, fontWeight = FontWeight.W800, color = TextPrimary)
+                    Text(when (view) { "upcoming" -> "Nadchodzące"; "done" -> "Ukończone"; else -> "Dzisiaj" }, fontSize = 30.sp, fontWeight = FontWeight.W800, color = TextPrimary)
                     Text(dateCaption(), fontSize = 13.sp, color = TextSecondary)
                 }
                 CircleBtn(Icons.Outlined.CloudSync, "Synchronizuj", enabled = !syncing) { runSync(auto = false) }
@@ -194,7 +203,7 @@ private fun App() {
 
         editing?.let { task ->
             TaskDetailDialog(
-                task, repo,
+                task, repo, apiKey,
                 onSave = { repo.update(it); editing = null; tick++; dirty++ },
                 onDelete = { repo.delete(task.id); editing = null; tick++; dirty++ },
                 onClose = { editing = null }
@@ -205,9 +214,19 @@ private fun App() {
             SettingsDialog(
                 settings, password, { password = it },
                 autoSync, { autoSync = it },
+                themeId, { themeId = it; settings.themeId = it },
+                apiKey, { apiKey = it; settings.openAiKey = it },
+                onFetchGmail = {
+                    toast = "Pobieram maile…"
+                    scope.launch {
+                        val msg = withContext(Dispatchers.IO) { fetchGmail(repo, settings) }
+                        toast = msg; tick++; dirty++
+                    }
+                },
                 onClose = { showSettings = false }
             )
         }
+    }
     }
 }
 
@@ -217,7 +236,7 @@ private fun CircleBtn(icon: androidx.compose.ui.graphics.vector.ImageVector, des
         Modifier.size(40.dp).clip(CircleShape).background(Color.White)
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
-    ) { Icon(icon, desc, tint = if (enabled) Accent else TextSecondary, modifier = Modifier.size(19.dp)) }
+    ) { Icon(icon, desc, tint = if (enabled) LocalAccent.current else TextSecondary, modifier = Modifier.size(19.dp)) }
 }
 
 @Composable
@@ -238,7 +257,7 @@ private fun QuickAdd(text: String, onText: (String) -> Unit, onSubmit: () -> Uni
             keyboardActions = KeyboardActions(onDone = { onSubmit() })
         )
         Box(
-            Modifier.size(40.dp).clip(CircleShape).background(Accent).clickable { onSubmit() },
+            Modifier.size(40.dp).clip(CircleShape).background(LocalAccent.current).clickable { onSubmit() },
             contentAlignment = Alignment.Center
         ) { Icon(Icons.Filled.Add, "Dodaj", tint = Color.White, modifier = Modifier.size(20.dp)) }
     }
@@ -250,7 +269,7 @@ private fun ViewTab(label: String, selected: Boolean, onClick: () -> Unit) {
         label, fontSize = 13.sp, fontWeight = FontWeight.W800,
         color = if (selected) Color.White else TextSecondary,
         modifier = Modifier.clip(RoundedCornerShape(50))
-            .background(if (selected) Accent else Color.White)
+            .background(if (selected) LocalAccent.current else Color.White)
             .clickable { onClick() }.padding(horizontal = 16.dp, vertical = 8.dp)
     )
 }
@@ -291,7 +310,7 @@ private fun TaskRow(task: CloudTask, repo: TaskRepository, onToggle: () -> Unit,
         }
         Column(horizontalAlignment = Alignment.End) {
             task.dueTimeMinutes?.let { m ->
-                Text("%d:%02d".format(m / 60, m % 60), fontSize = 12.sp, fontWeight = FontWeight.W800, color = Accent)
+                Text("%d:%02d".format(m / 60, m % 60), fontSize = 12.sp, fontWeight = FontWeight.W800, color = LocalAccent.current)
                 Spacer(Modifier.height(6.dp))
             }
             Icon(
@@ -305,25 +324,50 @@ private fun TaskRow(task: CloudTask, repo: TaskRepository, onToggle: () -> Unit,
 @Composable
 private fun SettingsDialog(
     settings: SyncSettings, password: String, onPassword: (String) -> Unit,
-    autoSync: Boolean, onAutoSync: (Boolean) -> Unit, onClose: () -> Unit
+    autoSync: Boolean, onAutoSync: (Boolean) -> Unit,
+    themeId: String, onTheme: (String) -> Unit,
+    apiKey: String, onApiKey: (String) -> Unit,
+    onFetchGmail: () -> Unit,
+    onClose: () -> Unit
 ) {
     var url by remember { mutableStateOf(settings.url) }
     var key by remember { mutableStateOf(settings.anonKey) }
     var email by remember { mutableStateOf(settings.email) }
+    var gUser by remember { mutableStateOf(settings.gmailUser) }
+    var gPass by remember { mutableStateOf(settings.gmailPass) }
     AlertDialog(
         onDismissRequest = onClose,
         confirmButton = {
             TextButton(onClick = {
-                settings.url = url.trim().trimEnd('/'); settings.anonKey = key.trim(); settings.email = email.trim(); onClose()
+                settings.url = url.trim().trimEnd('/'); settings.anonKey = key.trim(); settings.email = email.trim()
+                settings.gmailUser = gUser.trim(); settings.gmailPass = gPass.trim(); onClose()
             }) { Text("Zapisz") }
         },
         dismissButton = { TextButton(onClick = onClose) { Text("Anuluj") } },
-        title = { Text("Synchronizacja (Supabase)") },
+        title = { Text("Ustawienia") },
         text = {
-            Column {
-                Text("Wpisz dane tego samego projektu Supabase, którego używa aplikacja na Androidzie — wtedy zadania synchronizują się między urządzeniami.",
-                    fontSize = 12.sp, color = TextSecondary)
-                Spacer(Modifier.height(10.dp))
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text("Motyw", fontSize = 12.sp, fontWeight = FontWeight.W700, color = TextSecondary)
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    pl.media30.todoisto.ui.theme.ThemePalettes.all.forEach { p ->
+                        Box(
+                            Modifier.size(30.dp).clip(CircleShape).background(p.swatch)
+                                .border(if (p.id == themeId) 3.dp else 0.dp, Color(0xFF241844), CircleShape)
+                                .clickable { onTheme(p.id) }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+                Text("Asystent AI (OpenAI)", fontSize = 12.sp, fontWeight = FontWeight.W700, color = TextSecondary)
+                Spacer(Modifier.height(6.dp))
+                OutlinedTextField(apiKey, onApiKey, label = { Text("Klucz API (sk-…)") }, singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(14.dp))
+                Text("Synchronizacja (Supabase)", fontSize = 12.sp, fontWeight = FontWeight.W700, color = TextSecondary)
+                Spacer(Modifier.height(2.dp))
+                Text("Dane tego samego projektu, którego używa aplikacja na Androidzie.", fontSize = 11.sp, color = TextSecondary)
+                Spacer(Modifier.height(8.dp))
                 OutlinedTextField(url, { url = it }, label = { Text("URL projektu (https://…supabase.co)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(key, { key = it }, label = { Text("Klucz anon (public)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -337,7 +381,25 @@ private fun SettingsDialog(
                     Checkbox(checked = autoSync, onCheckedChange = onAutoSync)
                     Text("Synchronizuj automatycznie (w tle)", fontSize = 13.sp, color = TextPrimary)
                 }
-                Text("Dane logowania i hasło zostają tylko na tym Macu.", fontSize = 11.sp, color = TextSecondary)
+                Spacer(Modifier.height(14.dp))
+                Text("Gmail (maile z gwiazdką → zadania)", fontSize = 12.sp, fontWeight = FontWeight.W700, color = TextSecondary)
+                Spacer(Modifier.height(2.dp))
+                Text("Wymaga HASŁA DO APLIKACJI: myaccount.google.com/apppasswords.", fontSize = 11.sp, color = TextSecondary)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(gUser, { gUser = it }, label = { Text("Adres Gmail") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(gPass, { gPass = it }, label = { Text("Hasło do aplikacji") }, singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    Modifier.clip(RoundedCornerShape(12.dp)).background(LocalAccent.current.copy(alpha = 0.14f))
+                        .clickable {
+                            settings.gmailUser = gUser.trim(); settings.gmailPass = gPass.trim(); onFetchGmail()
+                        }.padding(horizontal = 14.dp, vertical = 10.dp)
+                ) { Text("Pobierz maile z gwiazdką", color = LocalAccent.current, fontSize = 13.sp, fontWeight = FontWeight.W800) }
+
+                Spacer(Modifier.height(12.dp))
+                Text("Klucz AI, dane logowania i hasła zostają tylko na tym Macu.", fontSize = 11.sp, color = TextSecondary)
             }
         }
     )
@@ -345,18 +407,37 @@ private fun SettingsDialog(
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun TaskDetailDialog(task: CloudTask, repo: TaskRepository, onSave: (CloudTask) -> Unit, onDelete: () -> Unit, onClose: () -> Unit) {
+private fun TaskDetailDialog(task: CloudTask, repo: TaskRepository, apiKey: String, onSave: (CloudTask) -> Unit, onDelete: () -> Unit, onClose: () -> Unit) {
+    val zone = java.time.ZoneId.systemDefault()
     var title by remember { mutableStateOf(task.title) }
     var notes by remember { mutableStateOf(task.notes) }
     var priority by remember { mutableStateOf(task.priority) }
     var projectId by remember { mutableStateOf(task.projectId) }
     var dueText by remember { mutableStateOf(task.dueDate?.let { LocalDate.ofEpochDay(it).toString() } ?: "") }
+    var deadlineText by remember { mutableStateOf(task.deadline?.let { LocalDate.ofEpochDay(it).toString() } ?: "") }
+    var durText by remember { mutableStateOf(task.durationMinutes?.toString() ?: "") }
+    var remText by remember {
+        mutableStateOf(task.reminderAt?.let {
+            java.time.Instant.ofEpochMilli(it).atZone(zone).toLocalDateTime()
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+        } ?: "")
+    }
+    val scope = rememberCoroutineScope()
+    var aiLoading by remember { mutableStateOf(false) }
+    var aiAnswer by remember { mutableStateOf<String?>(null) }
+
     AlertDialog(
         onDismissRequest = onClose,
         confirmButton = {
             TextButton(enabled = title.isNotBlank(), onClick = {
                 val due = dueText.trim().takeIf { it.isNotBlank() }?.let { runCatching { LocalDate.parse(it).toEpochDay() }.getOrNull() }
-                onSave(task.copy(title = title.trim(), notes = notes.trim(), priority = priority, projectId = projectId, dueDate = due))
+                val dl = deadlineText.trim().takeIf { it.isNotBlank() }?.let { runCatching { LocalDate.parse(it).toEpochDay() }.getOrNull() }
+                val dur = durText.trim().takeIf { it.isNotBlank() }?.toIntOrNull()
+                val rem = remText.trim().takeIf { it.isNotBlank() }?.let {
+                    runCatching { java.time.LocalDateTime.parse(it.replace(" ", "T")).atZone(zone).toInstant().toEpochMilli() }.getOrNull()
+                }
+                onSave(task.copy(title = title.trim(), notes = notes.trim(), priority = priority, projectId = projectId,
+                    dueDate = due, deadline = dl, durationMinutes = dur, reminderAt = rem))
             }) { Text("Zapisz") }
         },
         dismissButton = {
@@ -367,7 +448,7 @@ private fun TaskDetailDialog(task: CloudTask, repo: TaskRepository, onSave: (Clo
         },
         title = { Text("Szczegóły zadania") },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(title, { title = it }, label = { Text("Tytuł") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(notes, { notes = it }, label = { Text("Notatki") }, modifier = Modifier.fillMaxWidth())
@@ -390,12 +471,39 @@ private fun TaskDetailDialog(task: CloudTask, repo: TaskRepository, onSave: (Clo
                 Spacer(Modifier.height(6.dp))
                 androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     ProjectChip("Skrzynka", projectId == null) { projectId = null }
-                    repo.projects.forEach { p ->
-                        ProjectChip(p.name, projectId == p.id) { projectId = p.id }
-                    }
+                    repo.projects.forEach { p -> ProjectChip(p.name, projectId == p.id) { projectId = p.id } }
                 }
                 Spacer(Modifier.height(12.dp))
-                OutlinedTextField(dueText, { dueText = it }, label = { Text("Termin (RRRR-MM-DD, puste = brak)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(dueText, { dueText = it }, label = { Text("Termin (RRRR-MM-DD)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(deadlineText, { deadlineText = it }, label = { Text("Deadline (RRRR-MM-DD)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(durText, { durText = it.filter { c -> c.isDigit() } }, label = { Text("Czas trwania (min)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(remText, { remText = it }, label = { Text("Przypomnienie (RRRR-MM-DD HH:MM)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+
+                // ── Zapytaj AI (jak przyspieszyć zadanie) ──
+                Spacer(Modifier.height(14.dp))
+                Row(
+                    Modifier.clip(RoundedCornerShape(12.dp)).background(LocalAccent.current)
+                        .clickable(enabled = !aiLoading) {
+                            if (apiKey.isBlank()) { aiAnswer = "Dodaj klucz OpenAI w Ustawieniach, żeby zapytać AI."; return@clickable }
+                            aiLoading = true; aiAnswer = null
+                            val prompt = pl.media30.todoisto.data.AutomationAdvisor.advise(title, notes).aiPrompt
+                            scope.launch {
+                                val r = runCatching { withContext(Dispatchers.IO) { pl.media30.todoisto.data.AiClient.ask(apiKey, prompt) } }
+                                aiAnswer = r.map { it.text }.getOrElse { "Błąd: ${it.message}" }
+                                aiLoading = false
+                            }
+                        }.padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(if (aiLoading) "AI myśli…" else "✦ Zapytaj AI: jak to zrobić szybciej?", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W800)
+                }
+                aiAnswer?.let {
+                    Spacer(Modifier.height(10.dp))
+                    Text(it, fontSize = 12.5.sp, lineHeight = 18.sp, color = TextPrimary)
+                }
             }
         }
     )
@@ -405,9 +513,9 @@ private fun TaskDetailDialog(task: CloudTask, repo: TaskRepository, onSave: (Clo
 private fun ProjectChip(name: String, selected: Boolean, onClick: () -> Unit) {
     Text(
         name, fontSize = 12.sp, fontWeight = FontWeight.W700,
-        color = if (selected) Color.White else Accent,
+        color = if (selected) Color.White else LocalAccent.current,
         modifier = Modifier.clip(RoundedCornerShape(50))
-            .background(if (selected) Accent else Accent.copy(alpha = 0.12f))
+            .background(if (selected) LocalAccent.current else LocalAccent.current.copy(alpha = 0.12f))
             .clickable { onClick() }.padding(horizontal = 12.dp, vertical = 6.dp)
     )
 }

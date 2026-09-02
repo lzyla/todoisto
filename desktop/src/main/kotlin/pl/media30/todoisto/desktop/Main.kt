@@ -30,10 +30,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import pl.media30.todoisto.shared.CloudTask
 import pl.media30.todoisto.data.QuickAddParser
 import java.time.LocalDate
-import kotlin.concurrent.thread
 
 // ─── Paleta (spójna z wersją mobilną) ────────────────────────────────────────
 private val Accent = Color(0xFF6B3FE0)
@@ -59,6 +62,7 @@ fun main() = application {
 private fun App() {
     val repo = remember { TaskRepository() }
     val settings = remember { SyncSettings() }
+    val scope = rememberCoroutineScope()
     var tick by remember { mutableStateOf(0) }
     val tasks = remember(tick) { repo.tasks }
     var input by remember { mutableStateOf("") }
@@ -66,6 +70,34 @@ private fun App() {
     var syncing by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<String?>(null) }
     var password by remember { mutableStateOf("") }
+    var autoSync by remember { mutableStateOf(true) }
+    var dirty by remember { mutableStateOf(0) }
+
+    val credsReady = settings.configured && settings.email.isNotBlank() && password.isNotBlank()
+
+    // Wspólna procedura synchronizacji (blokujący sync na wątku IO).
+    fun runSync(auto: Boolean) {
+        if (syncing) return
+        if (!credsReady) { if (!auto) showSettings = true; return }
+        syncing = true
+        if (!auto) toast = "Synchronizuję…"
+        scope.launch {
+            val r = withContext(Dispatchers.IO) { sync(repo, settings, password) }
+            toast = r.message; syncing = false; tick++
+        }
+    }
+
+    // Auto-sync: przy starcie (gdy dane gotowe) i cyklicznie co 2 minuty.
+    LaunchedEffect(credsReady, autoSync) {
+        if (autoSync && credsReady) {
+            runSync(auto = true)
+            while (true) { delay(120_000); if (autoSync && credsReady && !syncing) runSync(auto = true) }
+        }
+    }
+    // Sync wkrótce po lokalnej zmianie (debounce ~4 s).
+    LaunchedEffect(dirty) {
+        if (dirty > 0 && autoSync && credsReady) { delay(4000); if (!syncing) runSync(auto = true) }
+    }
 
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(BgTop, BgBottom)))) {
         Column(Modifier.fillMaxSize().padding(horizontal = 22.dp)) {
@@ -75,15 +107,7 @@ private fun App() {
                     Text("Dzisiaj", fontSize = 30.sp, fontWeight = FontWeight.W800, color = TextPrimary)
                     Text(dateCaption(), fontSize = 13.sp, color = TextSecondary)
                 }
-                // Synchronizacja
-                CircleBtn(Icons.Outlined.CloudSync, "Synchronizuj", enabled = !syncing) {
-                    if (!settings.configured || settings.email.isBlank()) { showSettings = true; return@CircleBtn }
-                    syncing = true; toast = "Synchronizuję…"
-                    thread {
-                        val r = sync(repo, settings, password)
-                        toast = r.message; syncing = false; tick++
-                    }
-                }
+                CircleBtn(Icons.Outlined.CloudSync, "Synchronizuj", enabled = !syncing) { runSync(auto = false) }
                 Spacer(Modifier.width(8.dp))
                 CircleBtn(Icons.Outlined.Settings, "Ustawienia chmury") { showSettings = true }
             }
@@ -97,25 +121,33 @@ private fun App() {
                         dueDate = p.dueDate, dueTimeMinutes = p.dueTimeMinutes,
                         durationMinutes = p.durationMinutes, recurrence = p.recurrence?.name
                     ))
-                    input = ""; tick++
+                    input = ""; tick++; dirty++
                 }
             }
             toast?.let {
                 Spacer(Modifier.height(8.dp))
-                Text(it, fontSize = 12.sp, color = if (it.contains("Zsynchronizowano")) Color(0xFF1F8A5B) else TextSecondary)
+                val ok = it.contains("Zsynchronizowano")
+                Text(
+                    (if (syncing) "☁ " else "") + it,
+                    fontSize = 12.sp, color = if (ok) Color(0xFF1F8A5B) else TextSecondary
+                )
             }
             Spacer(Modifier.height(14.dp))
 
             LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 items(tasks, key = { it.id }) { task ->
-                    TaskRow(task) { repo.toggle(task.id); tick++ }
+                    TaskRow(task) { repo.toggle(task.id); tick++; dirty++ }
                 }
                 item { Spacer(Modifier.height(20.dp)) }
             }
         }
 
         if (showSettings) {
-            SettingsDialog(settings, password, { password = it }, onClose = { showSettings = false })
+            SettingsDialog(
+                settings, password, { password = it },
+                autoSync, { autoSync = it },
+                onClose = { showSettings = false }
+            )
         }
     }
 }
@@ -193,7 +225,10 @@ private fun TaskRow(task: CloudTask, onToggle: () -> Unit) {
 }
 
 @Composable
-private fun SettingsDialog(settings: SyncSettings, password: String, onPassword: (String) -> Unit, onClose: () -> Unit) {
+private fun SettingsDialog(
+    settings: SyncSettings, password: String, onPassword: (String) -> Unit,
+    autoSync: Boolean, onAutoSync: (Boolean) -> Unit, onClose: () -> Unit
+) {
     var url by remember { mutableStateOf(settings.url) }
     var key by remember { mutableStateOf(settings.anonKey) }
     var email by remember { mutableStateOf(settings.email) }
@@ -219,7 +254,11 @@ private fun SettingsDialog(settings: SyncSettings, password: String, onPassword:
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(password, onPassword, label = { Text("Hasło") }, singleLine = true,
                     visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = autoSync, onCheckedChange = onAutoSync)
+                    Text("Synchronizuj automatycznie (w tle)", fontSize = 13.sp, color = TextPrimary)
+                }
                 Text("Dane logowania i hasło zostają tylko na tym Macu.", fontSize = 11.sp, color = TextSecondary)
             }
         }

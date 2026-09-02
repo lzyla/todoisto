@@ -26,7 +26,14 @@ data class CloudTask(
     val labelIds: List<Long> = emptyList(),
     val attachments: List<String> = emptyList(),
     val position: Int = 0,
-    val createdAt: Long = 0L
+    val createdAt: Long = 0L,
+    /**
+     * Znacznik ostatniej modyfikacji (ms) — używany przy scalaniu, żeby przy
+     * konflikcie wygrała nowsza wersja. Pole dodatkowe: wersja Android go nie
+     * zapisuje, więc dla zadań z telefonu bywa 0 — scalanie ma wtedy fallback
+     * na completedAt/createdAt.
+     */
+    val updatedAt: Long = 0L
 )
 
 data class CloudProject(

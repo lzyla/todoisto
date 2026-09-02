@@ -3,6 +3,7 @@ package pl.media30.todoisto.desktop
 import pl.media30.todoisto.shared.CloudBackupCodec
 import pl.media30.todoisto.shared.CloudSnapshot
 import pl.media30.todoisto.shared.CloudTask
+import pl.media30.todoisto.shared.SnapshotMerge
 import pl.media30.todoisto.shared.SupabaseSync
 import java.io.File
 import java.time.LocalDate
@@ -23,7 +24,8 @@ class TaskRepository {
     init { load() }
 
     fun add(task: CloudTask): CloudTask {
-        val withId = task.copy(id = nextId++, position = _tasks.size, createdAt = System.currentTimeMillis())
+        val now = System.currentTimeMillis()
+        val withId = task.copy(id = nextId++, position = _tasks.size, createdAt = now, updatedAt = now)
         _tasks.add(withId); save(); return withId
     }
 
@@ -31,7 +33,12 @@ class TaskRepository {
         val i = _tasks.indexOfFirst { it.id == id }
         if (i >= 0) {
             val t = _tasks[i]
-            _tasks[i] = t.copy(isCompleted = !t.isCompleted, completedAt = if (!t.isCompleted) System.currentTimeMillis() else null)
+            val now = System.currentTimeMillis()
+            _tasks[i] = t.copy(
+                isCompleted = !t.isCompleted,
+                completedAt = if (!t.isCompleted) now else null,
+                updatedAt = now
+            )
             save()
         }
     }
@@ -105,11 +112,15 @@ fun sync(repo: TaskRepository, settings: SyncSettings, password: String): SyncRe
     if (auth.token == null || auth.userId == null) {
         return SyncResult(false, auth.error ?: "Logowanie nie powiodło się.")
     }
+    // Bezpieczne scalanie: pobierz z chmury i POŁĄCZ z lokalnym (nic nie ginie),
+    // zamiast nadpisywać którąkolwiek stronę.
     val remote = SupabaseSync.pull(settings.url, settings.anonKey, auth.token!!, auth.userId!!)
-    if (remote != null) {
-        runCatching { repo.replaceAll(CloudBackupCodec.fromJson(remote)) }
-    }
-    val err = SupabaseSync.push(settings.url, settings.anonKey, auth.token!!, auth.userId!!, CloudBackupCodec.toJson(repo.snapshot()))
+    val merged = if (remote != null) {
+        runCatching { SnapshotMerge.merge(repo.snapshot(), CloudBackupCodec.fromJson(remote)) }
+            .getOrDefault(repo.snapshot())
+    } else repo.snapshot()
+    repo.replaceAll(merged)
+    val err = SupabaseSync.push(settings.url, settings.anonKey, auth.token!!, auth.userId!!, CloudBackupCodec.toJson(merged))
     return if (err == null) SyncResult(true, "Zsynchronizowano z chmurą ⭐")
-    else SyncResult(false, "Pobrano, ale wysyłka nie wyszła: $err")
+    else SyncResult(false, "Scalone lokalnie, ale wysyłka nie wyszła: $err")
 }

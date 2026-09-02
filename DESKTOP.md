@@ -81,9 +81,19 @@ Jak włączyć na Macu:
 3. Kliknij **☁ Synchronizuj** — desktop pobiera dane z chmury (nadpisuje
    lokalne), a potem wysyła aktualny stan.
 
-> Model synchronizacji (faza obecna): **pełna migawka, ostatni zapis
-> wygrywa** — dokładnie jak backup/restore w Androidzie. Faza następna:
-> synchronizacja per-zadanie i automatyczny sync w tle.
+**Bezpieczne scalanie (nic nie ginie):** sync nie nadpisuje już całości —
+łączy dane po `id`. Zadanie dodane po jednej stronie zostaje; przy
+konflikcie (to samo `id`) wygrywa nowsza wersja (znacznik `updatedAt`,
+z fallbackiem na `completedAt`/`createdAt`). Projekty/etykiety: suma.
+
+**Automatyczny sync w tle:** przy starcie (gdy dane logowania są
+uzupełnione), cyklicznie co ~2 min i wkrótce po każdej zmianie (debounce
+~4 s). Można wyłączyć w Ustawieniach chmury; przycisk „☁ Synchronizuj"
+zawsze wymusza sync ręcznie.
+
+> Znane ograniczenie: scalanie jest „bez nagrobków" — świadome usunięcie
+> zadania na jednym urządzeniu może wrócić z drugiego, które go jeszcze
+> ma. Prawdziwe usuwania (tombstones) to następny krok.
 
 Dane logowania i hasło zostają **tylko na tym Macu** (java.util.prefs).
 Lokalnie zadania zapisują się do `~/.todoisto/data.json` (ten sam format
@@ -102,8 +112,10 @@ własną, ale **format identyczny**, więc interoperują już teraz).
 ## Roadmap wersji desktop
 
 - ✅ Trwałe dane lokalne (`~/.todoisto/data.json`)
-- ✅ Synchronizacja Mac ↔ Android przez Supabase (migawka)
-- Synchronizacja per-zadanie + automatyczny sync w tle
+- ✅ Synchronizacja Mac ↔ Android przez Supabase
+- ✅ Bezpieczne scalanie per-zadanie (nic nie ginie) + testy
+- ✅ Automatyczny sync w tle (start / cyklicznie / po zmianie)
+- Usuwanie z nagrobkami (tombstones), żeby delete się propagował
 - Kolejne ekrany: szczegóły zadania, Nadchodzące, projekty, etykiety
 - Android również na module `shared` (jedna kopia kodu)
 - Powiadomienia macOS, skróty klawiszowe, menu aplikacji

@@ -35,10 +35,24 @@ Bez tego urządzenia się nie zsynchronizują.
 ## C. Połącz oba urządzenia
 - **Telefon** (aktualizacja do v116 najpierw): Konto → Chmura → wklej URL + anon →
   Zapisz → zarejestruj/zaloguj e-mailem i hasłem.
-- **Mac**: ⚙ Ustawienia → wpisz **te same** URL, anon, **ten sam e-mail i hasło** →
-  Synchronizuj.
+- **Mac**: menu boczne → **„Konto i ustawienia" → Konto → Chmura** → wpisz **te same**
+  URL i anon → **Zapisz projekt** → **ten sam e-mail i hasło** → **Zaloguj**.
+  Od tej chwili synchronizacja idzie sama (start, co 2 min, po każdej zmianie); ⌘S wymusza.
 
-Gotowe — zadania latają Mac ↔ telefon (dodania, edycje, usunięcia, automatycznie w tle).
+Gotowe — zadania latają Mac ↔ telefon (dodania, edycje, usunięcia, projekty, sekcje,
+etykiety, obszary, aktywności — automatycznie w tle).
+
+## D. Jak to obsługiwać (tak jak na telefonie)
+- **Dodawanie zadania**: fioletowy „+" w rogu, ⌘N albo dock „Mikrofon" → wpisz np.
+  `Raport jutro o 15:00 #Praca @pilne p1` → **Enter**. W widoku Dziś zadanie bez daty
+  dostaje termin „dziś".
+- **Menu boczne** (☰ / ⌘B): Dzisiaj, Nadchodzące, Skrzynka, Ukończone, Pula aktywności,
+  Statystyki, Ulubione, Projekty, Etykiety, Aktywności, Cele.
+- **Pasek górny**: przełącznik obszaru, ✦ Asystent tygodnia, ⋮ (sortowanie, skan kartki,
+  czas wolny, plan dnia, akcje projektu/etykiety).
+- **Dock**: Rutyny · Dziś · Nadchodz. · Mikrofon (dyktowanie macOS: dwa razy 🎤/fn).
+- **Zaległe**: sekcja ZALEGŁE zwija się chevronem; „Zmień termin → dziś" przenosi wszystkie.
+- Aktualizacja aplikacji: `cd ~/todoisto && git pull && ./gradlew :desktop:run`.
 
 ---
 Pełne szczegóły i budowanie `.dmg`: patrz `DESKTOP.md`.

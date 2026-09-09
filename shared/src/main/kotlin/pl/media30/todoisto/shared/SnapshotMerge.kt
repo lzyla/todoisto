@@ -35,10 +35,30 @@ object SnapshotMerge {
         for (l in local.labels) labels[l.id] = l
         for (l in remote.labels) labels[l.id] = l
 
+        val areas = LinkedHashMap<Long, CloudArea>()
+        for (a in local.areas) areas[a.id] = a
+        for (a in remote.areas) areas[a.id] = a
+
+        val sections = LinkedHashMap<Long, CloudSection>()
+        for (s in local.sections) sections[s.id] = s
+        for (s in remote.sections) sections[s.id] = s
+
+        // Aktywności: suma po id; przy konflikcie nowsza wg lastScheduledAt/lastCompletedAt/createdAt.
+        val activities = LinkedHashMap<Long, CloudActivity>()
+        fun touchedAct(a: CloudActivity) = maxOf(a.lastScheduledAt ?: 0L, a.lastCompletedAt ?: 0L, a.createdAt)
+        for (a in local.activities) activities[a.id] = a
+        for (a in remote.activities) {
+            val cur = activities[a.id]
+            activities[a.id] = if (cur == null || touchedAct(a) >= touchedAct(cur)) a else cur
+        }
+
         return CloudSnapshot(
             tasks = tasks.values.toList(),
             projects = projects.values.toList(),
-            labels = labels.values.toList()
+            labels = labels.values.toList(),
+            areas = areas.values.toList(),
+            sections = sections.values.toList(),
+            activities = activities.values.toList()
         )
     }
 }

@@ -70,4 +70,20 @@ class SnapshotMergeTest {
         assertEquals("Praca", back.projects.single().name)
         assertEquals("pilne", back.labels.single().name)
     }
+
+    @Test fun `obszary i sekcje przechodza przez kodek i scalanie`() {
+        val local = CloudSnapshot(areas = listOf(CloudArea(id = 1, name = "Dom")), sections = listOf(CloudSection(id = 5, projectId = 2, name = "Do zrobienia")))
+        val remote = CloudSnapshot(areas = listOf(CloudArea(id = 1, name = "Dom (chmura)"), CloudArea(id = 2, name = "Praca")))
+        val merged = SnapshotMerge.merge(local, remote)
+        assertEquals(listOf("Dom (chmura)", "Praca"), merged.areas.map { it.name })   // chmura wygrywa, suma po id
+        assertEquals("Do zrobienia", merged.sections.single().name)
+        val back = CloudBackupCodec.fromJson(CloudBackupCodec.toJson(merged))
+        assertEquals(2, back.areas.size)
+        assertEquals(2L, back.sections.single().projectId)
+    }
+
+    @Test fun `stary JSON bez obszarow i sekcji nadal sie wczytuje`() {
+        val back = CloudBackupCodec.fromJson("""{"version":1,"tasks":[],"projects":[],"labels":[]}""")
+        assertTrue(back.areas.isEmpty() && back.sections.isEmpty())
+    }
 }

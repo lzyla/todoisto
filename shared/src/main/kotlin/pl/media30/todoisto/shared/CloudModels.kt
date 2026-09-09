@@ -60,9 +60,50 @@ data class CloudLabel(
     val isFavorite: Boolean = false
 )
 
-/** Migawka danych użytkownika (to, co ląduje w chmurze jako jeden blob). */
+/** Obszar (np. Praca / Dom) — grupuje projekty i zadania bez projektu. */
+data class CloudArea(
+    val id: Long,
+    val name: String,
+    val colorArgb: Long = 0xFF9B6BFFL,
+    val position: Int = 0
+)
+
+/** Sekcja w projekcie (jak w Todoist). */
+data class CloudSection(
+    val id: Long,
+    val projectId: Long,
+    val name: String,
+    val position: Int = 0
+)
+
+/** Aktywność z „Puli aktywności" (pomysły na wolny czas). Enumy jako String. */
+data class CloudActivity(
+    val id: Long,
+    val name: String,
+    val effortType: String = "PHYSICAL",
+    val durationMinutes: Int = 30,
+    val place: String = "HOME",
+    val windowStartMin: Int? = null,
+    val windowEndMin: Int? = null,
+    val daysMask: Int = 0b1111111,
+    val energyCost: String = "MED",
+    val frequencyTarget: Int? = null,
+    val isActive: Boolean = true,
+    val lastScheduledAt: Long? = null,
+    val lastCompletedAt: Long? = null,
+    val createdAt: Long = 0L
+)
+
+/**
+ * Migawka danych użytkownika (to, co ląduje w chmurze jako jeden blob).
+ * `areas` i `sections` to pola dodatkowe (zgodne wstecz — starsze wersje je
+ * ignorują, a brak w JSON = pusta lista).
+ */
 data class CloudSnapshot(
     val tasks: List<CloudTask> = emptyList(),
     val projects: List<CloudProject> = emptyList(),
-    val labels: List<CloudLabel> = emptyList()
+    val labels: List<CloudLabel> = emptyList(),
+    val areas: List<CloudArea> = emptyList(),
+    val sections: List<CloudSection> = emptyList(),
+    val activities: List<CloudActivity> = emptyList()
 )

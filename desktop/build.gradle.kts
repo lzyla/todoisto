@@ -25,7 +25,10 @@ dependencies {
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
     implementation(compose.materialIconsExtended)
+    testImplementation("junit:junit:4.13.2")
 }
+
+tasks.withType<Test> { useJUnit() }
 
 compose.desktop {
     application {
@@ -36,6 +39,8 @@ compose.desktop {
             packageVersion = "1.0.0"
             macOS {
                 bundleID = "pl.media30.todoisto"
+                iconFile.set(project.file("icons/Todoisto.icns"))
+                dockName = "Todoisto"
             }
         }
     }

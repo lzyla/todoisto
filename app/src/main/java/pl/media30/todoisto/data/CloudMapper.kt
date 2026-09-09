@@ -1,6 +1,9 @@
 package pl.media30.todoisto.data
 
+import pl.media30.todoisto.shared.CloudActivity
+import pl.media30.todoisto.shared.CloudArea
 import pl.media30.todoisto.shared.CloudLabel
+import pl.media30.todoisto.shared.CloudSection
 import pl.media30.todoisto.shared.CloudProject
 import pl.media30.todoisto.shared.CloudSnapshot
 import pl.media30.todoisto.shared.CloudTask
@@ -49,7 +52,38 @@ object CloudMapper {
     fun labelToCloud(l: Label) = CloudLabel(id = l.id, name = l.name, colorArgb = l.colorArgb, isFavorite = l.isFavorite)
     fun labelFromCloud(c: CloudLabel) = Label(id = c.id, name = c.name, colorArgb = c.colorArgb, isFavorite = c.isFavorite)
 
-    fun snapshot(tasks: List<Task>, projects: List<Project>, labels: List<Label>) = CloudSnapshot(
-        tasks = tasks.map(::toCloud), projects = projects.map(::projectToCloud), labels = labels.map(::labelToCloud)
+    fun areaToCloud(a: Area) = CloudArea(id = a.id, name = a.name, colorArgb = a.colorArgb, position = a.position)
+    fun areaFromCloud(c: CloudArea) = Area(id = c.id, name = c.name, colorArgb = c.colorArgb, position = c.position)
+
+    fun sectionToCloud(s: Section) = CloudSection(id = s.id, projectId = s.projectId, name = s.name, position = s.position)
+    fun sectionFromCloud(c: CloudSection) = Section(id = c.id, projectId = c.projectId, name = c.name, position = c.position)
+
+    fun activityToCloud(a: Activity) = CloudActivity(
+        id = a.id, name = a.name, effortType = a.effortType.name, durationMinutes = a.durationMinutes,
+        place = a.place.name, windowStartMin = a.windowStartMin, windowEndMin = a.windowEndMin,
+        daysMask = a.daysMask, energyCost = a.energyCost.name, frequencyTarget = a.frequencyTarget,
+        isActive = a.isActive, lastScheduledAt = a.lastScheduledAt, lastCompletedAt = a.lastCompletedAt,
+        createdAt = a.createdAt
+    )
+
+    fun activityFromCloud(c: CloudActivity) = Activity(
+        id = c.id, name = c.name,
+        effortType = runCatching { EffortType.valueOf(c.effortType) }.getOrDefault(EffortType.MENTAL),
+        durationMinutes = c.durationMinutes,
+        place = runCatching { Place.valueOf(c.place) }.getOrDefault(Place.HOME),
+        windowStartMin = c.windowStartMin, windowEndMin = c.windowEndMin, daysMask = c.daysMask,
+        energyCost = runCatching { EnergyCost.valueOf(c.energyCost) }.getOrDefault(EnergyCost.MED),
+        frequencyTarget = c.frequencyTarget, isActive = c.isActive,
+        lastScheduledAt = c.lastScheduledAt, lastCompletedAt = c.lastCompletedAt, createdAt = c.createdAt
+    )
+
+    fun snapshot(
+        tasks: List<Task>, projects: List<Project>, labels: List<Label>,
+        areas: List<Area> = emptyList(), sections: List<Section> = emptyList(),
+        activities: List<Activity> = emptyList()
+    ) = CloudSnapshot(
+        tasks = tasks.map(::toCloud), projects = projects.map(::projectToCloud), labels = labels.map(::labelToCloud),
+        areas = areas.map(::areaToCloud), sections = sections.map(::sectionToCloud),
+        activities = activities.map(::activityToCloud)
     )
 }

@@ -22,7 +22,10 @@ class TaskRepository(
     // --- kopia/synchronizacja w chmurze (wspólny moduł `shared`) ---
     /** Eksport WSZYSTKICH zadań (łącznie z nagrobkami) w formacie chmury. */
     suspend fun exportBackupJson(): String {
-        val snap = CloudMapper.snapshot(taskDao.getAllRaw(), projectDao.getAll().first(), labelDao.getAll().first())
+        val snap = CloudMapper.snapshot(
+            taskDao.getAllRaw(), projectDao.getAll().first(), labelDao.getAll().first(),
+            areaDao.getAll().first(), sectionDao.getAll().first(), activityDao.getAll().first()
+        )
         return pl.media30.todoisto.shared.CloudBackupCodec.toJson(snap)
     }
 
@@ -33,8 +36,14 @@ class TaskRepository(
      */
     suspend fun importBackupJson(json: String): Int {
         val remote = pl.media30.todoisto.shared.CloudBackupCodec.fromJson(json)
-        val local = CloudMapper.snapshot(taskDao.getAllRaw(), projectDao.getAll().first(), labelDao.getAll().first())
+        val local = CloudMapper.snapshot(
+            taskDao.getAllRaw(), projectDao.getAll().first(), labelDao.getAll().first(),
+            areaDao.getAll().first(), sectionDao.getAll().first(), activityDao.getAll().first()
+        )
         val merged = pl.media30.todoisto.shared.SnapshotMerge.merge(local, remote)
+        merged.activities.forEach { activityDao.insert(CloudMapper.activityFromCloud(it)) }
+        merged.areas.forEach { areaDao.insert(CloudMapper.areaFromCloud(it)) }
+        merged.sections.forEach { sectionDao.insert(CloudMapper.sectionFromCloud(it)) }
         merged.labels.forEach { labelDao.insert(CloudMapper.labelFromCloud(it)) }
         merged.projects.forEach { projectDao.insert(CloudMapper.projectFromCloud(it)) }
         merged.tasks.forEach { taskDao.insert(CloudMapper.fromCloud(it)) }

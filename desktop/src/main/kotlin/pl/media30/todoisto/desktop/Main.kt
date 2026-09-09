@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.MenuBar
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
@@ -57,22 +58,33 @@ private fun priorityColor(p: String): Color = when (p) {
 
 fun main() = application {
     val state = rememberWindowState(width = 460.dp, height = 800.dp)
+    // Stan hoistowany, żeby natywny pasek menu macOS mógł sterować apką.
+    var showSettings by remember { mutableStateOf(false) }
+    var syncRequest by remember { mutableStateOf(0) }
     Window(onCloseRequest = ::exitApplication, title = "Todoisto", state = state) {
+        // Natywny pasek menu macOS (Compose Desktop umieszcza go w systemowym pasku).
+        MenuBar {
+            Menu("Plik", mnemonic = 'P') {
+                Item("Synchronizuj", shortcut = androidx.compose.ui.input.key.KeyShortcut(androidx.compose.ui.input.key.Key.S, meta = true)) { syncRequest++ }
+                Item("Ustawienia…", shortcut = androidx.compose.ui.input.key.KeyShortcut(androidx.compose.ui.input.key.Key.Comma, meta = true)) { showSettings = true }
+                Separator()
+                Item("Zakończ", shortcut = androidx.compose.ui.input.key.KeyShortcut(androidx.compose.ui.input.key.Key.Q, meta = true)) { exitApplication() }
+            }
+        }
         MaterialTheme(colorScheme = lightColorScheme(primary = Accent)) {
-            App()
+            App(showSettings, { showSettings = it }, syncRequest)
         }
     }
 }
 
 @Composable
-private fun App() {
+private fun App(showSettings: Boolean, onShowSettings: (Boolean) -> Unit, syncRequest: Int) {
     val repo = remember { TaskRepository() }
     val settings = remember { SyncSettings() }
     val scope = rememberCoroutineScope()
     var tick by remember { mutableStateOf(0) }
     val tasks = remember(tick) { repo.tasks }
     var input by remember { mutableStateOf("") }
-    var showSettings by remember { mutableStateOf(false) }
     var syncing by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<String?>(null) }
     var password by remember { mutableStateOf("") }
@@ -98,7 +110,7 @@ private fun App() {
     // Wspólna procedura synchronizacji (blokujący sync na wątku IO).
     fun runSync(auto: Boolean) {
         if (syncing) return
-        if (!credsReady) { if (!auto) showSettings = true; return }
+        if (!credsReady) { if (!auto) onShowSettings(true); return }
         syncing = true
         if (!auto) toast = "Synchronizuję…"
         scope.launch {
@@ -118,6 +130,8 @@ private fun App() {
     LaunchedEffect(dirty) {
         if (dirty > 0 && autoSync && credsReady) { delay(4000); if (!syncing) runSync(auto = true) }
     }
+    // Synchronizacja wywołana z paska menu (⌘S).
+    LaunchedEffect(syncRequest) { if (syncRequest > 0) runSync(auto = false) }
     // Powiadomienia macOS o przypomnieniach (także z zadań zsynchronizowanych z telefonu).
     LaunchedEffect(Unit) {
         var lastCheck = System.currentTimeMillis()
@@ -146,7 +160,7 @@ private fun App() {
                 }
                 CircleBtn(Icons.Outlined.CloudSync, "Synchronizuj", enabled = !syncing) { runSync(auto = false) }
                 Spacer(Modifier.width(8.dp))
-                CircleBtn(Icons.Outlined.Settings, "Ustawienia chmury") { showSettings = true }
+                CircleBtn(Icons.Outlined.Settings, "Ustawienia chmury") { onShowSettings(true) }
             }
             Spacer(Modifier.height(16.dp))
 
@@ -178,8 +192,21 @@ private fun App() {
             }
             Spacer(Modifier.height(12.dp))
 
+            // W widoku Dziś: sekcje ZALEGŁE (termin < dziś) i DZISIAJ — jak w wersji mobilnej.
+            val overdue = if (view == "today") shown.filter { it.dueDate != null && it.dueDate!! < today } else emptyList()
+            val rest = if (view == "today") shown.filter { it !in overdue } else shown
             LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                items(shown, key = { it.id }) { task ->
+                if (overdue.isNotEmpty()) {
+                    item { SectionLabel("ZALEGŁE · ${overdue.size}", Color(0xFFC2410C)) }
+                    items(overdue, key = { "o${it.id}" }) { task ->
+                        TaskRow(task, repo,
+                            onToggle = { repo.toggle(task.id); tick++; dirty++ },
+                            onDelete = { repo.delete(task.id); tick++; dirty++ },
+                            onOpen = { editing = task })
+                    }
+                    if (rest.isNotEmpty()) item { SectionLabel("DZISIAJ · ${rest.size}", LocalAccent.current) }
+                }
+                items(rest, key = { it.id }) { task ->
                     TaskRow(
                         task, repo,
                         onToggle = { repo.toggle(task.id); tick++; dirty++ },
@@ -223,7 +250,7 @@ private fun App() {
                         toast = msg; tick++; dirty++
                     }
                 },
-                onClose = { showSettings = false }
+                onClose = { onShowSettings(false) }
             )
         }
     }
@@ -261,6 +288,15 @@ private fun QuickAdd(text: String, onText: (String) -> Unit, onSubmit: () -> Uni
             contentAlignment = Alignment.Center
         ) { Icon(Icons.Filled.Add, "Dodaj", tint = Color.White, modifier = Modifier.size(20.dp)) }
     }
+}
+
+/** Nagłówek sekcji listy (ZALEGŁE / DZISIAJ) — mały, wersalikami, w kolorze akcentu. */
+@Composable
+private fun SectionLabel(text: String, color: Color) {
+    Text(
+        text, fontSize = 11.sp, fontWeight = FontWeight.W800, color = color,
+        modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 2.dp)
+    )
 }
 
 @Composable

@@ -88,7 +88,8 @@ class TaskRepository {
                 nextId = (_tasks.maxOfOrNull { it.id } ?: 0L) + 1
             }
         }
-        if (_tasks.none { !it.deleted }) { seedDemo(); save() }
+        // Celowo BEZ danych przykładowych: prawdziwe zadania przychodzą z chmury
+        // (albo dodajesz je sam). Demo zaśmiecałoby synchronizację z telefonem.
     }
 
     /** Kasuje stare nagrobki (>30 dni), żeby migawka nie puchła w nieskończoność. */
@@ -102,31 +103,6 @@ class TaskRepository {
             dataFile.parentFile.mkdirs()
             dataFile.writeText(CloudBackupCodec.toJson(snapshot()))
         }
-    }
-
-    private fun seedDemo() {
-        val today = LocalDate.now().toEpochDay()
-        _projects.addAll(listOf(
-            CloudProject(id = 1, name = "Praca", colorArgb = 0xFF4D6BFFL, position = 0),
-            CloudProject(id = 2, name = "Dom", colorArgb = 0xFF2DD4BFL, position = 1),
-            CloudProject(id = 3, name = "Zdrowie", colorArgb = 0xFFF4737DL, position = 2)
-        ))
-        _labels.addAll(listOf(
-            CloudLabel(id = 1, name = "pilne", colorArgb = 0xFFF4737DL),
-            CloudLabel(id = 2, name = "zakupy", colorArgb = 0xFFF4B740L)
-        ))
-        var pos = 0
-        fun t(title: String, prio: String, min: Int?, dur: Int?, rec: String?, proj: Long?, labels: List<Long>) =
-            CloudTask(id = nextId++, title = title, priority = prio, dueDate = today, dueTimeMinutes = min,
-                durationMinutes = dur, recurrence = rec, projectId = proj, labelIds = labels, position = pos++)
-        _tasks.addAll(listOf(
-            t("Przygotować raport miesięczny", "P1", 600, 90, null, 1, listOf(1)),
-            t("Stand-up zespołu", "P4", 570, null, "DAILY", 1, emptyList()),
-            t("Nadać paczkę na poczcie", "P4", null, null, null, 2, emptyList()),
-            t("Przegląd pull requestów", "P3", 14 * 60, 45, null, 1, emptyList()),
-            t("Kupić prezent dla Zosi", "P2", 15 * 60, null, null, 2, listOf(2)),
-            t("Trening — siłownia", "P4", 18 * 60 + 30, null, "WEEKLY", 3, emptyList())
-        ))
     }
 }
 

@@ -77,6 +77,29 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ---
 
+## Podpis aplikacji — dlaczego „Nie zainstalowano" i jak tego uniknąć
+
+Android pozwala **zaktualizować** aplikację tylko plikiem podpisanym **tym samym
+kluczem** co wersja już zainstalowana. Inny klucz = komunikat „Nie zainstalowano" /
+„Aplikacja nie została zainstalowana", nawet jeśli plik jest poprawny.
+
+Od v118 repozytorium zawiera stały klucz `app/keystore/todoisto.jks` (hasło i alias
+`todoisto`), a `app/build.gradle.kts` podpisuje nim **każdy** build, debug i release.
+Dzięki temu APK zbudowany na Macu, na innym komputerze czy w sesji Claude ma zawsze
+ten sam podpis i aktualizuje się bez pytań.
+
+**Jednorazowe przejście ze starszej wersji (podpisanej innym kluczem):**
+1. W starej aplikacji: Konto → Chmura → *Wyloguj z chmury* → zaloguj ponownie →
+   **Wyślij kopię do chmury** (świeże logowanie daje ważny token, więc wysyłka działa).
+2. Odinstaluj starą aplikację.
+3. Zainstaluj nowy APK, zaloguj się w chmurze → **Pobierz z chmury**. Dane wracają
+   (scalanie po id, nic nie ginie).
+
+To klucz aplikacji prywatnej — do publikacji w Google Play użyj osobnego, tajnego
+klucza (sekcja niżej).
+
+---
+
 ## Wersja RELEASE (podpisana, do dystrybucji)
 
 Wersja debug jest podpisana kluczem testowym. Do „prawdziwej" dystrybucji

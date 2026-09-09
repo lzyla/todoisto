@@ -23,9 +23,25 @@ android {
         }
     }
 
+    // Jeden stały klucz podpisu dla WSZYSTKICH buildów (Mac, inne komputery, sesje
+    // Claude). Bez tego każdy komputer podpisuje własnym kluczem debug i Android
+    // odmawia aktualizacji („Nie zainstalowano"). To klucz aplikacji prywatnej,
+    // nie do Google Play — dlatego może leżeć w repozytorium.
+    signingConfigs {
+        create("shared") {
+            storeFile = file("keystore/todoisto.jks")
+            storePassword = "todoisto"
+            keyAlias = "todoisto"
+            keyPassword = "todoisto"
+        }
+    }
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("shared")
+        }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("shared")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

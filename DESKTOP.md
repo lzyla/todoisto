@@ -139,7 +139,15 @@ własną, ale **format identyczny**, więc interoperują już teraz).
 - ✅ Asystent AI („Zapytaj AI: jak zrobić szybciej") w szczegółach zadania
 - ✅ Deadline, czas trwania i przypomnienie w szczegółach
 - ✅ Gmail — maile z gwiazdką → zadania (IMAP, hasło do aplikacji)
-- Skróty klawiszowe i menu aplikacji macOS
+- ✅ Menu aplikacji macOS + skróty (⌘N nowe zadanie, ⌘S sync, ⌘, ustawienia)
+- ✅ Pasek boczny jak szuflada w Androidzie / Todoist: Skrzynka, Dziś,
+  Nadchodzące, Ukończone, ★ Ulubione, Projekty, Etykiety, Szukaj — pełna
+  funkcjonalność dostępna z menu, liczniki przy widokach
+- ✅ Dodawanie zadań naprawione: Enter (także numeryczny) i przycisk „+”;
+  w widoku Dziś zadanie bez daty dostaje termin „dziś”, w widoku projektu
+  trafia do tego projektu, inaczej do Skrzynki (z przełączeniem widoku)
+- ✅ Sekcja ZALEGŁE z przyciskiem „Zmień termin → dziś” (jak w Todoist),
+  czerwone daty zaległych zadań, nazwa projektu po prawej w wierszu
 - Sekcje w projektach, załączniki (pełna parzystość z mobilną)
 
 ## Parytet z wersją Android — co jest, a czego nie

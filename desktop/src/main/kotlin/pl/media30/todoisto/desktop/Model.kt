@@ -54,6 +54,19 @@ class TaskRepository {
         save()
     }
 
+    /** „Zmień termin" jak w Todoist: wszystkie zaległe przenosi na dziś. */
+    fun rescheduleOverdueToToday() {
+        val today = LocalDate.now().toEpochDay()
+        val now = System.currentTimeMillis()
+        for (i in _tasks.indices) {
+            val t = _tasks[i]
+            if (!t.deleted && !t.isCompleted && t.dueDate != null && t.dueDate!! < today) {
+                _tasks[i] = t.copy(dueDate = today, updatedAt = now)
+            }
+        }
+        save()
+    }
+
     /** Zapisuje edycję zadania (szczegóły). */
     fun update(task: CloudTask) {
         val i = _tasks.indexOfFirst { it.id == task.id }

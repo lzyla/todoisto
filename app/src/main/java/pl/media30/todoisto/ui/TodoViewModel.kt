@@ -329,7 +329,7 @@ class TodoViewModel(
                     else pl.media30.todoisto.data.SupabaseClient.signIn(c.url0, c.anonKey0, email, password)
             when {
                 r.token != null && r.userId != null -> {
-                    c.setSession(r.email ?: email, r.token, r.userId)
+                    c.setSession(r.email ?: email, r.token, r.userId, r.refreshToken, r.expiresAt)
                     _cloud.value = cloudSnapshot(message = "Zalogowano w chmurze.")
                     cloudSync(silent = true) // od razu podciągnij i wyślij dane
                 }
@@ -338,6 +338,22 @@ class TodoViewModel(
             }
         }
     }
+
+    /**
+     * Zwraca ważny token sesji: gdy stary wygasł (Supabase: ~1 h), odświeża go
+     * refresh tokenem. Null = trzeba zalogować się ponownie.
+     */
+    private suspend fun freshToken(c: pl.media30.todoisto.data.CloudStore): String? {
+        if (!c.signedIn) return null
+        if (!c.tokenStale) return c.token0
+        val rt = c.refreshToken
+        if (rt.isBlank()) return null
+        val r = pl.media30.todoisto.data.SupabaseClient.refresh(c.url0, c.anonKey0, rt)
+        return if (r.token != null && r.userId != null) {
+            c.setSession(r.email ?: c.cloudEmail.value, r.token, r.userId, r.refreshToken, r.expiresAt); r.token
+        } else null
+    }
+    private val SESSION_EXPIRED = "Sesja w chmurze wygasła — wyloguj się i zaloguj ponownie."
 
     fun cloudSignOut() {
         cloud?.signOut()
@@ -350,8 +366,9 @@ class TodoViewModel(
         if (!c.signedIn) { _cloud.value = cloudSnapshot(error = "Zaloguj się w chmurze."); return }
         _cloud.value = cloudSnapshot(busy = true)
         viewModelScope.launch {
+            val token = freshToken(c) ?: run { _cloud.value = cloudSnapshot(error = SESSION_EXPIRED); return@launch }
             val json = repository.exportBackupJson()
-            val err = pl.media30.todoisto.data.SupabaseClient.pushBackup(c.url0, c.anonKey0, c.token0, c.userId, json)
+            val err = pl.media30.todoisto.data.SupabaseClient.pushBackup(c.url0, c.anonKey0, token, c.userId, json)
             _cloud.value = if (err == null) cloudSnapshot(message = "Wysłano kopię do chmury.")
                            else cloudSnapshot(error = err)
         }
@@ -363,7 +380,8 @@ class TodoViewModel(
         if (!c.signedIn) { _cloud.value = cloudSnapshot(error = "Zaloguj się w chmurze."); return }
         _cloud.value = cloudSnapshot(busy = true)
         viewModelScope.launch {
-            val json = pl.media30.todoisto.data.SupabaseClient.pullBackup(c.url0, c.anonKey0, c.token0, c.userId)
+            val token = freshToken(c) ?: run { _cloud.value = cloudSnapshot(error = SESSION_EXPIRED); return@launch }
+            val json = pl.media30.todoisto.data.SupabaseClient.pullBackup(c.url0, c.anonKey0, token, c.userId)
             if (json == null) { _cloud.value = cloudSnapshot(error = "Brak kopii w chmurze albo błąd pobierania."); return@launch }
             val count = runCatching { repository.importBackupJson(json) }.getOrDefault(0)
             _cloud.value = cloudSnapshot(message = "Pobrano z chmury ($count zadań).")
@@ -378,10 +396,12 @@ class TodoViewModel(
         if (!silent) _cloud.value = cloudSnapshot(busy = true)
         viewModelScope.launch {
             try {
-                val remote = pl.media30.todoisto.data.SupabaseClient.pullBackup(c.url0, c.anonKey0, c.token0, c.userId)
+                val token = freshToken(c)
+                if (token == null) { if (!silent) _cloud.value = cloudSnapshot(error = SESSION_EXPIRED); return@launch }
+                val remote = pl.media30.todoisto.data.SupabaseClient.pullBackup(c.url0, c.anonKey0, token, c.userId)
                 if (remote != null) runCatching { repository.importBackupJson(remote) }
                 val json = repository.exportBackupJson()
-                val err = pl.media30.todoisto.data.SupabaseClient.pushBackup(c.url0, c.anonKey0, c.token0, c.userId, json)
+                val err = pl.media30.todoisto.data.SupabaseClient.pushBackup(c.url0, c.anonKey0, token, c.userId, json)
                 if (!silent) _cloud.value = if (err == null) cloudSnapshot(message = "Zsynchronizowano z chmurą.")
                                             else cloudSnapshot(error = err)
             } finally {

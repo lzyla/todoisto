@@ -17,7 +17,13 @@ object SupabaseClient {
 
     private const val TABLE = "todoisto_backups"
 
-    data class AuthResult(val token: String?, val userId: String?, val email: String?, val error: String?)
+    data class AuthResult(
+        val token: String?, val userId: String?, val email: String?, val error: String?,
+        /** Token do odświeżania sesji (access_token wygasa po ~godzinie). */
+        val refreshToken: String? = null,
+        /** Kiedy wygasa access_token (ms epoch); 0 = nieznane. */
+        val expiresAt: Long = 0L
+    )
 
     suspend fun signUp(url: String, anonKey: String, email: String, password: String): AuthResult =
         auth("$url/auth/v1/signup", anonKey, email, password)
@@ -25,9 +31,14 @@ object SupabaseClient {
     suspend fun signIn(url: String, anonKey: String, email: String, password: String): AuthResult =
         auth("$url/auth/v1/token?grant_type=password", anonKey, email, password)
 
-    private suspend fun auth(endpoint: String, anonKey: String, email: String, password: String): AuthResult =
+    /** Odświeża sesję refresh tokenem — bez hasła użytkownika. */
+    suspend fun refresh(url: String, anonKey: String, refreshToken: String): AuthResult =
+        auth("$url/auth/v1/token?grant_type=refresh_token", anonKey, "", "", refreshToken)
+
+    private suspend fun auth(endpoint: String, anonKey: String, email: String, password: String, refreshToken: String? = null): AuthResult =
         withContext(Dispatchers.IO) {
-            val body = JSONObject().put("email", email.trim()).put("password", password).toString()
+            val body = if (refreshToken != null) JSONObject().put("refresh_token", refreshToken).toString()
+                       else JSONObject().put("email", email.trim()).put("password", password).toString()
             val conn = (URL(endpoint).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"; connectTimeout = 20000; readTimeout = 30000; doOutput = true
                 setRequestProperty("Content-Type", "application/json")
@@ -49,11 +60,13 @@ object SupabaseClient {
             val user = o.optJSONObject("user") ?: o
             val uid = user.optString("id", "")
             val mail = user.optString("email", email.trim())
+            val refresh = o.optString("refresh_token", "").ifBlank { null }
+            val expiresIn = o.optLong("expires_in", 3600L)
             if (token.isBlank()) {
                 // Rejestracja z włączonym potwierdzeniem e-mail: brak tokenu od razu.
                 AuthResult(null, uid.ifBlank { null }, mail, "Sprawdź e-mail i potwierdź konto, potem zaloguj się.")
             } else {
-                AuthResult(token, uid.ifBlank { null }, mail, null)
+                AuthResult(token, uid.ifBlank { null }, mail, null, refresh, System.currentTimeMillis() + expiresIn * 1000)
             }
         }
 

@@ -27,6 +27,10 @@ class CloudStore(context: Context) {
     val accessToken: StateFlow<String> = _accessToken.asStateFlow()
 
     val userId: String get() = prefs.getString(KEY_UID, "").orEmpty()
+    val refreshToken: String get() = prefs.getString(KEY_REFRESH, "").orEmpty()
+    val expiresAt: Long get() = prefs.getLong(KEY_EXPIRES, 0L)
+    /** Token wygasł lub wygaśnie w ciągu minuty (0 = stara sesja bez daty → traktuj jak wygasłą). */
+    val tokenStale: Boolean get() = expiresAt < System.currentTimeMillis() + 60_000
     val url0: String get() = _url.value
     val anonKey0: String get() = _anonKey.value
     val token0: String get() = _accessToken.value
@@ -41,13 +45,14 @@ class CloudStore(context: Context) {
         _url.value = u; _anonKey.value = k
     }
 
-    fun setSession(email: String, token: String, userId: String) {
-        prefs.edit().putString(KEY_EMAIL, email.trim()).putString(KEY_TOKEN, token).putString(KEY_UID, userId).apply()
+    fun setSession(email: String, token: String, userId: String, refreshToken: String? = null, expiresAt: Long = 0L) {
+        prefs.edit().putString(KEY_EMAIL, email.trim()).putString(KEY_TOKEN, token).putString(KEY_UID, userId)
+            .putString(KEY_REFRESH, refreshToken ?: this.refreshToken).putLong(KEY_EXPIRES, expiresAt).apply()
         _cloudEmail.value = email.trim(); _accessToken.value = token
     }
 
     fun signOut() {
-        prefs.edit().remove(KEY_TOKEN).remove(KEY_EMAIL).remove(KEY_UID).apply()
+        prefs.edit().remove(KEY_TOKEN).remove(KEY_EMAIL).remove(KEY_UID).remove(KEY_REFRESH).remove(KEY_EXPIRES).apply()
         _accessToken.value = ""; _cloudEmail.value = ""
     }
 
@@ -57,5 +62,7 @@ class CloudStore(context: Context) {
         const val KEY_EMAIL = "cloud_email"
         const val KEY_TOKEN = "access_token"
         const val KEY_UID = "user_id"
+        const val KEY_REFRESH = "refresh_token"
+        const val KEY_EXPIRES = "expires_at"
     }
 }

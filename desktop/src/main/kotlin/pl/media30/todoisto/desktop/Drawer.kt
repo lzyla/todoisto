@@ -67,6 +67,9 @@ fun DrawerPanel(st: AppState) {
             }
             Icon(Icons.Filled.KeyboardArrowRight, null, tint = g.textSecondary, modifier = Modifier.size(18.dp))
         }
+        Spacer(Modifier.height(8.dp))
+        // Obszar (jak wybór przestrzeni w Todoist na górze paska bocznego)
+        AreaSwitcher(st, Modifier.padding(horizontal = 4.dp))
         Spacer(Modifier.height(10.dp))
 
         DrawerRow(Icons.Outlined.CalendarToday, "Dzisiaj", ui.todayCount, st.view == AppView.Today) { st.showView(AppView.Today) }

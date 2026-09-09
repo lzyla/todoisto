@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Autorenew
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.WbSunny
@@ -75,11 +76,14 @@ fun TaskListContent(st: AppState) {
         when (ui.view) {
             AppView.Today -> {
                 item {
-                    Column(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Dzisiaj", fontSize = 27.sp, fontWeight = FontWeight.W600, color = g.textPrimary, fontFamily = Sora, letterSpacing = (-0.27).sp)
-                        Text(dateCaption(), fontSize = 12.5.sp, color = g.textSecondary, fontFamily = Manrope)
-                        Spacer(Modifier.height(8.dp))
-                        Box(Modifier.width(34.dp).height(3.dp).clip(RoundedCornerShape(50)).background(g.accent))
+                    Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp)) {
+                        Text("Dziś", fontSize = 30.sp, fontWeight = FontWeight.W800, color = g.textPrimary, fontFamily = Sora, letterSpacing = (-0.6).sp)
+                        Spacer(Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.CheckCircle, null, tint = g.textSecondary, modifier = Modifier.size(15.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("${nodes.size} ${plural(nodes.size, "zadanie", "zadania", "zadań")}  ·  ${dateCaption()}", fontSize = 13.sp, color = g.textSecondary, fontFamily = Manrope)
+                        }
                     }
                 }
                 val overdue = nodes.filter { it.task.dueDate != null && it.task.dueDate!! < today }

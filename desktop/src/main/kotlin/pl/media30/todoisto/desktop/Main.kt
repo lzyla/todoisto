@@ -21,7 +21,11 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.ViewSidebar
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Autorenew
@@ -74,6 +78,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.window.WindowDraggableArea
 import androidx.compose.ui.window.MenuBar
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.Window
@@ -91,6 +96,14 @@ fun main() {
         val state = rememberWindowState(width = 1180.dp, height = 820.dp)
         val holder = remember { AppHolder() }
         Window(onCloseRequest = ::exitApplication, title = "Todoisto", state = state, icon = AppIcon.painter) {
+            // Jak Todoist na Macu: treść pod paskiem tytułu, światła okna w linii paska narzędzi.
+            LaunchedEffect(Unit) {
+                runCatching {
+                    window.rootPane.putClientProperty("apple.awt.fullWindowContent", true)
+                    window.rootPane.putClientProperty("apple.awt.transparentTitleBar", true)
+                    window.rootPane.putClientProperty("apple.awt.windowTitleVisible", false)
+                }
+            }
             // Natywny pasek menu macOS ma każda aplikacja (Todoist też) — trzymamy go
             // minimalnym, a cała nawigacja jest w oknie, tak jak na Androidzie.
             MenuBar {
@@ -110,7 +123,7 @@ fun main() {
                     Item("Pokaż/ukryj menu boczne", shortcut = KeyShortcut(Key.B, meta = true)) { holder.state?.let { it.setDrawer(!it.drawerOpen) } }
                 }
             }
-            App(holder)
+            App(holder) { content -> WindowDraggableArea { content() } }
         }
     }
 }
@@ -119,7 +132,7 @@ fun main() {
 class AppHolder { var state: AppState? = null }
 
 @Composable
-fun App(holder: AppHolder) {
+fun App(holder: AppHolder, dragArea: @Composable (@Composable () -> Unit) -> Unit = { it() }) {
     val scope = rememberCoroutineScope()
     val st = remember { AppState(TaskRepository(), AppSettings(), scope).also { holder.state = it } }
     st.settingsRev // subskrypcja zmian ustawień (motyw, tryb ciemny, tło…)
@@ -164,11 +177,11 @@ fun App(holder: AppHolder) {
                 }
             ) {
                 AppBackground(st)
-                Row(Modifier.fillMaxSize()) {
-                    AnimatedVisibility(st.drawerOpen) { DrawerPanel(st) }
-                    Column(Modifier.weight(1f).fillMaxHeight()) {
-                        TopBar(st)
-                        Box(Modifier.weight(1f).fillMaxWidth()) {
+                Column(Modifier.fillMaxSize()) {
+                    dragArea { TopBar(st) }
+                    Row(Modifier.weight(1f).fillMaxWidth()) {
+                        AnimatedVisibility(st.drawerOpen) { DrawerPanel(st) }
+                        Box(Modifier.weight(1f).fillMaxHeight()) {
                             TaskListContent(st)
                             RoutinesPanel(st)
                             BottomDock(st)
@@ -239,21 +252,35 @@ private fun AppBackground(st: AppState) {
     }
 }
 
-// ─── Pasek górny jak w Androidzie: ☰ · Obszar ▾ · … · ✦ · ⋮ ─────────────────
+// ─── Pasek narzędzi jak Todoist na Macu: ●●● · ▯ · ‹ › · … · ✦ · ☰ · ⋯ ──────────
+val isMac: Boolean = System.getProperty("os.name", "").lowercase().contains("mac")
+
 @Composable
 private fun TopBar(st: AppState) {
     val g = LocalGlass.current
     var menuOpen by remember { mutableStateOf(false) }
     val ui = remember(st.rev, st.view, st.sort, st.activeArea, st.settingsRev) { st.buildUiState() }
-    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        CircleGlassButton(Icons.Filled.Menu, "Menu") { st.setDrawer(!st.drawerOpen) }
-        AreaSwitcher(st)
-        if (st.syncing) Text("☁ synchronizuję…", fontSize = 11.5.sp, color = g.textSecondary, fontFamily = Manrope)
-        Spacer(Modifier.weight(1f))
-        CircleGlassButton(Icons.Outlined.AutoAwesome, "Podsumowanie tygodnia", tint = g.accent) { st.briefOpen = !st.briefOpen }
+    Row(
+        Modifier.fillMaxWidth().height(52.dp).padding(start = if (isMac) 84.dp else 12.dp, end = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Box {
-            CircleGlassButton(Icons.Filled.MoreVert, "Więcej") { menuOpen = true }
-            if (menuOpen) Popup(alignment = Alignment.TopEnd, onDismissRequest = { menuOpen = false }, offset = IntOffset(0, 48)) {
+            ToolbarIcon(Icons.Outlined.ViewSidebar, "Menu boczne") { st.setDrawer(!st.drawerOpen) }
+            // Kropka jak w Todoist — sygnalizuje zaległe zadania.
+            if (ui.todayCount > 0 && st.repo.tasks.any { !it.isCompleted && it.dueDate != null && it.dueDate!! < st.today }) {
+                Box(Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = 6.dp).size(8.dp).clip(CircleShape).background(g.warn))
+            }
+        }
+        Spacer(Modifier.width(4.dp))
+        ToolbarIcon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Wstecz", enabled = st.canGoBack) { st.goBack() }
+        ToolbarIcon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Dalej", enabled = st.canGoForward) { st.goForward() }
+        Spacer(Modifier.weight(1f))
+        if (st.syncing) Text("☁ synchronizuję…", fontSize = 11.5.sp, color = g.textSecondary, fontFamily = Manrope, modifier = Modifier.padding(end = 8.dp))
+        ToolbarIcon(Icons.Outlined.AutoAwesome, "Asystent tygodnia", tint = g.accent) { st.briefOpen = !st.briefOpen }
+        ToolbarIcon(Icons.AutoMirrored.Outlined.Sort, "Widok: sortowanie") { st.showSort = true }
+        Box {
+            ToolbarIcon(Icons.Filled.MoreHoriz, "Więcej") { menuOpen = true }
+            if (menuOpen) Popup(alignment = Alignment.TopEnd, onDismissRequest = { menuOpen = false }, offset = IntOffset(0, 44)) {
                 Column(Modifier.width(250.dp).glass(RoundedCornerShape(22.dp), strong = true, elevation = 18.dp).padding(8.dp)) {
                     GlassMenuItem("Sortowanie: ${st.sort.label}", Icons.Outlined.Autorenew) { menuOpen = false; st.showSort = true }
                     GlassMenuItem("Skanuj kartkę", Icons.Outlined.PhotoCamera) { menuOpen = false; st.showScanChooser = true }
@@ -278,6 +305,15 @@ private fun TopBar(st: AppState) {
     }
 }
 
+/** Płaska ikona paska narzędzi (bez szklanego kółka) — jak w Todoist. */
+@Composable
+private fun ToolbarIcon(icon: ImageVector, desc: String, enabled: Boolean = true, tint: Color? = null, onClick: () -> Unit) {
+    val g = LocalGlass.current
+    Box(Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).clickable(enabled = enabled) { onClick() }, contentAlignment = Alignment.Center) {
+        Icon(icon, desc, tint = if (!enabled) g.textSecondary.copy(alpha = 0.35f) else (tint ?: g.textSecondary), modifier = Modifier.size(22.dp))
+    }
+}
+
 fun copyToClipboard(text: String) {
     runCatching { java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(java.awt.datatransfer.StringSelection(text), null) }
 }
@@ -298,20 +334,19 @@ fun GlassMenuDivider() { val g = LocalGlass.current; Box(Modifier.fillMaxWidth()
 
 /** Przełącznik obszaru („Wszystko" / obszary / + Nowy obszar) — jak `AreaSwitcher`. */
 @Composable
-private fun AreaSwitcher(st: AppState) {
+fun AreaSwitcher(st: AppState, modifier: Modifier = Modifier) {
     val g = LocalGlass.current
     var open by remember { mutableStateOf(false) }
     st.rev
     val active = st.repo.area(st.activeArea)
-    Box {
+    Box(modifier) {
         Row(
-            Modifier.height(42.dp).glass(RoundedCornerShape(50), strong = true).clickable { open = true }.padding(horizontal = 14.dp),
+            Modifier.height(40.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(g.accent.copy(alpha = 0.08f)).clickable { open = true }.padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Dot(active?.let { Color(it.colorArgb) } ?: g.accent)
             Spacer(Modifier.width(8.dp))
-            Text(active?.name ?: "Wszystko", fontSize = 12.sp, fontWeight = FontWeight.W800, color = g.textPrimary, fontFamily = Manrope)
-            Spacer(Modifier.width(4.dp))
+            Text(active?.name ?: "Wszystko", fontSize = 12.5.sp, fontWeight = FontWeight.W800, color = g.textPrimary, fontFamily = Manrope, modifier = Modifier.weight(1f))
             Icon(Icons.Filled.KeyboardArrowDown, null, tint = g.textSecondary, modifier = Modifier.size(18.dp))
         }
         if (open) Popup(onDismissRequest = { open = false }, offset = IntOffset(0, 48)) {

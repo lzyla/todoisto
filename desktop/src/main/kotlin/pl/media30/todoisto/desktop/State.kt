@@ -258,7 +258,19 @@ class AppState(val repo: TaskRepository, val settings: AppSettings, val scope: C
         askAi(AutomationAdvisor.advise(task.title, task.notes).aiPrompt)
     }
     fun changeSort(m: SortMode) { sort = m; settings.sortMode = m.name }
-    fun showView(v: AppView) { view = v }
+    // Historia widoków (strzałki ‹ › w pasku, jak w Todoist).
+    private val history = mutableListOf<AppView>(view)
+    private var historyIndex by mutableStateOf(0)
+    val canGoBack: Boolean get() = historyIndex > 0
+    val canGoForward: Boolean get() = historyIndex < history.size - 1
+    fun showView(v: AppView) {
+        if (v == view) return
+        while (history.size - 1 > historyIndex) history.removeAt(history.size - 1)
+        history.add(v); historyIndex = history.size - 1
+        view = v
+    }
+    fun goBack() { if (canGoBack) { historyIndex--; view = history[historyIndex] } }
+    fun goForward() { if (canGoForward) { historyIndex++; view = history[historyIndex] } }
     fun selectArea(id: Long?) { activeArea = id; settings.activeArea = id ?: -1L }
     fun setDrawer(open: Boolean) { drawerOpen = open; settings.drawerOpen = open }
 

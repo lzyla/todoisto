@@ -425,6 +425,8 @@ class AppSettings {
         set(v) = prefs.put("custom_photos", v.take(3).joinToString("\n"))
     var activeCustomBg: String get() = str("active_custom_bg"); set(v) = prefs.put("active_custom_bg", v)
     var drawerOpen: Boolean get() = bool("drawer_open", true); set(v) = prefs.putBoolean("drawer_open", v)
+    /** Dock na dole: domyślnie wysuwa się po najechaniu myszą; true = zawsze widoczny. */
+    var dockAlwaysVisible: Boolean get() = bool("dock_always", false); set(v) = prefs.putBoolean("dock_always", v)
 
     // Ogólne
     var startView: String get() = str("start_view", "today").ifBlank { "today" }; set(v) = prefs.put("start_view", v)

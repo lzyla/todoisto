@@ -18,15 +18,31 @@ import java.awt.image.BufferedImage
  * ikona okna, ikona w Docku i logo na ekranie startowym.
  */
 object AppIcon {
+    /**
+     * Ikona wg siatki Apple (Big Sur+): korpus 824/1024 na środku (margines ~9.8 %),
+     * promień narożnika ~22.5 % boku, miękki cień pod spodem i delikatny połysk u góry.
+     */
     fun image(size: Int, rounded: Boolean = true): BufferedImage {
         val img = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
         val g = img.createGraphics()
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE)
-        val pad = if (rounded) size * 0.04 else 0.0
+        val pad = if (rounded) size * (100.0 / 1024.0) else 0.0
         val s = size - 2 * pad
         val r = if (rounded) s * 0.225 else 0.0
+        if (rounded && size >= 64) {
+            // Cień: kilka rozmytych warstw przesuniętych w dół (jak w ikonach systemowych).
+            val layers = 14
+            for (i in layers downTo 1) {
+                val grow = i * size / 900.0
+                g.color = Color(0, 0, 0, (22.0 / layers * (1.0 - i.toDouble() / (layers + 2))).toInt().coerceAtLeast(1))
+                g.fill(RoundRectangle2D.Double(pad - grow, pad - grow + size * 0.012, s + 2 * grow, s + 2 * grow, r + grow, r + grow))
+            }
+        }
         g.paint = GradientPaint(pad.toFloat(), pad.toFloat(), Color(0xB558F6), (pad + s).toFloat(), (pad + s).toFloat(), Color(0x5B2BE0))
+        g.fill(RoundRectangle2D.Double(pad, pad, s, s, r, r))
+        // Połysk u góry
+        g.paint = GradientPaint(0f, pad.toFloat(), Color(255, 255, 255, 46), 0f, (pad + s * 0.55).toFloat(), Color(255, 255, 255, 0))
         g.fill(RoundRectangle2D.Double(pad, pad, s, s, r, r))
         val at = AffineTransform()
         at.translate(pad, pad); at.scale(s / 512.0, s / 512.0)
@@ -42,6 +58,9 @@ object AppIcon {
         g.dispose()
         return img
     }
+
+    /** Zapisuje PNG (do generowania .icns). */
+    fun writePng(size: Int, file: java.io.File) { javax.imageio.ImageIO.write(image(size), "png", file) }
 
     /** Sam biały znak (bez tła) — do splash screenu na gradientowym tle. */
     fun foreground(size: Int): BufferedImage {

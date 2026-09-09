@@ -117,6 +117,8 @@ private fun MainSettings(st: AppState, go: (Int) -> Unit) {
             SettingRow(Icons.Outlined.Wallpaper, Color(0xFF2DD4BF), "Tło", bgName, onClick = { go(2) }) { Chevron() }
             RowDivider()
             SettingRow(Icons.Outlined.ViewSidebar, Color(0xFF8AA0FF), "Menu boczne", if (st.drawerOpen) "Widoczne" else "Ukryte (☰ lub ⌘B)") { GlassToggle(st.drawerOpen) { st.setDrawer(it) } }
+            RowDivider()
+            SettingRow(Icons.Outlined.Dock, Color(0xFF2DD4BF), "Dock na dole zawsze widoczny", if (s.dockAlwaysVisible) "Zawsze" else "Wysuwa się po najechaniu myszą na dół okna") { GlassToggle(s.dockAlwaysVisible) { s.dockAlwaysVisible = it; st.settingsChanged() } }
         }
         Spacer(Modifier.height(22.dp))
 

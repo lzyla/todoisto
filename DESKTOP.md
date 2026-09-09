@@ -55,7 +55,7 @@ użytkowników, trzeba ją podpisać certyfikatem Apple Developer (osobny, opcjo
 |---|---|
 | Szuflada (☰) | **Menu boczne** po lewej — te same wiersze: Konto i ustawienia, Dzisiaj, Nadchodzące, Skrzynka, Ukończone, Pula aktywności, Statystyki, Szacowany czas na dziś, ★ Ulubione, Projekty (+), Etykiety (+), Aktywności (+), Archiwum, Cele produktywności. Chowasz/pokazujesz przyciskiem ☰ lub ⌘B. |
 | Pasek górny | Ten sam: ☰ · przełącznik **obszaru** („Wszystko" / obszary / + Nowy obszar) · ✦ **Asystent tygodnia** · ⋮ menu (Sortowanie, Skanuj kartkę, Czas wolny, Kopiuj plan dnia; w projekcie: ulubione, Dodaj sekcję, Duplikuj, Archiwizuj, Usuń; w etykiecie: ulubione, Usuń). |
-| Dock na dole | Ten sam: **Rutyny** (badge + pierścień postępu dnia) · **Dziś** · **Nadchodz.** · **Mikrofon**. |
+| Dock na dole | Ten sam: **Rutyny** (badge + pierścień postępu dnia) · **Dziś** · **Nadchodz.** · **Mikrofon**. Na Macu **wysuwa się po najechaniu myszą na dół okna** (jak Dock systemowy); w Ustawieniach można go przypiąć na stałe. |
 | FAB „+" | Ten sam — otwiera panel **Nowe zadanie** (parser języka naturalnego, chipy rozpoznanych tokenów, skróty, skan z pliku). ⌘N robi to samo. **Enter dodaje zadanie.** |
 | Przesunięcie kafelka (Ukończ / Na jutro) | Kółko = ukończ; ikona kalendarza = **Termin** (Dziś / Jutro / Następny weekend / kalendarz / Zapisz); kosz = usuń. Przy zaległych dodatkowo „Zmień termin → dziś" (jak w Todoist). |
 | Mikrofon (rozpoznawanie mowy) | Otwiera „Nowe zadanie" z kursorem w polu i podpowiedzią: **dyktowanie macOS** (dwa razy 🎤/fn) wpisuje tekst, Enter dodaje. |
@@ -143,7 +143,7 @@ Testy: `gradle :shared:test`.
 - ✅ Ustawienia / Konto / Statystyki 1:1 (motywy, tryb ciemny, tła, cele, klucze AI,
   chmura, Gmail, zużycie AI)
 - ✅ AI: Asystent tygodnia, karta AI w zadaniu, skan zdjęcia z pliku, szacunek czasu
-- ✅ Ikona aplikacji (okno, Dock, .app), splash, powiadomienia macOS, skróty ⌘
+- ✅ Ikona aplikacji wg siatki Apple (okno, Dock, .app), splash, powiadomienia macOS, skróty ⌘
 - Podpisanie `.dmg` certyfikatem Apple (opcjonalnie)
 
 ## Parytet z wersją Android — co jest, a czego nie

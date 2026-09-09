@@ -67,6 +67,8 @@ import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -337,20 +339,38 @@ private fun AreaMenuItem(name: String, dot: Color?, selected: Boolean, onClick: 
 }
 
 // ─── Dock na dole: Rutyny · Dziś · Nadchodz. · Mikrofon ─────────────────────
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun BoxScope.BottomDock(st: AppState) {
+    val g = LocalGlass.current
     val ui = remember(st.rev, st.view, st.activeArea) { st.buildUiState() }
-    Row(
-        Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp).glass(RoundedCornerShape(26.dp), strong = true, elevation = 16.dp).padding(horizontal = 6.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+    st.settingsRev
+    // Dock chowa się i wysuwa po najechaniu myszą na dół okna (jak Dock w macOS).
+    var hover by remember { mutableStateOf(false) }
+    var visible by remember { mutableStateOf(st.settings.dockAlwaysVisible) }
+    val pinned = st.settings.dockAlwaysVisible || st.routOpen
+    LaunchedEffect(hover, pinned) { if (hover || pinned) visible = true else { delay(500); visible = false } }
+    Box(
+        Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(if (visible) 104.dp else 26.dp)
+            .onPointerEvent(PointerEventType.Enter) { hover = true }
+            .onPointerEvent(PointerEventType.Exit) { hover = false },
+        contentAlignment = Alignment.BottomCenter
     ) {
-        val routIcon = if (ui.routines.isEmpty() && ui.routinesDone > 0) Icons.Outlined.CheckCircle else Icons.Outlined.Autorenew
-        val total = ui.doneToday + ui.todayCount
-        val frac = if (total > 0) ui.doneToday.toFloat() / total else 0f
-        DockItem(routIcon, "Rutyny", selected = st.routOpen, badge = ui.routines.size, ring = if (st.view == AppView.Today) frac else null) { st.routOpen = !st.routOpen }
-        DockItem(Icons.Outlined.CalendarToday, "Dziś", selected = st.view == AppView.Today) { st.showView(AppView.Today) }
-        DockItem(Icons.Outlined.DateRange, "Nadchodz.", selected = st.view == AppView.Upcoming) { st.showView(AppView.Upcoming) }
-        DockItem(Icons.Filled.Mic, "Mikrofon", selected = st.voiceHint) { st.voiceHint = true; st.quickAddOpen = true }
+        if (!visible) Box(Modifier.padding(bottom = 8.dp).width(44.dp).height(5.dp).clip(RoundedCornerShape(50)).background(g.textSecondary.copy(alpha = 0.35f)))
+        AnimatedVisibility(visible, enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()) {
+            Row(
+                Modifier.padding(bottom = 14.dp).glass(RoundedCornerShape(26.dp), strong = true, elevation = 16.dp).padding(horizontal = 6.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val routIcon = if (ui.routines.isEmpty() && ui.routinesDone > 0) Icons.Outlined.CheckCircle else Icons.Outlined.Autorenew
+                val total = ui.doneToday + ui.todayCount
+                val frac = if (total > 0) ui.doneToday.toFloat() / total else 0f
+                DockItem(routIcon, "Rutyny", selected = st.routOpen, badge = ui.routines.size, ring = if (st.view == AppView.Today) frac else null) { st.routOpen = !st.routOpen }
+                DockItem(Icons.Outlined.CalendarToday, "Dziś", selected = st.view == AppView.Today) { st.showView(AppView.Today) }
+                DockItem(Icons.Outlined.DateRange, "Nadchodz.", selected = st.view == AppView.Upcoming) { st.showView(AppView.Upcoming) }
+                DockItem(Icons.Filled.Mic, "Mikrofon", selected = st.voiceHint) { st.voiceHint = true; st.quickAddOpen = true }
+            }
+        }
     }
 }
 

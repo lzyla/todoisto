@@ -63,14 +63,14 @@ fun glassFor(themeId: String, dark: Boolean): Glass {
     return if (!dark) Glass(
         dark = false, palette = p, accent = p.accentLight, tint = p.tintLight,
         textPrimary = Color(0xFF241844), textSecondary = Color(0xFF6E5F93),
-        surface = Color.White.copy(alpha = 0.62f), surfaceStrong = Color.White.copy(alpha = 0.86f),
+        surface = Color.White.copy(alpha = 0.66f), surfaceStrong = Color(0xFFFBF9FF),
         hair = Color(0xFF241844).copy(alpha = 0.08f),
         bgTop = blend(Color(0xFFEDE6FA), p.tintLight, 0.35f), bgBottom = blend(Color(0xFFDCE4FB), p.tintLight, 0.2f),
         field = Color.White.copy(alpha = 0.75f)
     ) else Glass(
         dark = true, palette = p, accent = p.accentDark, tint = p.tintDark,
         textPrimary = Color(0xFFF1ECFF), textSecondary = Color(0xFFB4A9D6),
-        surface = Color.White.copy(alpha = 0.07f), surfaceStrong = Color(0xFF2A2340).copy(alpha = 0.92f),
+        surface = Color.White.copy(alpha = 0.08f), surfaceStrong = Color(0xFF2A2340),
         hair = Color.White.copy(alpha = 0.10f),
         bgTop = blend(Color(0xFF1B1530), p.tintDark, 0.25f), bgBottom = Color(0xFF120E22),
         field = Color.White.copy(alpha = 0.08f)
@@ -96,8 +96,10 @@ fun priorityColorRaw(p: String): Color = when (p) {
 @Composable
 fun Modifier.glass(shape: Shape = RoundedCornerShape(22.dp), strong: Boolean = false, elevation: Dp = 0.dp): Modifier {
     val g = LocalGlass.current
+    // Cień tylko pod nieprzezroczystymi („strong") powierzchniami — pod półprzezroczystym
+    // szkłem Skia rysuje go jako jasny prostokąt prześwitujący przez kafelek.
     return this
-        .then(if (elevation > 0.dp) Modifier.shadow(elevation, shape, ambientColor = g.accent.copy(alpha = 0.25f), spotColor = g.accent.copy(alpha = 0.25f)) else Modifier)
+        .then(if (elevation > 0.dp && strong) Modifier.shadow(elevation, shape, ambientColor = g.accent.copy(alpha = 0.25f), spotColor = g.accent.copy(alpha = 0.25f)) else Modifier)
         .clip(shape)
         .background(if (strong) g.surfaceStrong else g.surface)
         .border(1.dp, Color.White.copy(alpha = if (g.dark) 0.12f else 0.55f), shape)

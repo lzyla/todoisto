@@ -23,7 +23,7 @@ class RenderPreviewTest {
         home = File.createTempFile("todoisto-preview", "").apply { delete(); mkdirs() }
         System.setProperty("user.home", home.absolutePath)
         // Ustawienia żyją w java.util.prefs — wyzeruj to, co testy mogłyby zmienić.
-        AppSettings().apply { darkTheme = false; themeId = "violet"; activeCustomBg = ""; photoBackground = false; drawerOpen = true; activeArea = -1L }
+        AppSettings().apply { darkTheme = false; themeId = "violet"; activeCustomBg = ""; photoBackground = false; drawerOpen = true; activeArea = -1L; dockAlwaysVisible = false }
         seed()
     }
 
@@ -64,6 +64,7 @@ class RenderPreviewTest {
 
     @Test fun today() = render("today") { it.showView(AppView.Today) }
     @Test fun routinesOpen() = render("routines") { it.routOpen = true }
+    @Test fun dockPinned() = render("dock") { it.settings.dockAlwaysVisible = true; it.settingsChanged() }
     @Test fun upcomingDark() = render("upcoming_dark") { it.settings.darkTheme = true; it.settingsChanged(); it.showView(AppView.Upcoming) }
     @Test fun detail() = render("detail") { st -> st.openDetail(st.repo.tasks.first { it.title.startsWith("Przetłumaczyć") }.id) }
     @Test fun quickAdd() = render("quickadd") { it.quickAddOpen = true; it.quickAddText = "Raport jutro o 15:00 #Praca @pilne p1" }

@@ -148,7 +148,15 @@ fun App(holder: AppHolder, dragArea: @Composable (@Composable () -> Unit) -> Uni
         }
     }
     LaunchedEffect(st.dirty) { if (st.dirty > 0 && st.settings.autoSync && st.settings.signedIn) { delay(4000); st.runSync(auto = true) } }
-    LaunchedEffect(st.toast) { if (st.toast != null) { delay(3200); st.toast = null } }
+    LaunchedEffect(st.toast) { if (st.toast != null) { delay(st.toastMillis); st.toast = null; st.toastMillis = 3200 } }
+    // Po aktualizacji sesja chmury wymaga hasła — powiedz to wprost zamiast cicho nie synchronizować.
+    LaunchedEffect(Unit) {
+        delay(1500)
+        if (st.settings.configured && st.settings.email.isNotBlank() && st.settings.cloudPassword.isBlank()) {
+            st.toastMillis = 9000
+            st.toast = "Chmura: zaloguj się ponownie (menu boczne → Konto i ustawienia → Konto → Chmura), inaczej zadania nie polecą na telefon."
+        }
+    }
     LaunchedEffect(st.importResult) { st.importResult?.let { st.toast = it; st.importResult = null } }
     // Powiadomienia macOS o przypomnieniach (także z zadań ustawionych na telefonie).
     LaunchedEffect(Unit) {

@@ -122,6 +122,8 @@ class AppState(val repo: TaskRepository, val settings: AppSettings, val scope: C
     var dialog by mutableStateOf<DialogKind?>(null)
     var reschedTask by mutableStateOf<CloudTask?>(null)
     var toast by mutableStateOf<String?>(null)
+    var toastMillis by mutableStateOf(3200L)
+    private var autoSyncWarned = false
     var splashDone by mutableStateOf(false)
 
     // Stany asynchroniczne
@@ -382,6 +384,7 @@ class AppState(val repo: TaskRepository, val settings: AppSettings, val scope: C
             lastSyncAt = System.currentTimeMillis()
             syncing = false; rev++
             if (!auto || r.ok) toast = r.message
+            else if (!autoSyncWarned) { autoSyncWarned = true; toastMillis = 8000; toast = "Synchronizacja nie działa: ${r.message}" }
             if (!auto) cloud = if (r.ok) CloudState(message = r.message) else CloudState(error = r.message)
         }
     }

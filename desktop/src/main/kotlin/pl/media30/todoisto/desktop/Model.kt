@@ -403,7 +403,13 @@ class AppSettings {
     private fun bool(k: String, d: Boolean) = prefs.getBoolean(k, d)
 
     // Chmura (Supabase) + sesja
-    var url: String get() = str("url"); set(v) = prefs.put("url", v.trim())
+    var url: String
+        get() = str("url")
+        set(v) {
+            var u = v.trim().replace(" ", "").trimEnd('/')
+            if (u.isNotBlank() && !u.startsWith("http://") && !u.startsWith("https://")) u = "https://$u"
+            prefs.put("url", u)
+        }
     var anonKey: String get() = str("anonKey"); set(v) = prefs.put("anonKey", v.trim())
     var email: String get() = str("email"); set(v) = prefs.put("email", v.trim())
     /** Hasło do chmury — zapamiętane, żeby auto-sync działał po restarcie (jak sesja na telefonie). */

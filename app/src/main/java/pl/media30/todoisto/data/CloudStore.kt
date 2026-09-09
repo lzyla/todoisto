@@ -39,7 +39,9 @@ class CloudStore(context: Context) {
     val signedIn: Boolean get() = _accessToken.value.isNotBlank()
 
     fun setConfig(url: String, anonKey: String) {
-        val u = url.trim().trimEnd('/')
+        // Normalizacja: bez spacji, ze schematem https://, bez końcowego „/".
+        var u = url.trim().replace(" ", "").trimEnd('/')
+        if (u.isNotBlank() && !u.startsWith("http://") && !u.startsWith("https://")) u = "https://$u"
         val k = anonKey.trim()
         prefs.edit().putString(KEY_URL, u).putString(KEY_ANON, k).apply()
         _url.value = u; _anonKey.value = k

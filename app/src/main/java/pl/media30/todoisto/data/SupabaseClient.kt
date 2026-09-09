@@ -37,6 +37,9 @@ object SupabaseClient {
 
     private suspend fun auth(endpoint: String, anonKey: String, email: String, password: String, refreshToken: String? = null): AuthResult =
         withContext(Dispatchers.IO) {
+          // Każdy problem sieciowy (zły adres, brak internetu, SSL) → czytelny błąd,
+          // nigdy wyjątek, który wywaliłby aplikację.
+          try {
             val body = if (refreshToken != null) JSONObject().put("refresh_token", refreshToken).toString()
                        else JSONObject().put("email", email.trim()).put("password", password).toString()
             val conn = (URL(endpoint).openConnection() as HttpURLConnection).apply {
@@ -68,11 +71,23 @@ object SupabaseClient {
             } else {
                 AuthResult(token, uid.ifBlank { null }, mail, null, refresh, System.currentTimeMillis() + expiresIn * 1000)
             }
+          } catch (e: Exception) {
+            AuthResult(null, null, null, friendly(e))
+          }
         }
+
+    private fun friendly(e: Exception): String = when (e) {
+        is java.net.MalformedURLException -> "Zły adres projektu — wpisz pełny URL, np. https://xxxx.supabase.co"
+        is java.net.UnknownHostException -> "Nie znaleziono serwera — sprawdź adres projektu i internet."
+        is java.net.SocketTimeoutException -> "Serwer nie odpowiada — spróbuj ponownie."
+        is javax.net.ssl.SSLException -> "Problem z bezpiecznym połączeniem (SSL)."
+        else -> e.message ?: "Brak połączenia z Supabase."
+    }
 
     /** Wysyła kopię danych (upsert po user_id). Zwraca null przy sukcesie lub komunikat błędu. */
     suspend fun pushBackup(url: String, anonKey: String, token: String, userId: String, backupJson: String): String? =
         withContext(Dispatchers.IO) {
+          try {
             val row = JSONObject().put("user_id", userId).put("data", JSONObject(backupJson))
             val body = JSONArray().put(row).toString()
             val conn = (URL("$url/rest/v1/$TABLE?on_conflict=user_id").openConnection() as HttpURLConnection).apply {
@@ -87,11 +102,13 @@ object SupabaseClient {
             if (code in 200..299) return@withContext null
             val text = conn.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
             runCatching { JSONObject(text).optString("message").ifBlank { "Błąd $code" } }.getOrDefault("Błąd $code")
+          } catch (e: Exception) { friendly(e) }
         }
 
     /** Pobiera kopię danych (JSON) albo null gdy brak/błąd. */
     suspend fun pullBackup(url: String, anonKey: String, token: String, userId: String): String? =
         withContext(Dispatchers.IO) {
+          try {
             val conn = (URL("$url/rest/v1/$TABLE?user_id=eq.$userId&select=data").openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"; connectTimeout = 20000; readTimeout = 40000
                 setRequestProperty("apikey", anonKey)
@@ -103,5 +120,6 @@ object SupabaseClient {
             val arr = runCatching { JSONArray(text) }.getOrNull() ?: return@withContext null
             if (arr.length() == 0) return@withContext null
             arr.getJSONObject(0).optJSONObject("data")?.toString()
+          } catch (e: Exception) { null }
         }
 }

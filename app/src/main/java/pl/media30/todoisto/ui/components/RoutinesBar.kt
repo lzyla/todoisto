@@ -60,7 +60,8 @@ fun RoutinesPanel(
     doneCount: Int,
     onComplete: (Task) -> Unit,
     onCollapse: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onEdit: (() -> Unit)? = null
 ) {
     val total = routines.size + doneCount
     val allDone = routines.isEmpty()
@@ -90,6 +91,13 @@ fun RoutinesPanel(
                 color = GlassTextSecondary,
                 modifier = Modifier.weight(1f)
             )
+            if (onEdit != null) {
+                Text(
+                    "Edytuj", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassAccent,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).bouncy(0.93f, onClick = onEdit)
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                )
+            }
             Box(
                 Modifier.size(28.dp).clip(CircleShape).background(GlassTint.copy(alpha = 0.0f))
                     .bouncy(0.85f, onClick = onCollapse),

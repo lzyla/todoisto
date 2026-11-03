@@ -220,6 +220,7 @@ fun TaskListScreen(
     onMoveOverdueToToday: () -> Unit = {},
     onOpenActivityPool: () -> Unit = {},
     onFreeTime: () -> Unit = {},
+    onEditRoutines: () -> Unit = {},
     isPhotoBackground: Boolean = false,
     onTogglePhotoBackground: () -> Unit = {},
     activities: List<pl.media30.todoisto.data.Activity> = emptyList(),
@@ -254,6 +255,7 @@ fun TaskListScreen(
     var sortMenuOpen by remember { mutableStateOf(false) }
     var energySheet by remember { mutableStateOf(false) }
     var easeSheet by remember { mutableStateOf(false) }
+    var routSheet by remember { mutableStateOf(false) }
     var scanSheetOpen by remember { mutableStateOf(false) }
     var voiceOpen by remember { mutableStateOf(false) }
     var qaOpen by remember { mutableStateOf(false) }
@@ -326,6 +328,7 @@ fun TaskListScreen(
                 onToggleDark = onToggleTheme,
                 onOpenActivityPool = { onOpenActivityPool(); scope.launch { drawerState.close() } },
                 onFreeTime = { onFreeTime(); scope.launch { drawerState.close() } },
+                onEditRoutines = { routSheet = true; scope.launch { drawerState.close() } },
                 isPhotoBackground = isPhotoBackground,
                 onTogglePhotoBackground = onTogglePhotoBackground,
                 activities = activities,
@@ -467,6 +470,30 @@ fun TaskListScreen(
                         }
                     }
                 }
+                if (routSheet) {
+                    QAPickSheet("Moje rutyny", onDismiss = { routSheet = false }) {
+                        if (uiState.allRoutines.isEmpty()) {
+                            Text("Brak rutyn. Rutyna to zadanie z powtarzaniem, bez godziny, z priorytetem P3 lub P4.",
+                                fontSize = 13.sp, color = Color(0xFF6E6285), modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp))
+                        }
+                        uiState.allRoutines.forEach { t ->
+                            val every = when (t.recurrence) {
+                                pl.media30.todoisto.data.Recurrence.DAILY -> "codziennie"
+                                pl.media30.todoisto.data.Recurrence.WEEKLY -> "co tydzień"
+                                pl.media30.todoisto.data.Recurrence.MONTHLY -> "co miesiąc"
+                                pl.media30.todoisto.data.Recurrence.YEARLY -> "co rok"
+                                else -> ""
+                            }
+                            QAPickRow(
+                                label = t.title + " · " + every, selected = false,
+                                onClick = { routSheet = false; onTaskClick(t) },
+                                icon = { Icon(Icons.Outlined.Autorenew, null, tint = Color(0xFF6B3FE0), modifier = Modifier.size(20.dp)) }
+                            )
+                        }
+                        Text("Dotknij rutyny, żeby zmienić nazwę, powtarzanie lub priorytet. Nowa rutyna: dodaj zadanie z powtarzaniem, bez godziny, z priorytetem P3/P4.",
+                            fontSize = 12.sp, color = Color(0xFF6E6285), modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp))
+                    }
+                }
                 if (easeSheet) {
                     QAPickSheet("Ułatw z AI — które zadanie?", onDismiss = { easeSheet = false }) {
                         uiState.heavyTasks.forEach { t ->
@@ -515,7 +542,8 @@ fun TaskListScreen(
                         routines = uiState.routines,
                         doneCount = uiState.routinesDone,
                         onComplete = onToggle,
-                        onCollapse = { routOpen = false }
+                        onCollapse = { routOpen = false },
+                        onEdit = { routSheet = true }
                     )
                 }
             }
@@ -2148,6 +2176,7 @@ private fun DrawerContent(
     onToggleDark: () -> Unit,
     onOpenActivityPool: () -> Unit,
     onFreeTime: () -> Unit = {},
+    onEditRoutines: () -> Unit = {},
     isPhotoBackground: Boolean,
     onTogglePhotoBackground: () -> Unit,
     activities: List<pl.media30.todoisto.data.Activity>,
@@ -2200,6 +2229,7 @@ private fun DrawerContent(
             DrawerRow(Icons.Outlined.Inbox, "Skrzynka", uiState.inboxCount, current == AppView.Inbox) { onSelect(AppView.Inbox) }
             DrawerRow(Icons.Outlined.CheckCircle, "Ukończone", null, current == AppView.Completed) { onSelect(AppView.Completed) }
             DrawerRow(Icons.Outlined.Bolt, "Czas wolny — co teraz?", null, false, onFreeTime)
+            DrawerRow(Icons.Outlined.Autorenew, "Rutyny — edycja", null, false, onEditRoutines)
             DrawerRow(Icons.Outlined.Bolt, "Pula aktywności", null, false, onOpenActivityPool)
             DrawerRow(Icons.Outlined.Insights, "Statystyki", null, false, onOpenStats)
 

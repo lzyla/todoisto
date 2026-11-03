@@ -117,6 +117,8 @@ data class TodoUiState(
     val currentLabel: Label? = null,
     /** Habit-style tasks for the Today routines bar (recurring, P3/P4, no fixed time). */
     val routines: List<Task> = emptyList(),
+    /** Wszystkie rutyny (niezależnie od terminu) — do ekranu edycji. */
+    val allRoutines: List<Task> = emptyList(),
     /** Routines already completed today (their due date has advanced). */
     val routinesDone: Int = 0,
     /** Szacowany czas potrzebny na dokończenie dzisiejszych zadań (suma durationMinutes; brak = 20 min). */
@@ -860,6 +862,10 @@ class TodoViewModel(
                 .sortedBy { it.title.lowercase() }
         } else emptyList()
 
+        val allRoutines = topLevel
+            .filter { !it.isCompleted && !inArchived(it) && isRoutine(it) }
+            .sortedBy { it.title.lowercase() }
+
         return TodoUiState(
             view = view,
             title = title,
@@ -875,6 +881,7 @@ class TodoViewModel(
             currentProject = (view as? AppView.ProjectView)?.let { v -> src.projects.firstOrNull { it.id == v.id } },
             currentLabel = (view as? AppView.LabelView)?.let { v -> src.labels.firstOrNull { it.id == v.id } },
             routines = routines,
+            allRoutines = allRoutines,
             routinesDone = routinesDone,
             estTodayMinutes = topLevel
                 .filter { !it.isCompleted && it.dueDate != null && it.dueDate <= today && !inArchived(it) && !isRoutine(it) }

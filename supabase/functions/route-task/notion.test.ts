@@ -1,7 +1,7 @@
 // Testy logiki przekazania (bez sieci). Uruchom: node --test supabase/functions/route-task/notion.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildChildren, buildProperties, NotionClient, notionDate, parseDatabaseId, routeToNotion, RouteError, NOTION_VERSION, type Destination, type Schema } from "./notion.ts";
+import { resolveStatus, buildChildren, buildProperties, NotionClient, notionDate, parseDatabaseId, routeToNotion, RouteError, NOTION_VERSION, type Destination, type Schema } from "./notion.ts";
 
 const dest: Destination = {
   id: "d1", notion_database_id: "0123456789abcdef0123456789abcdef",
@@ -89,4 +89,42 @@ test("429/5xx ponawialne, 404 nie (z podpowiedzią o udostępnieniu bazy)", asyn
   }
   const { client } = fakeNotion({ status: 404 });
   await assert.rejects(routeToNotion(client, dest, { id: "7", title: "x" }), /Connections/);
+});
+
+// Realny schemat kanbanu „Vocative do ogarnięcia moje” (stan z 3.11.2026).
+const vocative: Schema = {
+  "Feature": { type: "title" },
+  "Priority": { type: "select", select: { options: [{ name: "High" }, { name: "Medium" }, { name: "Low" }] } },
+  "Sprint": { type: "select", select: { options: [{ name: "Sprint 1" }, { name: "Sprint 2" }] } },
+  "Status": { type: "status", status: {
+    options: [{ id: "a", name: "To Do" }, { id: "b", name: "In Progress" }, { id: "c", name: "In Review" }, { id: "d", name: "Done" }],
+    groups: [{ name: "To-do", option_ids: ["a"] }, { name: "In progress", option_ids: ["b", "c"] }, { name: "Complete", option_ids: ["d"] }],
+  } },
+  "Summary": { type: "rich_text" },
+  "Target Date": { type: "date" },
+  "Text": { type: "rich_text" },
+  "Todoisto ID": { type: "rich_text" },
+};
+
+test("Vocative: domyślne „To do” trafia do kolumny „To Do”, termin do Target Date, P1 → High", () => {
+  const p: any = buildProperties(vocative, { id: "9", title: "Demo dla klienta", dueDate: 20760, priority: "P1" }, dest);
+  assert.equal(p["Feature"].title[0].text.content, "Demo dla klienta");
+  assert.deepEqual(p["Status"], { status: { name: "To Do" } });
+  assert.deepEqual(p["Target Date"], { date: { start: "2026-11-03" } });
+  assert.deepEqual(p["Priority"], { select: { name: "High" } });
+  assert.equal(p["Sprint"], undefined, "sprint zostaje pusty");
+});
+
+test("priorytety: P2 → Medium, P3 → Low, P4 → pusto", () => {
+  const pr = (priority: string) => (buildProperties(vocative, { id: "9", title: "x", priority }, dest) as any)["Priority"];
+  assert.deepEqual(pr("P2"), { select: { name: "Medium" } });
+  assert.deepEqual(pr("P3"), { select: { name: "Low" } });
+  assert.equal(pr("P4"), undefined);
+});
+
+test("status: dopasowanie bez wielkości liter i z grupy To-do", () => {
+  assert.equal(resolveStatus(vocative["Status"], "to do"), "To Do");
+  assert.equal(resolveStatus(vocative["Status"], "In review"), "In Review");
+  assert.equal(resolveStatus({ ...vocative["Status"], status: { ...vocative["Status"].status!, options: [{ id: "a", name: "Backlog" }] } }, "To do"), "Backlog");
+  assert.equal(resolveStatus(vocative["Status"], "Zrobione"), null);
 });

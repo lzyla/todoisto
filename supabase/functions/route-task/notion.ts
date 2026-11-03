@@ -23,7 +23,12 @@ export type Destination = {
   id_property: string;
 };
 
-type PropSchema = { id?: string; name?: string; type: string; status?: { options?: { name: string }[] }; select?: { options?: { name: string }[] } };
+type Opt = { id?: string; name: string };
+type PropSchema = {
+  id?: string; name?: string; type: string;
+  status?: { options?: Opt[]; groups?: { name: string; option_ids?: string[] }[] };
+  select?: { options?: Opt[] };
+};
 export type Schema = Record<string, PropSchema>;
 
 export class RouteError extends Error {
@@ -57,6 +62,25 @@ function findProp(schema: Schema, type: string | string[], preferred: string | n
   return candidates.find((n) => nameHints.test(n)) ?? candidates[0] ?? null;
 }
 
+/**
+ * Wartość statusu: dokładna nazwa → ta sama bez względu na wielkość liter („To do” = „To Do”)
+ * → (tylko dla typu status) pierwsza opcja z grupy „To-do”, gdy ustawiono domyślne „To do”.
+ * Null = brak pasującej wartości (błąd konfiguracji).
+ */
+export function resolveStatus(p: PropSchema, wanted: string): string | null {
+  const options = (p.type === "status" ? p.status?.options : p.select?.options) ?? [];
+  if (!options.length) return wanted; // brak listy opcji w schemacie — zostaw decyzję Notion
+  const exact = options.find((o) => o.name === wanted) ?? options.find((o) => o.name.toLowerCase() === wanted.trim().toLowerCase());
+  if (exact) return exact.name;
+  if (p.type === "status" && /^to.?do$/i.test(wanted.trim())) {
+    const group = p.status?.groups?.find((g) => /^to.?do$/i.test(g.name));
+    const first = group?.option_ids?.[0];
+    const opt = options.find((o) => o.id === first);
+    if (opt) return opt.name;
+  }
+  return null;
+}
+
 /** Buduje `properties` nowej strony na podstawie schematu bazy (data source). */
 export function buildProperties(schema: Schema, task: TaskIn, dest: Destination): Record<string, unknown> {
   const titleProp = Object.entries(schema).find(([, p]) => p.type === "title")?.[0];
@@ -74,11 +98,22 @@ export function buildProperties(schema: Schema, task: TaskIn, dest: Destination)
   const statusProp = findProp(schema, ["status", "select"], dest.status_property, /status|stan|etap/i);
   if (statusProp) {
     const p = schema[statusProp];
-    const options = (p.type === "status" ? p.status?.options : p.select?.options) ?? [];
-    if (options.length && !options.some((o) => o.name === dest.status_value)) {
+    const value = resolveStatus(p, dest.status_value);
+    if (value == null) {
+      const options = (p.type === "status" ? p.status?.options : p.select?.options) ?? [];
       throw new RouteError(`Kolumna „${statusProp}” nie ma wartości „${dest.status_value}”. Dostępne: ${options.map((o) => o.name).join(", ")}.`, false);
     }
-    props[statusProp] = p.type === "status" ? { status: { name: dest.status_value } } : { select: { name: dest.status_value } };
+    props[statusProp] = p.type === "status" ? { status: { name: value } } : { select: { name: value } };
+  }
+
+  // Priorytet (opcjonalnie): kolumna select o nazwie „Priority/Priorytet”, opcje od najwyższej.
+  // P1→1. opcja, P2→2., P3→3.; P4 (domyślny „brak priorytetu” w Todoisto) → pusto.
+  const prioProp = Object.entries(schema).find(([n, q]) => q.type === "select" && n !== statusProp && /prior/i.test(n))?.[0];
+  const ranks: Record<string, number> = { P1: 0, P2: 1, P3: 2 };
+  const rank: number | undefined = ranks[task.priority ?? "P4"];
+  const prioOptions = prioProp ? schema[prioProp].select?.options ?? [] : [];
+  if (prioProp && rank !== undefined && prioOptions.length >= 2) {
+    props[prioProp] = { select: { name: prioOptions[Math.min(rank, prioOptions.length - 1)].name } };
   }
 
   // Kolumnę daty rozwiązujemy zawsze — błędna konfiguracja ma wyjść od razu, nie dopiero przy zadaniu z terminem.

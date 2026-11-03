@@ -25,12 +25,11 @@ const SCOPES = ["sleep", "health_metrics_and_measurements", "activity_and_fitnes
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+// Supabase wymusza text/plain dla odpowiedzi funkcji (HTML nie jest renderowany) — zwracamy czysty tekst z UTF-8.
 const html = (msg: string, ok: boolean) =>
   new Response(
-    `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
-      `<body style="font-family:sans-serif;text-align:center;padding:3rem 1.5rem"><h2>${ok ? "✅" : "⚠️"} ${msg}</h2>` +
-      `<p>${ok ? "Możesz zamknąć tę kartę i wrócić do Todoisto." : "Wróć do Todoisto i spróbuj ponownie."}</p>`,
-    { status: ok ? 200 : 400, headers: { "Content-Type": "text/html; charset=utf-8" } },
+    `${ok ? "OK" : "BŁĄD"}: ${msg}\n\n${ok ? "Możesz zamknąć tę kartę i wrócić do Todoisto." : "Wróć do Todoisto i spróbuj ponownie."}\n`,
+    { status: ok ? 200 : 400, headers: { "Content-Type": "text/plain; charset=utf-8" } },
   );
 
 // ---- stan OAuth: podpisany (HMAC), żeby callback wiedział, czyj to token ----

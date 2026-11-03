@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BatterySaver
+import androidx.compose.material.icons.outlined.Bedtime
+import androidx.compose.material.icons.outlined.Favorite
+import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.History
@@ -340,12 +343,14 @@ internal fun HealthSettings() {
     if (connected && s != null) {
         SettingsSection("Ostatnie dane")
         SettingsCard {
-            fun v(k: String, unit: String, div: Double = 1.0) = if (s.isNull(k) || !s.has(k)) "brak" else "%.0f%s".format(s.getDouble(k) / div, unit)
-            NavRow(Icons.Outlined.Schedule, GlassTextSecondary, "Sen (ostatnia noc)", "${v("sleepMinutes", " h", 60.0)}  ·  typowo ${v("sleepBaselineMinutes", " h", 60.0)}") {}
+            fun num(k: String) = if (s.isNull(k) || !s.has(k)) null else s.getDouble(k)
+            fun hm(k: String) = num(k)?.let { m -> "${(m / 60).toInt()} h ${(m % 60).toInt()} min" } ?: "brak"
+            fun n0(k: String) = num(k)?.let { "%.0f".format(it) } ?: "brak"
+            NavRow(Icons.Outlined.Bedtime, Color(0xFF8AA0FF), "Sen (ostatnia noc)", "${hm("sleepMinutes")}  ·  typowo ${hm("sleepBaselineMinutes")}") {}
             RowDivider()
-            NavRow(Icons.Outlined.Schedule, GlassTextSecondary, "Tętno spoczynkowe", "${v("restingHr", "")}  ·  typowo ${v("restingHrBaseline", "")}") {}
+            NavRow(Icons.Outlined.Favorite, Color(0xFFFB7185), "Tętno spoczynkowe", "${n0("restingHr")} /min  ·  typowo ${n0("restingHrBaseline")}") {}
             RowDivider()
-            NavRow(Icons.Outlined.Schedule, GlassTextSecondary, "HRV (ms)", "${v("hrv", "")}  ·  typowo ${v("hrvBaseline", "")}") {}
+            NavRow(Icons.Outlined.ShowChart, Color(0xFF34D399), "HRV", "${n0("hrv")} ms  ·  typowo ${n0("hrvBaseline")}") {}
         }
     }
     Hint(

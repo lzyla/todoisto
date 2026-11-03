@@ -252,6 +252,7 @@ fun TaskListScreen(
     val scope = rememberCoroutineScope()
     var menuOpen by remember { mutableStateOf(false) }
     var sortMenuOpen by remember { mutableStateOf(false) }
+    var energySheet by remember { mutableStateOf(false) }
     var scanSheetOpen by remember { mutableStateOf(false) }
     var voiceOpen by remember { mutableStateOf(false) }
     var qaOpen by remember { mutableStateOf(false) }
@@ -391,6 +392,12 @@ fun TaskListScreen(
                 }
                 AreaSwitcher(areas, activeAreaId, onSelectArea) { dialog = DialogKind.NewArea }
                 Spacer(Modifier.weight(1f))
+                // Buźka energii dnia (tylko w „Dziś") — dotknięcie otwiera wybór poziomu.
+                uiState.energyLevel?.let { lvl ->
+                    CircleGlassButton({ energySheet = true }) {
+                        Text(lvl.emoji, fontSize = 18.sp)
+                    }
+                }
                 // Tydzień (asystent AI) — kółko
                 CircleGlassButton({ briefOpen = !briefOpen }) {
                     Icon(Icons.Outlined.AutoAwesome, "Podsumowanie tygodnia", tint = GlassAccent, modifier = Modifier.size(18.dp))
@@ -417,6 +424,24 @@ fun TaskListScreen(
                             GlassMenuItem(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych", Icons.Filled.Star) { menuOpen = false; onToggleLabelFavorite(label.id) }
                             GlassMenuItem("Usuń etykietę", Icons.Outlined.Delete, danger = true) { menuOpen = false; onDeleteLabel(label.id) }
                         }
+                    }
+                }
+                if (energySheet) {
+                    QAPickSheet("Jak dziś z energią?", onDismiss = { energySheet = false }) {
+                        pl.media30.todoisto.data.EnergyLevel.entries.forEach { e ->
+                            QAPickRow(
+                                label = e.label, selected = uiState.energyManual && uiState.energyLevel == e,
+                                onClick = { onSetEnergy(e); energySheet = false },
+                                icon = { Text(e.emoji, fontSize = 20.sp) }
+                            )
+                        }
+                        if (uiState.energyManual) QAPickRow(
+                            label = "Wg danych (sen, tętno, wczoraj)", selected = false,
+                            onClick = { onSetEnergy(null); energySheet = false },
+                            icon = { Icon(Icons.Outlined.Autorenew, null, tint = Color(0xFF6B3FE0), modifier = Modifier.size(20.dp)) }
+                        )
+                        if (uiState.energyReasons.isNotEmpty() && !uiState.energyManual)
+                            Text("Szacuję: " + uiState.energyReasons.joinToString(", "), fontSize = 12.sp, color = Color(0xFF6E6285), modifier = Modifier.padding(start = 6.dp, top = 8.dp))
                     }
                 }
                 if (sortMenuOpen) {
@@ -1658,9 +1683,9 @@ private fun EnergyBanner(uiState: TodoUiState, onSet: (pl.media30.todoisto.data.
         }
     }
     val hint = when (level) {
-        pl.media30.todoisto.data.EnergyLevel.LOW -> "Słabsza forma — lekkie zadania wyżej"
-        pl.media30.todoisto.data.EnergyLevel.HIGH -> "Dobra forma — trudne zadania wyżej"
-        else -> "Kolejność bez zmian"
+        pl.media30.todoisto.data.EnergyLevel.LOW -> "lekkie zadania wyżej"
+        pl.media30.todoisto.data.EnergyLevel.HIGH -> "trudne zadania wyżej"
+        else -> "kolejność bez zmian"
     }
     Column(
         Modifier.fillMaxWidth().padding(vertical = 6.dp).glass(RoundedCornerShape(20.dp)).padding(horizontal = 14.dp, vertical = 11.dp)
@@ -1683,8 +1708,6 @@ private fun EnergyBanner(uiState: TodoUiState, onSet: (pl.media30.todoisto.data.
         } else {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(level.emoji + " " + level.label + " — " + hint, fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = GlassTextPrimary, modifier = Modifier.weight(1f))
-                Text("zmień", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassAccent,
-                    modifier = Modifier.clip(RoundedCornerShape(50)).bouncy(0.93f) { onSet(null) }.padding(horizontal = 10.dp, vertical = 4.dp))
             }
         }
         if (level == pl.media30.todoisto.data.EnergyLevel.LOW && uiState.heavyTasks.isNotEmpty()) {

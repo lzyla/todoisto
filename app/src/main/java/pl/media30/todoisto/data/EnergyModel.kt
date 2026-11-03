@@ -2,7 +2,7 @@ package pl.media30.todoisto.data
 
 /** Trzy poziomy energii do pracy — celowo grube: dokładność liczby i tak byłaby pozorna. */
 enum class EnergyLevel(val label: String, val emoji: String) {
-    LOW("Słabo", "😴"), MED("Średnio", "😐"), HIGH("Dobrze", "💪")
+    LOW("Na luzie", "😌"), MED("Przyzwoicie", "🙂"), HIGH("Zdziałasz dużo", "😄")
 }
 
 /**

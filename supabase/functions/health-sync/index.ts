@@ -148,7 +148,11 @@ Deno.serve(async (req) => {
       const code = url.searchParams.get("code");
       if (!userId || !code) return html("Nieprawidłowy lub wygasły link logowania.", false);
       const t = await tokenRequest({ code, grant_type: "authorization_code", redirect_uri: REDIRECT });
-      if (!t.ok || !t.body.refresh_token) return html("Google nie zwróciło tokenu odświeżania.", false);
+      if (!t.ok || !t.body.refresh_token) {
+        // Tylko kod błędu Google (bez sekretów) — żeby dało się zdiagnozować np. invalid_client.
+        console.error("token exchange failed", t.status, t.body?.error, t.body?.error_description);
+        return html(`Google nie zwróciło tokenu: ${t.body?.error ?? t.status}${t.body?.error_description ? " — " + t.body.error_description : ""}`, false);
+      }
       await saveToken(userId, t.body.refresh_token, t.body.scope ?? "");
       return html("Połączono z Google Health.", true);
     }

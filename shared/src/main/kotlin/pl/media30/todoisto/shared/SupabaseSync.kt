@@ -77,7 +77,43 @@ object SupabaseSync {
         }
     }
 
-    /** Pobiera blob migawki (JSON) albo null gdy brak/błąd. */
+    /**
+     * Wynik pobrania migawki. Rozróżnia „w chmurze nic nie ma" od „nie udało się
+     * pobrać" — przy błędzie sync NIE MOŻE wysłać lokalnej kopii, bo nadpisałby
+     * zmiany z innego urządzenia, których jeszcze nie scalił.
+     */
+    sealed class PullResult {
+        data class Found(val json: String) : PullResult()
+        data object Empty : PullResult()
+        data class Failed(val message: String) : PullResult()
+    }
+
+    fun pullResult(url: String, anonKey: String, token: String, userId: String): PullResult {
+        return try {
+            val conn = (URL("$url/rest/v1/$TABLE?user_id=eq.$userId&select=data").openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"; connectTimeout = 20000; readTimeout = 40000
+                setRequestProperty("apikey", anonKey)
+                setRequestProperty("Authorization", "Bearer $token")
+            }
+            val code = conn.responseCode
+            val text = (if (code in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
+            parsePullResponse(code, text)
+        } catch (e: Exception) {
+            PullResult.Failed(e.message ?: "Brak połączenia z Supabase.")
+        }
+    }
+
+    /** Wydzielone, żeby dało się przetestować bez sieci. */
+    fun parsePullResponse(code: Int, text: String): PullResult {
+        if (code !in 200..299) return PullResult.Failed("Błąd pobierania z chmury ($code).")
+        val arr = runCatching { JSONArray(text) }.getOrNull() ?: return PullResult.Failed("Nieczytelna odpowiedź chmury.")
+        if (arr.length() == 0) return PullResult.Empty
+        val data = arr.getJSONObject(0).optJSONObject("data") ?: return PullResult.Failed("Kopia w chmurze nie ma danych.")
+        return PullResult.Found(data.toString())
+    }
+
+    /** Pobiera blob migawki (JSON) albo null gdy brak/błąd. Do miejsc, gdzie rozróżnienie nie ma znaczenia. */
+    @Deprecated("Użyj pullResult — null nie odróżnia braku kopii od błędu sieci.")
     fun pull(url: String, anonKey: String, token: String, userId: String): String? {
         return try {
             val conn = (URL("$url/rest/v1/$TABLE?user_id=eq.$userId&select=data").openConnection() as HttpURLConnection).apply {

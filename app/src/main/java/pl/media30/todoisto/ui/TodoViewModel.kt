@@ -381,9 +381,13 @@ class TodoViewModel(
         _cloud.value = cloudSnapshot(busy = true)
         viewModelScope.launch {
             val token = freshToken(c) ?: run { _cloud.value = cloudSnapshot(error = SESSION_EXPIRED); return@launch }
-            val json = pl.media30.todoisto.data.SupabaseClient.pullBackup(c.url0, c.anonKey0, token, c.userId)
-            if (json == null) { _cloud.value = cloudSnapshot(error = "Brak kopii w chmurze albo błąd pobierania."); return@launch }
-            val count = runCatching { repository.importBackupJson(json) }.getOrDefault(0)
+            val json = when (val r = pl.media30.todoisto.data.SupabaseClient.pullBackupResult(c.url0, c.anonKey0, token, c.userId)) {
+                is pl.media30.todoisto.shared.SupabaseSync.PullResult.Found -> r.json
+                pl.media30.todoisto.shared.SupabaseSync.PullResult.Empty -> { _cloud.value = cloudSnapshot(error = "W chmurze nie ma jeszcze kopii."); return@launch }
+                is pl.media30.todoisto.shared.SupabaseSync.PullResult.Failed -> { _cloud.value = cloudSnapshot(error = r.message); return@launch }
+            }
+            val count = runCatching { repository.importBackupJson(json) }
+                .getOrElse { _cloud.value = cloudSnapshot(error = "Nie udało się odczytać kopii z chmury: ${it.message}"); return@launch }
             _cloud.value = cloudSnapshot(message = "Pobrano z chmury ($count zadań).")
         }
     }
@@ -398,8 +402,23 @@ class TodoViewModel(
             try {
                 val token = freshToken(c)
                 if (token == null) { if (!silent) _cloud.value = cloudSnapshot(error = SESSION_EXPIRED); return@launch }
-                val remote = pl.media30.todoisto.data.SupabaseClient.pullBackup(c.url0, c.anonKey0, token, c.userId)
-                if (remote != null) runCatching { repository.importBackupJson(remote) }
+                // Wysyłamy TYLKO po udanym scaleniu (albo gdy w chmurze nic nie ma).
+                // Błąd sieci / nieczytelna kopia = przerwij, inaczej lokalna migawka
+                // nadpisałaby zmiany z innego urządzenia, których jeszcze nie mamy.
+                when (val r = pl.media30.todoisto.data.SupabaseClient.pullBackupResult(c.url0, c.anonKey0, token, c.userId)) {
+                    is pl.media30.todoisto.shared.SupabaseSync.PullResult.Found -> {
+                        val ok = runCatching { repository.importBackupJson(r.json) }
+                        if (ok.isFailure) {
+                            if (!silent) _cloud.value = cloudSnapshot(error = "Kopia w chmurze jest nieczytelna — nic nie wysłano (${ok.exceptionOrNull()?.message}).")
+                            return@launch
+                        }
+                    }
+                    pl.media30.todoisto.shared.SupabaseSync.PullResult.Empty -> Unit
+                    is pl.media30.todoisto.shared.SupabaseSync.PullResult.Failed -> {
+                        if (!silent) _cloud.value = cloudSnapshot(error = "Nie pobrano z chmury — nic nie wysłano. ${r.message}")
+                        return@launch
+                    }
+                }
                 val json = repository.exportBackupJson()
                 val err = pl.media30.todoisto.data.SupabaseClient.pushBackup(c.url0, c.anonKey0, token, c.userId, json)
                 if (!silent) _cloud.value = if (err == null) cloudSnapshot(message = "Zsynchronizowano z chmurą.")

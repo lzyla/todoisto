@@ -39,7 +39,9 @@ data class CloudTask(
      * ślad, żeby usunięcie propagowało się przy synchronizacji (a nie wracało
      * z drugiego urządzenia). Pole dodatkowe, zgodne wstecz.
      */
-    val deleted: Boolean = false
+    val deleted: Boolean = false,
+    /** Link do kopii zadania w narzędziu docelowym (np. strona w Notion), gdy zostało przekazane. */
+    val remoteUrl: String? = null
 )
 
 data class CloudProject(
@@ -50,14 +52,16 @@ data class CloudProject(
     val isFavorite: Boolean = false,
     val isArchived: Boolean = false,
     val workEffortType: String? = null,
-    val areaId: Long? = null
+    val areaId: Long? = null,
+    val updatedAt: Long = 0L
 )
 
 data class CloudLabel(
     val id: Long,
     val name: String,
     val colorArgb: Long = 0xFF4D6BFFL,
-    val isFavorite: Boolean = false
+    val isFavorite: Boolean = false,
+    val updatedAt: Long = 0L
 )
 
 /** Obszar (np. Praca / Dom) — grupuje projekty i zadania bez projektu. */
@@ -65,7 +69,8 @@ data class CloudArea(
     val id: Long,
     val name: String,
     val colorArgb: Long = 0xFF9B6BFFL,
-    val position: Int = 0
+    val position: Int = 0,
+    val updatedAt: Long = 0L
 )
 
 /** Sekcja w projekcie (jak w Todoist). */
@@ -73,7 +78,8 @@ data class CloudSection(
     val id: Long,
     val projectId: Long,
     val name: String,
-    val position: Int = 0
+    val position: Int = 0,
+    val updatedAt: Long = 0L
 )
 
 /** Aktywność z „Puli aktywności" (pomysły na wolny czas). Enumy jako String. */
@@ -91,8 +97,28 @@ data class CloudActivity(
     val isActive: Boolean = true,
     val lastScheduledAt: Long? = null,
     val lastCompletedAt: Long? = null,
-    val createdAt: Long = 0L
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L
 )
+
+/**
+ * Nagrobek dla rekordów innych niż zadania (zadania mają własne pole `deleted`).
+ * Usunięcie projektu/etykiety/sekcji/obszaru/aktywności na jednym urządzeniu
+ * musi wygrać z kopią, która wciąż leży na drugim — inaczej rekord „wraca".
+ */
+data class CloudTombstone(
+    val kind: String,
+    val id: Long,
+    val deletedAt: Long
+) {
+    companion object {
+        const val PROJECT = "project"
+        const val LABEL = "label"
+        const val SECTION = "section"
+        const val AREA = "area"
+        const val ACTIVITY = "activity"
+    }
+}
 
 /**
  * Migawka danych użytkownika (to, co ląduje w chmurze jako jeden blob).
@@ -105,5 +131,6 @@ data class CloudSnapshot(
     val labels: List<CloudLabel> = emptyList(),
     val areas: List<CloudArea> = emptyList(),
     val sections: List<CloudSection> = emptyList(),
-    val activities: List<CloudActivity> = emptyList()
+    val activities: List<CloudActivity> = emptyList(),
+    val tombstones: List<CloudTombstone> = emptyList()
 )

@@ -106,6 +106,23 @@ object SupabaseClient {
         }
 
     /** Pobiera kopię danych (JSON) albo null gdy brak/błąd. */
+    /** Jak [pullBackup], ale odróżnia „brak kopii" od błędu — sync przy błędzie nie wysyła. */
+    suspend fun pullBackupResult(url: String, anonKey: String, token: String, userId: String): pl.media30.todoisto.shared.SupabaseSync.PullResult =
+        withContext(Dispatchers.IO) {
+            try {
+                val conn = (URL("$url/rest/v1/$TABLE?user_id=eq.$userId&select=data").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"; connectTimeout = 20000; readTimeout = 40000
+                    setRequestProperty("apikey", anonKey)
+                    setRequestProperty("Authorization", "Bearer $token")
+                }
+                val code = conn.responseCode
+                val text = (if (code in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
+                pl.media30.todoisto.shared.SupabaseSync.parsePullResponse(code, text)
+            } catch (e: Exception) {
+                pl.media30.todoisto.shared.SupabaseSync.PullResult.Failed(e.message ?: "Brak połączenia z Supabase.")
+            }
+        }
+
     suspend fun pullBackup(url: String, anonKey: String, token: String, userId: String): String? =
         withContext(Dispatchers.IO) {
           try {

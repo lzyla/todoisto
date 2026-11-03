@@ -2,6 +2,8 @@ package pl.media30.todoisto.data
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import pl.media30.todoisto.shared.CloudTombstone
+import pl.media30.todoisto.shared.SnapshotMerge
 
 class TaskRepository(
     private val taskDao: TaskDao,
@@ -9,8 +11,22 @@ class TaskRepository(
     private val sectionDao: SectionDao,
     private val labelDao: LabelDao,
     private val activityDao: ActivityDao,
-    private val areaDao: AreaDao
+    private val areaDao: AreaDao,
+    private val tombstoneDao: TombstoneDao
 ) {
+    /**
+     * Hak przekazywania zadań do narzędzia projektu (Notion): zwraca true, gdy
+     * zadanie powinno trafić do kolejki. Ustawiany przez aplikację (TaskRouter).
+     */
+    @Volatile var routingPolicy: (Task) -> Boolean = { false }
+    /** Wywoływane, gdy w kolejce pojawiły się nowe zadania do przekazania. */
+    @Volatile var onRoutingQueued: () -> Unit = {}
+    /** Wywoływane po wczytaniu danych z innego urządzenia (np. odtworzenie alarmów). */
+    @Volatile var onImported: () -> Unit = {}
+
+    private fun withRouting(task: Task): Task =
+        if (task.remoteUrl == null && task.routeState == null && !task.deleted && routingPolicy(task))
+            task.copy(routeState = "pending") else task
 
     val allTasks: Flow<List<Task>> = taskDao.getAllTasks()
     val allProjects: Flow<List<Project>> = projectDao.getAll()
@@ -24,43 +40,83 @@ class TaskRepository(
     suspend fun exportBackupJson(): String {
         val snap = CloudMapper.snapshot(
             taskDao.getAllRaw(), projectDao.getAll().first(), labelDao.getAll().first(),
-            areaDao.getAll().first(), sectionDao.getAll().first(), activityDao.getAll().first()
+            areaDao.getAll().first(), sectionDao.getAll().first(), activityDao.getAll().first(),
+            tombstoneDao.getAll()
         )
         return pl.media30.todoisto.shared.CloudBackupCodec.toJson(snap)
     }
 
     /**
-     * Wczytuje kopię z chmury ze SCALANIEM (nic nie ginie): łączymy lokalne z
-     * pobranymi po id, wygrywa nowsza wersja; usunięcia (nagrobki) też się
-     * propagują. Zwraca liczbę WIDOCZNYCH (nieusuniętych) zadań po scaleniu.
+     * Wczytuje kopię (z chmury lub z pliku) ze SCALANIEM (nic nie ginie): łączymy
+     * lokalne z pobranymi po id, wygrywa nowsza wersja; usunięcia (nagrobki) też
+     * się propagują. Rzuca wyjątek przy nieczytelnym JSON — wywołujący NIE może
+     * wtedy wysłać lokalnej kopii do chmury. Zwraca liczbę widocznych zadań.
      */
     suspend fun importBackupJson(json: String): Int {
         val remote = pl.media30.todoisto.shared.CloudBackupCodec.fromJson(json)
         val local = CloudMapper.snapshot(
             taskDao.getAllRaw(), projectDao.getAll().first(), labelDao.getAll().first(),
-            areaDao.getAll().first(), sectionDao.getAll().first(), activityDao.getAll().first()
+            areaDao.getAll().first(), sectionDao.getAll().first(), activityDao.getAll().first(),
+            tombstoneDao.getAll()
         )
-        val merged = pl.media30.todoisto.shared.SnapshotMerge.merge(local, remote)
-        merged.activities.forEach { activityDao.insert(CloudMapper.activityFromCloud(it)) }
-        merged.areas.forEach { areaDao.insert(CloudMapper.areaFromCloud(it)) }
-        merged.sections.forEach { sectionDao.insert(CloudMapper.sectionFromCloud(it)) }
-        merged.labels.forEach { labelDao.insert(CloudMapper.labelFromCloud(it)) }
-        merged.projects.forEach { projectDao.insert(CloudMapper.projectFromCloud(it)) }
-        merged.tasks.forEach { taskDao.insert(CloudMapper.fromCloud(it)) }
-        taskDao.purgeOldTombstones(System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000)
+        val merged = SnapshotMerge.merge(local, remote)
+
+        // Usunięcia z innych urządzeń: rekordów nie ma już w wyniku scalania.
+        fun <T> gone(before: List<T>, after: Set<Long>, id: (T) -> Long) = before.map(id).filter { it !in after }
+        gone(local.projects, merged.projects.map { it.id }.toSet()) { it.id }.forEach { projectDao.deleteById(it) }
+        gone(local.labels, merged.labels.map { it.id }.toSet()) { it.id }.forEach { labelDao.deleteById(it) }
+        gone(local.areas, merged.areas.map { it.id }.toSet()) { it.id }.forEach { areaDao.deleteById(it) }
+        gone(local.sections, merged.sections.map { it.id }.toSet()) { it.id }.forEach { sectionDao.deleteById(it) }
+        gone(local.activities, merged.activities.map { it.id }.toSet()) { it.id }.forEach { activityDao.deleteById(it) }
+
+        merged.activities.forEach { activityDao.upsertRaw(CloudMapper.activityFromCloud(it)) }
+        merged.areas.forEach { areaDao.upsertRaw(CloudMapper.areaFromCloud(it)) }
+        merged.sections.forEach { sectionDao.upsertRaw(CloudMapper.sectionFromCloud(it)) }
+        merged.labels.forEach { labelDao.upsertRaw(CloudMapper.labelFromCloud(it)) }
+        merged.projects.forEach { projectDao.upsertRaw(CloudMapper.projectFromCloud(it)) }
+
+        // Zadania: zachowaj lokalny stan przekazania (routeState nie jedzie przez chmurę).
+        val localById = taskDao.getAllRaw().associateBy { it.id }
+        var queued = false
+        merged.tasks.forEach { c ->
+            val prev = localById[c.id]
+            var t = CloudMapper.fromCloud(c).copy(routeState = prev?.routeState)
+            if (t.remoteUrl != null && t.routeState == "pending") t = t.copy(routeState = "sent")
+            // Zadania utworzone na Macu w projekcie z przekazaniem — telefon je przekaże.
+            if (prev == null) { val r = withRouting(t); if (r !== t) { t = r; queued = true } }
+            taskDao.upsertRaw(t)
+        }
+        merged.tombstones.forEach { tombstoneDao.upsert(CloudMapper.tombstoneFromCloud(it)) }
+        val nowMs = System.currentTimeMillis()
+        taskDao.purgeOldTombstones(nowMs - 30L * 24 * 60 * 60 * 1000)
+        tombstoneDao.purgeOlderThan(nowMs - SnapshotMerge.TOMBSTONE_TTL_MS)
+        if (queued) onRoutingQueued()
+        onImported()
         return merged.tasks.count { !it.deleted }
     }
 
     // --- areas (obszary) ---
     suspend fun insertArea(area: Area): Long = areaDao.insert(area)
     suspend fun updateArea(area: Area) = areaDao.update(area)
-    suspend fun deleteArea(id: Long) = areaDao.deleteById(id)
+    suspend fun deleteArea(id: Long) {
+        areaDao.deleteById(id)
+        tombstoneDao.record(CloudTombstone.AREA, id)
+    }
 
     // --- tasks ---
     suspend fun getTaskById(id: Long): Task? = taskDao.getTaskById(id)
     suspend fun getSubtasks(parentId: Long): List<Task> = taskDao.getSubtasks(parentId)
-    suspend fun insert(task: Task): Long = taskDao.insert(task.copy(updatedAt = System.currentTimeMillis()))
-    suspend fun update(task: Task) = taskDao.update(task.copy(updatedAt = System.currentTimeMillis()))
+    suspend fun insert(task: Task): Long {
+        val t = withRouting(if (task.id == 0L) task.copy(remoteUrl = null, routeState = null) else task)
+        val id = taskDao.insert(t)
+        if (t.routeState == "pending") onRoutingQueued()
+        return id
+    }
+    suspend fun update(task: Task) {
+        val t = withRouting(task)
+        taskDao.update(t)
+        if (t.routeState == "pending" && task.routeState != "pending") onRoutingQueued()
+    }
     /** Zapisuje ręczną kolejność: pozycja = indeks na liście. */
     suspend fun reorderTasks(orderedIds: List<Long>) {
         orderedIds.forEachIndexed { index, id -> taskDao.updatePosition(id, index) }
@@ -93,11 +149,11 @@ class TaskRepository(
     /** Duplicate a task together with its subtasks. */
     suspend fun duplicateTask(id: Long) {
         val original = taskDao.getTaskById(id) ?: return
-        val copyId = taskDao.insert(
+        val copyId = insert(
             original.copy(id = 0, title = original.title + " (kopia)", isCompleted = false, completedAt = null)
         )
         taskDao.getSubtasks(id).forEach { sub ->
-            taskDao.insert(sub.copy(id = 0, parentId = copyId, isCompleted = false, completedAt = null))
+            insert(sub.copy(id = 0, parentId = copyId, isCompleted = false, completedAt = null))
         }
     }
 
@@ -142,9 +198,11 @@ class TaskRepository(
     suspend fun insertProject(project: Project): Long = projectDao.insert(project)
     suspend fun updateProject(project: Project) = projectDao.update(project)
     suspend fun deleteProject(id: Long) {
-        taskDao.deleteByProject(id)
+        taskDao.deleteByProject(id) // nagrobki zadań — propagują się
+        sectionDao.idsByProject(id).forEach { tombstoneDao.record(CloudTombstone.SECTION, it) }
         sectionDao.deleteByProject(id)
         projectDao.deleteById(id)
+        tombstoneDao.record(CloudTombstone.PROJECT, id)
     }
 
     /** Resolve a project by name, creating it if it does not exist yet. */
@@ -156,11 +214,17 @@ class TaskRepository(
 
     // --- sections ---
     suspend fun insertSection(section: Section): Long = sectionDao.insert(section)
-    suspend fun deleteSection(id: Long) = sectionDao.deleteById(id)
+    suspend fun deleteSection(id: Long) {
+        sectionDao.deleteById(id)
+        tombstoneDao.record(CloudTombstone.SECTION, id)
+    }
 
     // --- labels ---
     suspend fun insertLabel(label: Label): Long = labelDao.insert(label)
-    suspend fun deleteLabel(id: Long) = labelDao.deleteById(id)
+    suspend fun deleteLabel(id: Long) {
+        labelDao.deleteById(id)
+        tombstoneDao.record(CloudTombstone.LABEL, id)
+    }
 
     suspend fun ensureLabel(name: String): Long {
         val trimmed = name.trim()
@@ -172,7 +236,14 @@ class TaskRepository(
     suspend fun insertActivity(activity: Activity): Long =
         activityDao.insert(activity.copy(createdAt = if (activity.createdAt == 0L) System.currentTimeMillis() else activity.createdAt))
     suspend fun updateActivity(activity: Activity) = activityDao.update(activity)
-    suspend fun deleteActivity(id: Long) = activityDao.deleteById(id)
+    suspend fun deleteActivity(id: Long) {
+        activityDao.deleteById(id)
+        tombstoneDao.record(CloudTombstone.ACTIVITY, id)
+    }
+
+    // --- przekazywanie do narzędzi projektów (Notion) ---
+    suspend fun pendingRoutes(): List<Task> = taskDao.getPendingRoutes()
+    suspend fun setRouteState(id: Long, state: String?, remoteUrl: String? = null) = taskDao.setRouteState(id, state, remoteUrl)
 
     private suspend fun ensureActivityLabel(): Long =
         labelDao.findByName(ACTIVITY_LABEL)?.id

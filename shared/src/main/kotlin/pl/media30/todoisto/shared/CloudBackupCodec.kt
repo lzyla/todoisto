@@ -23,6 +23,7 @@ object CloudBackupCodec {
         if (s.areas.isNotEmpty()) root.put("areas", JSONArray().apply { s.areas.forEach { put(areaToJson(it)) } })
         if (s.sections.isNotEmpty()) root.put("sections", JSONArray().apply { s.sections.forEach { put(sectionToJson(it)) } })
         if (s.activities.isNotEmpty()) root.put("activities", JSONArray().apply { s.activities.forEach { put(activityToJson(it)) } })
+        if (s.tombstones.isNotEmpty()) root.put("tombstones", JSONArray().apply { s.tombstones.forEach { put(tombstoneToJson(it)) } })
         return root.toString()
     }
 
@@ -34,7 +35,8 @@ object CloudBackupCodec {
         val areas = root.optJSONArray("areas")?.let { a -> (0 until a.length()).map { areaFromJson(a.getJSONObject(it)) } } ?: emptyList()
         val sections = root.optJSONArray("sections")?.let { a -> (0 until a.length()).map { sectionFromJson(a.getJSONObject(it)) } } ?: emptyList()
         val activities = root.optJSONArray("activities")?.let { a -> (0 until a.length()).map { activityFromJson(a.getJSONObject(it)) } } ?: emptyList()
-        return CloudSnapshot(tasks, projects, labels, areas, sections, activities)
+        val tombstones = root.optJSONArray("tombstones")?.let { a -> (0 until a.length()).map { tombstoneFromJson(a.getJSONObject(it)) } } ?: emptyList()
+        return CloudSnapshot(tasks, projects, labels, areas, sections, activities, tombstones)
     }
 
     // ---- helpers (te same konwencje co w wersji Android) ----
@@ -66,6 +68,7 @@ object CloudBackupCodec {
         put("createdAt", t.createdAt)
         if (t.updatedAt > 0) put("updatedAt", t.updatedAt) // pola dodatkowe, zgodne wstecz
         if (t.deleted) put("deleted", true)
+        if (t.remoteUrl != null) put("remoteUrl", t.remoteUrl)
     }
 
     private fun taskFromJson(o: JSONObject): CloudTask = CloudTask(
@@ -90,7 +93,8 @@ object CloudBackupCodec {
         position = o.optInt("position"),
         createdAt = o.optLong("createdAt"),
         updatedAt = o.optLong("updatedAt", 0L),
-        deleted = o.optBoolean("deleted", false)
+        deleted = o.optBoolean("deleted", false),
+        remoteUrl = if (o.isNull("remoteUrl")) null else o.optString("remoteUrl").ifBlank { null }
     )
 
     private fun projectToJson(p: CloudProject): JSONObject = JSONObject().apply {
@@ -98,6 +102,7 @@ object CloudBackupCodec {
         put("position", p.position); put("isFavorite", p.isFavorite); put("isArchived", p.isArchived)
         put("workEffortType", p.workEffortType ?: JSONObject.NULL)
         putNullableLong("areaId", p.areaId)
+        if (p.updatedAt > 0) put("updatedAt", p.updatedAt)
     }
 
     private fun projectFromJson(o: JSONObject): CloudProject = CloudProject(
@@ -108,36 +113,43 @@ object CloudBackupCodec {
         isFavorite = o.optBoolean("isFavorite"),
         isArchived = o.optBoolean("isArchived"),
         workEffortType = if (o.isNull("workEffortType")) null else o.optString("workEffortType").ifBlank { null },
-        areaId = o.optNullableLong("areaId")
+        areaId = o.optNullableLong("areaId"),
+        updatedAt = o.optLong("updatedAt", 0L)
     )
 
     private fun labelToJson(l: CloudLabel): JSONObject = JSONObject().apply {
         put("id", l.id); put("name", l.name); put("colorArgb", l.colorArgb); put("isFavorite", l.isFavorite)
+        if (l.updatedAt > 0) put("updatedAt", l.updatedAt)
     }
 
     private fun labelFromJson(o: JSONObject): CloudLabel = CloudLabel(
         id = o.optLong("id"),
         name = o.optString("name"),
         colorArgb = o.optLong("colorArgb", 0xFF4D6BFFL),
-        isFavorite = o.optBoolean("isFavorite")
+        isFavorite = o.optBoolean("isFavorite"),
+        updatedAt = o.optLong("updatedAt", 0L)
     )
 
     private fun areaToJson(a: CloudArea): JSONObject = JSONObject().apply {
         put("id", a.id); put("name", a.name); put("colorArgb", a.colorArgb); put("position", a.position)
+        if (a.updatedAt > 0) put("updatedAt", a.updatedAt)
     }
 
     private fun areaFromJson(o: JSONObject): CloudArea = CloudArea(
         id = o.optLong("id"), name = o.optString("name"),
-        colorArgb = o.optLong("colorArgb", 0xFF9B6BFFL), position = o.optInt("position")
+        colorArgb = o.optLong("colorArgb", 0xFF9B6BFFL), position = o.optInt("position"),
+        updatedAt = o.optLong("updatedAt", 0L)
     )
 
     private fun sectionToJson(s: CloudSection): JSONObject = JSONObject().apply {
         put("id", s.id); put("projectId", s.projectId); put("name", s.name); put("position", s.position)
+        if (s.updatedAt > 0) put("updatedAt", s.updatedAt)
     }
 
     private fun sectionFromJson(o: JSONObject): CloudSection = CloudSection(
         id = o.optLong("id"), projectId = o.optLong("projectId"),
-        name = o.optString("name"), position = o.optInt("position")
+        name = o.optString("name"), position = o.optInt("position"),
+        updatedAt = o.optLong("updatedAt", 0L)
     )
 
     private fun activityToJson(a: CloudActivity): JSONObject = JSONObject().apply {
@@ -146,6 +158,7 @@ object CloudBackupCodec {
         put("daysMask", a.daysMask); put("energyCost", a.energyCost); putNullableInt("frequencyTarget", a.frequencyTarget)
         put("isActive", a.isActive); putNullableLong("lastScheduledAt", a.lastScheduledAt)
         putNullableLong("lastCompletedAt", a.lastCompletedAt); put("createdAt", a.createdAt)
+        if (a.updatedAt > 0) put("updatedAt", a.updatedAt)
     }
 
     private fun activityFromJson(o: JSONObject): CloudActivity = CloudActivity(
@@ -155,6 +168,15 @@ object CloudBackupCodec {
         windowEndMin = o.optNullableInt("windowEndMin"), daysMask = o.optInt("daysMask", 0b1111111),
         energyCost = o.optString("energyCost", "MED"), frequencyTarget = o.optNullableInt("frequencyTarget"),
         isActive = o.optBoolean("isActive", true), lastScheduledAt = o.optNullableLong("lastScheduledAt"),
-        lastCompletedAt = o.optNullableLong("lastCompletedAt"), createdAt = o.optLong("createdAt")
+        lastCompletedAt = o.optNullableLong("lastCompletedAt"), createdAt = o.optLong("createdAt"),
+        updatedAt = o.optLong("updatedAt", 0L)
+    )
+
+    private fun tombstoneToJson(t: CloudTombstone): JSONObject = JSONObject().apply {
+        put("kind", t.kind); put("id", t.id); put("deletedAt", t.deletedAt)
+    }
+
+    private fun tombstoneFromJson(o: JSONObject): CloudTombstone = CloudTombstone(
+        kind = o.optString("kind"), id = o.optLong("id"), deletedAt = o.optLong("deletedAt")
     )
 }

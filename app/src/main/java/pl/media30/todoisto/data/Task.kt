@@ -42,5 +42,12 @@ data class Task(
     /** Znacznik ostatniej modyfikacji (ms) — do scalania przy synchronizacji. */
     val updatedAt: Long = 0L,
     /** Nagrobek: true = usunięte (ukryte w UI, ale niesione dalej dla synchronizacji). */
-    val deleted: Boolean = false
+    val deleted: Boolean = false,
+    /** Link do kopii w narzędziu docelowym (np. strona w Notion) — po udanym przekazaniu. */
+    val remoteUrl: String? = null,
+    /**
+     * Stan przekazania do narzędzia projektu (lokalny, nie synchronizowany):
+     * null = nie dotyczy, "pending" = w kolejce, "sent" = wysłane, "error:…" = ostatni błąd.
+     */
+    val routeState: String? = null
 )

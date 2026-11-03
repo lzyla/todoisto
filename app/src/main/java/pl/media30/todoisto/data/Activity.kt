@@ -1,5 +1,6 @@
 package pl.media30.todoisto.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -23,7 +24,9 @@ data class Activity(
     val isActive: Boolean = true,
     val lastScheduledAt: Long? = null,
     val lastCompletedAt: Long? = null,
-    val createdAt: Long = 0L
+    val createdAt: Long = 0L,
+    /** Znacznik ostatniej modyfikacji (ms) — scalanie „nowszy wygrywa" przy synchronizacji. */
+    @ColumnInfo(defaultValue = "0") val updatedAt: Long = 0L
 )
 
 enum class EffortType(val label: String, val emoji: String) {

@@ -1,5 +1,6 @@
 package pl.media30.todoisto.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -14,5 +15,7 @@ data class Area(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val colorArgb: Long = 0xFF9B6BFF,
-    val position: Int = 0
+    val position: Int = 0,
+    /** Znacznik ostatniej modyfikacji (ms) — scalanie „nowszy wygrywa" przy synchronizacji. */
+    @ColumnInfo(defaultValue = "0") val updatedAt: Long = 0L
 )

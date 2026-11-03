@@ -1,5 +1,6 @@
 package pl.media30.todoisto.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -15,7 +16,9 @@ data class Project(
     /** Typ wysiłku tego projektu — do doboru w Puli aktywności (null = nieoznaczony → MENTAL). */
     val workEffortType: EffortType? = null,
     /** Obszar, do którego należy projekt (null = nieprzypisany, widoczny w „Wszystko"). */
-    val areaId: Long? = null
+    val areaId: Long? = null,
+    /** Znacznik ostatniej modyfikacji (ms) — scalanie „nowszy wygrywa" przy synchronizacji. */
+    @ColumnInfo(defaultValue = "0") val updatedAt: Long = 0L
 )
 
 @Entity(tableName = "sections")
@@ -24,7 +27,9 @@ data class Section(
     val id: Long = 0,
     val projectId: Long,
     val name: String,
-    val position: Int = 0
+    val position: Int = 0,
+    /** Znacznik ostatniej modyfikacji (ms) — scalanie „nowszy wygrywa" przy synchronizacji. */
+    @ColumnInfo(defaultValue = "0") val updatedAt: Long = 0L
 )
 
 @Entity(tableName = "labels")
@@ -33,7 +38,9 @@ data class Label(
     val id: Long = 0,
     val name: String,
     val colorArgb: Long = 0xFF4D6BFF,
-    val isFavorite: Boolean = false
+    val isFavorite: Boolean = false,
+    /** Znacznik ostatniej modyfikacji (ms) — scalanie „nowszy wygrywa" przy synchronizacji. */
+    @ColumnInfo(defaultValue = "0") val updatedAt: Long = 0L
 )
 
 /** Preset colours offered when creating projects/labels. */

@@ -18,6 +18,8 @@ import pl.media30.todoisto.shared.CloudSection
 import pl.media30.todoisto.shared.CloudSnapshot
 import pl.media30.todoisto.shared.CloudTask
 import pl.media30.todoisto.shared.SnapshotMerge
+import pl.media30.todoisto.shared.CloudTombstone
+import pl.media30.todoisto.shared.Ids
 import pl.media30.todoisto.shared.SupabaseSync
 import java.io.File
 import java.time.LocalDate
@@ -64,7 +66,7 @@ class TaskRepository {
     private val _areas = mutableListOf<CloudArea>()
     private val _sections = mutableListOf<CloudSection>()
     private val _activities = mutableListOf<CloudActivity>()
-    private var nextId = System.currentTimeMillis()
+    private val _tombstones = mutableListOf<CloudTombstone>()
 
     /** Licznik zmian — UI obserwuje go, żeby się odświeżyć. */
     var revision: Int = 0
@@ -88,7 +90,10 @@ class TaskRepository {
 
     init { load() }
 
-    private fun newId(): Long = nextId++
+    /** Globalne id (wspólne z telefonem) — patrz [Ids]. */
+    private fun newId(): Long = Ids.next()
+    private fun stamp() = System.currentTimeMillis()
+    private fun tomb(kind: String, id: Long) { _tombstones.removeAll { it.kind == kind && it.id == id }; _tombstones.add(CloudTombstone(kind, id, stamp())) }
 
     // ── Zadania ────────────────────────────────────────────────────────────
 
@@ -150,7 +155,7 @@ class TaskRepository {
         }
         if (!t.isCompleted) activityIdFromNotes(t.notes)?.let { aid ->
             val ai = _activities.indexOfFirst { it.id == aid }
-            if (ai >= 0) _activities[ai] = _activities[ai].copy(lastCompletedAt = now)
+            if (ai >= 0) _activities[ai] = _activities[ai].copy(lastCompletedAt = now, updatedAt = now)
         }
         save()
     }
@@ -206,15 +211,17 @@ class TaskRepository {
 
     fun addProject(name: String, colorArgb: Long, areaId: Long? = null): Long {
         if (name.isBlank()) return 0
-        val p = CloudProject(id = newId(), name = name.trim(), colorArgb = colorArgb, position = _projects.size, areaId = areaId)
+        val p = CloudProject(id = newId(), name = name.trim(), colorArgb = colorArgb, position = _projects.size, areaId = areaId, updatedAt = stamp())
         _projects.add(p); save(); return p.id
     }
-    fun updateProject(p: CloudProject) { val i = _projects.indexOfFirst { it.id == p.id }; if (i >= 0) { _projects[i] = p; save() } }
+    fun updateProject(p: CloudProject) { val i = _projects.indexOfFirst { it.id == p.id }; if (i >= 0) { _projects[i] = p.copy(updatedAt = stamp()); save() } }
     fun deleteProject(id: Long) {
         val now = System.currentTimeMillis()
         for (i in _tasks.indices) if (_tasks[i].projectId == id) _tasks[i] = _tasks[i].copy(deleted = true, updatedAt = now)
+        _sections.filter { it.projectId == id }.forEach { tomb(CloudTombstone.SECTION, it.id) }
         _sections.removeAll { it.projectId == id }
         _projects.removeAll { it.id == id }
+        tomb(CloudTombstone.PROJECT, id)
         save()
     }
     fun setProjectArchived(id: Long, archived: Boolean) { project(id)?.let { updateProject(it.copy(isArchived = archived)) } }
@@ -241,28 +248,32 @@ class TaskRepository {
 
     fun addSection(projectId: Long, name: String): Long {
         if (name.isBlank()) return 0
-        val s = CloudSection(id = newId(), projectId = projectId, name = name.trim(), position = _sections.count { it.projectId == projectId })
+        val s = CloudSection(id = newId(), projectId = projectId, name = name.trim(), position = _sections.count { it.projectId == projectId }, updatedAt = stamp())
         _sections.add(s); save(); return s.id
     }
     fun deleteSection(id: Long) {
         _sections.removeAll { it.id == id }
-        for (i in _tasks.indices) if (_tasks[i].sectionId == id) _tasks[i] = _tasks[i].copy(sectionId = null)
+        val now = stamp()
+        for (i in _tasks.indices) if (_tasks[i].sectionId == id) _tasks[i] = _tasks[i].copy(sectionId = null, updatedAt = now)
+        tomb(CloudTombstone.SECTION, id)
         save()
     }
 
     fun addLabel(name: String, colorArgb: Long): Long {
         if (name.isBlank()) return 0
-        val l = CloudLabel(id = newId(), name = name.trim(), colorArgb = colorArgb)
+        val l = CloudLabel(id = newId(), name = name.trim(), colorArgb = colorArgb, updatedAt = stamp())
         _labels.add(l); save(); return l.id
     }
     fun deleteLabel(id: Long) {
         _labels.removeAll { it.id == id }
-        for (i in _tasks.indices) if (id in _tasks[i].labelIds) _tasks[i] = _tasks[i].copy(labelIds = _tasks[i].labelIds - id)
+        val now = stamp()
+        for (i in _tasks.indices) if (id in _tasks[i].labelIds) _tasks[i] = _tasks[i].copy(labelIds = _tasks[i].labelIds - id, updatedAt = now)
+        tomb(CloudTombstone.LABEL, id)
         save()
     }
     fun toggleLabelFavorite(id: Long) {
         val i = _labels.indexOfFirst { it.id == id }
-        if (i >= 0) { _labels[i] = _labels[i].copy(isFavorite = !_labels[i].isFavorite); save() }
+        if (i >= 0) { _labels[i] = _labels[i].copy(isFavorite = !_labels[i].isFavorite, updatedAt = stamp()); save() }
     }
     fun ensureLabel(name: String): Long {
         val n = name.trim(); if (n.isEmpty()) return 0
@@ -271,7 +282,7 @@ class TaskRepository {
 
     fun addArea(name: String, colorArgb: Long): Long {
         if (name.isBlank()) return 0
-        val a = CloudArea(id = newId(), name = name.trim(), colorArgb = colorArgb, position = _areas.size)
+        val a = CloudArea(id = newId(), name = name.trim(), colorArgb = colorArgb, position = _areas.size, updatedAt = stamp())
         _areas.add(a); save(); return a.id
     }
 
@@ -280,14 +291,14 @@ class TaskRepository {
     fun addActivity(a: Activity): Long {
         if (a.name.isBlank()) return 0
         val id = newId()
-        _activities.add(a.copy(id = id, createdAt = if (a.createdAt == 0L) System.currentTimeMillis() else a.createdAt).toCloud())
+        _activities.add(a.copy(id = id, createdAt = if (a.createdAt == 0L) System.currentTimeMillis() else a.createdAt).toCloud().copy(updatedAt = stamp()))
         save(); return id
     }
     fun updateActivity(a: Activity) {
         val i = _activities.indexOfFirst { it.id == a.id }
-        if (i >= 0) { _activities[i] = a.toCloud(); save() }
+        if (i >= 0) { _activities[i] = a.toCloud().copy(updatedAt = stamp()); save() }
     }
-    fun deleteActivity(id: Long) { _activities.removeAll { it.id == id }; save() }
+    fun deleteActivity(id: Long) { _activities.removeAll { it.id == id }; tomb(CloudTombstone.ACTIVITY, id); save() }
 
     /** Zaakceptowana propozycja → zadanie na dziś z etykietą „aktywność". */
     fun materializeActivity(a: Activity, startMin: Int, todayEpochDay: Long): Long {
@@ -348,32 +359,27 @@ class TaskRepository {
         _areas.clear(); _areas.addAll(snapshot.areas)
         _sections.clear(); _sections.addAll(snapshot.sections)
         _activities.clear(); _activities.addAll(snapshot.activities)
-        bumpNextId()
+        _tombstones.clear(); _tombstones.addAll(snapshot.tombstones)
         save()
     }
 
     fun snapshot(): CloudSnapshot = CloudSnapshot(
         tasks = _tasks.toList(), projects = _projects.toList(), labels = _labels.toList(),
-        areas = _areas.toList(), sections = _sections.toList(), activities = _activities.toList()
+        areas = _areas.toList(), sections = _sections.toList(), activities = _activities.toList(),
+        tombstones = _tombstones.toList()
     )
 
-    private fun bumpNextId() {
-        val maxId = listOf(
-            _tasks.maxOfOrNull { it.id }, _projects.maxOfOrNull { it.id }, _labels.maxOfOrNull { it.id },
-            _areas.maxOfOrNull { it.id }, _sections.maxOfOrNull { it.id }, _activities.maxOfOrNull { it.id }
-        ).maxOf { it ?: 0L }
-        nextId = maxOf(nextId, maxId + 1)
-    }
-
     private fun load() {
+        if (!dataFile.exists()) return
         runCatching {
-            if (dataFile.exists()) {
-                val snap = CloudBackupCodec.fromJson(dataFile.readText())
-                _tasks.addAll(snap.tasks); _projects.addAll(snap.projects); _labels.addAll(snap.labels)
-                _areas.addAll(snap.areas); _sections.addAll(snap.sections); _activities.addAll(snap.activities)
-                purgeOldTombstones()
-                bumpNextId()
-            }
+            val snap = CloudBackupCodec.fromJson(dataFile.readText())
+            _tasks.addAll(snap.tasks); _projects.addAll(snap.projects); _labels.addAll(snap.labels)
+            _areas.addAll(snap.areas); _sections.addAll(snap.sections); _activities.addAll(snap.activities)
+            _tombstones.addAll(snap.tombstones)
+            purgeOldTombstones()
+        }.onFailure {
+            // Nieczytelny plik: odłóż go na bok zamiast nadpisać pustą bazą przy pierwszym zapisie.
+            runCatching { dataFile.copyTo(File(dataFile.parentFile, "data.json.corrupt-${System.currentTimeMillis()}"), overwrite = false) }
         }
         // Celowo BEZ danych przykładowych — prawdziwe zadania przychodzą z chmury.
     }
@@ -381,13 +387,21 @@ class TaskRepository {
     private fun purgeOldTombstones() {
         val cutoff = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
         _tasks.removeAll { it.deleted && it.updatedAt in 1 until cutoff }
+        val tombCutoff = System.currentTimeMillis() - SnapshotMerge.TOMBSTONE_TTL_MS
+        _tombstones.removeAll { it.deletedAt < tombCutoff }
     }
 
     private fun save() {
         revision++
         runCatching {
             dataFile.parentFile.mkdirs()
-            dataFile.writeText(CloudBackupCodec.toJson(snapshot()))
+            // Zapis atomowy: przerwany zapis (np. zamknięcie Maca) nie zostawi uciętego pliku.
+            val tmp = File(dataFile.parentFile, "data.json.tmp")
+            tmp.writeText(CloudBackupCodec.toJson(snapshot()))
+            java.nio.file.Files.move(
+                tmp.toPath(), dataFile.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE
+            )
         }
     }
 }
@@ -534,10 +548,14 @@ fun sync(repo: TaskRepository, settings: AppSettings): SyncResult {
     if (!settings.signedIn) return SyncResult(false, "Zaloguj się w chmurze.")
     val auth = SupabaseSync.signIn(settings.url, settings.anonKey, settings.email, settings.cloudPassword)
     if (auth.token == null || auth.userId == null) return SyncResult(false, auth.error ?: "Logowanie nie powiodło się.")
-    val remote = SupabaseSync.pull(settings.url, settings.anonKey, auth.token!!, auth.userId!!)
-    val merged = if (remote != null) {
-        runCatching { SnapshotMerge.merge(repo.snapshot(), CloudBackupCodec.fromJson(remote)) }.getOrDefault(repo.snapshot())
-    } else repo.snapshot()
+    // Wysyłamy wyłącznie po udanym scaleniu (albo gdy chmura jest pusta) — przy
+    // błędzie sieci/nieczytelnej kopii lokalna migawka nadpisałaby zmiany z telefonu.
+    val merged = when (val r = SupabaseSync.pullResult(settings.url, settings.anonKey, auth.token!!, auth.userId!!)) {
+        is SupabaseSync.PullResult.Found -> runCatching { SnapshotMerge.merge(repo.snapshot(), CloudBackupCodec.fromJson(r.json)) }
+            .getOrElse { return SyncResult(false, "Kopia w chmurze jest nieczytelna — nic nie wysłano.") }
+        SupabaseSync.PullResult.Empty -> repo.snapshot()
+        is SupabaseSync.PullResult.Failed -> return SyncResult(false, "Nie pobrano z chmury — nic nie wysłano. ${r.message}")
+    }
     repo.replaceAll(merged)
     val err = SupabaseSync.push(settings.url, settings.anonKey, auth.token!!, auth.userId!!, CloudBackupCodec.toJson(merged))
     return if (err == null) SyncResult(true, "Zsynchronizowano z chmurą.")
@@ -558,8 +576,11 @@ fun cloudRestore(repo: TaskRepository, settings: AppSettings): SyncResult {
     if (!settings.signedIn) return SyncResult(false, "Zaloguj się w chmurze.")
     val auth = SupabaseSync.signIn(settings.url, settings.anonKey, settings.email, settings.cloudPassword)
     if (auth.token == null || auth.userId == null) return SyncResult(false, auth.error ?: "Logowanie nie powiodło się.")
-    val remote = SupabaseSync.pull(settings.url, settings.anonKey, auth.token!!, auth.userId!!)
-        ?: return SyncResult(false, "Brak kopii w chmurze albo błąd pobierania.")
+    val remote = when (val r = SupabaseSync.pullResult(settings.url, settings.anonKey, auth.token!!, auth.userId!!)) {
+        is SupabaseSync.PullResult.Found -> r.json
+        SupabaseSync.PullResult.Empty -> return SyncResult(false, "W chmurze nie ma jeszcze kopii.")
+        is SupabaseSync.PullResult.Failed -> return SyncResult(false, r.message)
+    }
     val merged = runCatching { SnapshotMerge.merge(repo.snapshot(), CloudBackupCodec.fromJson(remote)) }
         .getOrElse { return SyncResult(false, "Nie udało się odczytać kopii.") }
     repo.replaceAll(merged)

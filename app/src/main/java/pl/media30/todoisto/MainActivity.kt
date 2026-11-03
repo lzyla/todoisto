@@ -5,21 +5,33 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.launch
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import pl.media30.todoisto.ui.TodoViewModel
-import pl.media30.todoisto.ui.screens.AddEditTaskScreen
+import pl.media30.todoisto.ui.screens.TaskDetailSheet
 import pl.media30.todoisto.ui.screens.TaskListScreen
 import pl.media30.todoisto.ui.theme.GlassBackground
+import pl.media30.todoisto.ui.theme.GlassSurface
 import pl.media30.todoisto.ui.theme.GlassTheme
 import pl.media30.todoisto.ui.theme.TodoistoTheme
 
@@ -34,14 +46,56 @@ class MainActivity : ComponentActivity() {
         val app = application as TodoApplication
         setContent {
             val dark by app.settings.darkTheme.collectAsState()
+            val photoBg by app.settings.photoBackground.collectAsState()
+            val activeCustomBg by app.settings.activeCustomBg.collectAsState()
+            val phaseBgs by app.settings.phaseBackgrounds.collectAsState()
+            val usePhaseBg by app.settings.usePhaseBg.collectAsState()
+            val themeId by app.settings.themeId.collectAsState()
+            val loggedIn by app.account.loggedIn.collectAsState()
+            val phase = pl.media30.todoisto.ui.theme.dayPhaseFromClock()
             GlassTheme.dark = dark
+            GlassTheme.photo = photoBg
+            GlassTheme.phase = phase
+            // Kolory motywu (akcent + odcień kart) z wybranej palety.
+            val pal = pl.media30.todoisto.ui.theme.ThemePalettes.byId(themeId)
+            GlassTheme.accentLight = pal.accentLight
+            GlassTheme.accentDark = pal.accentDark
+            GlassTheme.tintLight = pal.tintLight
+            GlassTheme.tintDark = pal.tintDark
+            // Priorytet: realistyczne tło wg pory dnia (AI) → własne zdjęcie → gradient/scena.
+            val phaseIdx = when (phase) {
+                pl.media30.todoisto.ui.theme.DayPhase.MORNING -> 0
+                pl.media30.todoisto.ui.theme.DayPhase.NOON -> 1
+                pl.media30.todoisto.ui.theme.DayPhase.EVENING -> 2
+            }
+            GlassTheme.customBg = when {
+                usePhaseBg && phaseBgs.size == 3 -> phaseBgs[phaseIdx]
+                activeCustomBg.isNotBlank() -> activeCustomBg
+                else -> null
+            }
             TodoistoTheme {
-                GlassBackground {
-                    TodoistoApp(
-                        viewModel = viewModel(factory = TodoViewModel.Factory(app.repository, app.settings)),
-                        quickAddPrefill = sharedText,
-                        onPrefillConsumed = { sharedText = null }
-                    )
+                androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+                    GlassBackground {
+                        if (!loggedIn) {
+                            pl.media30.todoisto.ui.screens.AuthScreen(
+                                hasAccount = app.account.hasAccount,
+                                onLogin = { e, p -> app.account.login(e, p) },
+                                onRegister = { n, e, p -> app.account.register(n, e, p) }
+                            )
+                        } else {
+                            TodoistoApp(
+                                viewModel = viewModel(factory = TodoViewModel.Factory(app.repository, app.settings, app.cloud)),
+                                quickAddPrefill = sharedText,
+                                onPrefillConsumed = { sharedText = null },
+                                account = app.account,
+                                themeId = themeId,
+                                onSelectTheme = app.settings::setThemeId
+                            )
+                        }
+                    }
+                    // Ekran startowy z logo — pokazuje się raz przy uruchomieniu, potem znika.
+                    var showSplash by remember { mutableStateOf(true) }
+                    if (showSplash) SplashOverlay(onDone = { showSplash = false })
                 }
             }
         }
@@ -66,86 +120,479 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private object Routes {
-    const val LIST = "list"
-    const val EDIT = "edit/{taskId}"
-    fun edit(taskId: Long) = "edit/$taskId"
-}
-
+/**
+ * Jednoekranowa nawigacja w duchu prototypu: lista + nakładki (arkusz
+ * szczegółów zadania, Quick Add, Rutyny, Tydzień) zamiast osobnych ekranów.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TodoistoApp(
     viewModel: TodoViewModel,
     quickAddPrefill: String? = null,
-    onPrefillConsumed: () -> Unit = {}
+    onPrefillConsumed: () -> Unit = {},
+    account: pl.media30.todoisto.data.AccountStore,
+    themeId: String,
+    onSelectTheme: (String) -> Unit
 ) {
-    val navController = rememberNavController()
     val uiState by viewModel.uiState.collectAsState()
     val projects by viewModel.projects.collectAsState()
     val labels by viewModel.labels.collectAsState()
     val allTasks by viewModel.allTasks.collectAsState()
     val darkTheme by viewModel.darkTheme.collectAsState()
+    val photoBg by viewModel.photoBackground.collectAsState()
+    val activities by viewModel.activities.collectAsState()
+    val freeTime by viewModel.freeTime.collectAsState()
+    val areas by viewModel.areas.collectAsState()
+    val activeAreaId by viewModel.activeArea.collectAsState()
+    val todayOpen by viewModel.todayOpen.collectAsState()
+    val openAiKey by viewModel.openAiKey.collectAsState()
+    val aiAsk by viewModel.aiAsk.collectAsState()
+    val startView by viewModel.startView.collectAsState()
+    val dateRecognition by viewModel.dateRecognition.collectAsState()
+    val weekStartMonday by viewModel.weekStartMonday.collectAsState()
+    val completionSound by viewModel.completionSound.collectAsState()
+    val swipeRightCompletes by viewModel.swipeRightCompletes.collectAsState()
+    val aiPromptTokens by viewModel.aiPromptTokens.collectAsState()
+    val aiCompletionTokens by viewModel.aiCompletionTokens.collectAsState()
+    val aiImageCount by viewModel.aiImageCount.collectAsState()
+    val deferCount by viewModel.deferCount.collectAsState()
+    val openHours by viewModel.openHours.collectAsState()
+    val adminKey by viewModel.openAiAdminKey.collectAsState()
+    val aiCost by viewModel.aiCost.collectAsState()
+    val customPhotos by viewModel.customPhotos.collectAsState()
+    val activeCustomBg by viewModel.activeCustomBg.collectAsState()
+    val usePhaseBg by viewModel.usePhaseBg.collectAsState()
+    val aiImages by viewModel.aiImages.collectAsState()
+    val bgBusy by viewModel.bgBusy.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
-    NavHost(navController = navController, startDestination = Routes.LIST) {
-        composable(Routes.LIST) {
-            TaskListScreen(
-                uiState = uiState,
-                projects = projects,
-                labels = labels,
-                isDarkTheme = darkTheme,
-                quickAddPrefill = quickAddPrefill,
-                onPrefillConsumed = onPrefillConsumed,
-                onSelectView = viewModel::setView,
-                onToggle = viewModel::toggleCompleted,
-                onTaskClick = { navController.navigate(Routes.edit(it.id)) },
-                onQuickAdd = viewModel::quickAdd,
-                onAddProject = viewModel::addProject,
-                onDeleteProject = viewModel::deleteProject,
-                onDuplicateProject = viewModel::duplicateProject,
-                onArchiveProject = viewModel::archiveProject,
-                onToggleProjectFavorite = viewModel::toggleProjectFavorite,
-                onToggleLabelFavorite = viewModel::toggleLabelFavorite,
-                onDeleteLabel = viewModel::deleteLabel,
-                onAddLabel = viewModel::addLabel,
-                onAddSection = viewModel::addSection,
-                onClearCompleted = viewModel::deleteCompleted,
-                onSort = viewModel::setSort,
-                onSetGoals = viewModel::setGoals,
-                onToggleTheme = { viewModel.setDarkTheme(!darkTheme) }
+    // Zgoda na lokalizację (pogoda w „Czas wolny") — po odpowiedzi i tak sugerujemy.
+    val locPermLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) { viewModel.suggestFreeTime() }
+
+    var detailTaskId by remember { mutableStateOf<Long?>(null) }
+    var showPool by remember { mutableStateOf(false) }
+    var showForm by remember { mutableStateOf(false) }
+    var showImport by remember { mutableStateOf(false) }
+    var showEstimate by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
+    var showStats by remember { mutableStateOf(false) }
+    var showAccount by remember { mutableStateOf(false) }
+    val accountProfile by account.account.collectAsState()
+    val accountAvatar by account.avatar.collectAsState()
+    val cloudState by viewModel.cloudState.collectAsState()
+    val gmailState by viewModel.gmailState.collectAsState()
+    val gmailUser by viewModel.gmailUser.collectAsState()
+    val estimateAi by viewModel.estimateAi.collectAsState()
+    val avgActualMinutes by viewModel.avgActualMinutes.collectAsState()
+    var detailAiExpanded by remember { mutableStateOf(false) }
+    var editingActivity by remember { mutableStateOf<pl.media30.todoisto.data.Activity?>(null) }
+
+    val importResult by viewModel.importResult.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(importResult) {
+        importResult?.let {
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_LONG).show()
+            viewModel.clearImportResult()
+        }
+    }
+    val scanState by viewModel.scan.collectAsState()
+
+    TaskListScreen(
+        uiState = uiState,
+        projects = projects,
+        labels = labels,
+        isDarkTheme = darkTheme,
+        quickAddPrefill = quickAddPrefill,
+        onPrefillConsumed = onPrefillConsumed,
+        onSelectView = viewModel::setView,
+        onToggle = { t ->
+            if (!t.isCompleted && completionSound) {
+                runCatching {
+                    android.media.ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 80)
+                        .startTone(android.media.ToneGenerator.TONE_PROP_ACK, 150)
+                }
+            }
+            viewModel.toggleCompleted(t)
+        },
+        onTaskClick = { detailTaskId = it.id; detailAiExpanded = false; viewModel.dismissAi(); viewModel.recordTaskOpen(); viewModel.markTaskOpened(it.id) },
+        onQuickAdd = viewModel::quickAdd,
+        onAddProject = viewModel::addProject,
+        onDeleteProject = viewModel::deleteProject,
+        onDuplicateProject = viewModel::duplicateProject,
+        onArchiveProject = viewModel::archiveProject,
+        onToggleProjectFavorite = viewModel::toggleProjectFavorite,
+        onToggleLabelFavorite = viewModel::toggleLabelFavorite,
+        onDeleteLabel = viewModel::deleteLabel,
+        onAddLabel = viewModel::addLabel,
+        onAddSection = viewModel::addSection,
+        onClearCompleted = viewModel::deleteCompleted,
+        onSort = viewModel::setSort,
+        onSetGoals = viewModel::setGoals,
+        onToggleTheme = { viewModel.setDarkTheme(!darkTheme) },
+        onMoveOverdueToToday = viewModel::moveOverdueToToday,
+        onOpenActivityPool = { showPool = true },
+        onFreeTime = {
+            if (pl.media30.todoisto.data.LocationHelper.hasPermission(context)) viewModel.suggestFreeTime()
+            else locPermLauncher.launch(arrayOf(
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION
+            ))
+        },
+        isPhotoBackground = photoBg,
+        onTogglePhotoBackground = { viewModel.setPhotoBackground(!photoBg) },
+        activities = activities,
+        onAddActivityQuick = { showPool = true },
+        onSharePlan = {
+            val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(android.content.Intent.EXTRA_SUBJECT, "Plan dnia — Todoisto")
+                putExtra(android.content.Intent.EXTRA_TEXT, viewModel.buildDayPlanText())
+            }
+            context.startActivity(android.content.Intent.createChooser(send, "Wyślij plan dnia"))
+        },
+        onDeferToTomorrow = viewModel::deferToTomorrow,
+        onSetEnergy = viewModel::setEnergy,
+        onEaseWithAi = { task ->
+            detailTaskId = task.id
+            detailAiExpanded = true
+            viewModel.askAi(viewModel.easePrompt(task))
+        },
+        onOpenAutomation = { task ->
+            detailTaskId = task.id
+            detailAiExpanded = true
+            // Klik w ikonę AI = od razu odpowiedź (jak „Zróbmy to z AI").
+            val tip = pl.media30.todoisto.data.AutomationAdvisor.advise(task.title, task.notes)
+            viewModel.askAi(tip.aiPrompt)
+        },
+        areas = areas,
+        activeAreaId = activeAreaId,
+        onSelectArea = viewModel::setActiveArea,
+        onAddArea = viewModel::addArea,
+        onOpenEstimate = { viewModel.clearEstimateAi(); showEstimate = true },
+        hasApiKey = openAiKey.isNotBlank(),
+        onSetApiKey = viewModel::setOpenAiKey,
+        onOpenSettings = { showSettings = true },
+        onOpenStats = { showStats = true },
+        onOpenAccount = { showAccount = true },
+        accountInitial = (accountProfile?.name?.trim()?.firstOrNull()?.uppercaseChar() ?: "").toString(),
+        accountAvatar = accountAvatar,
+        swipeRightCompletes = swipeRightCompletes,
+        onReorder = viewModel::reorderTasks,
+        onScanNote = viewModel::scanNoteImage,
+        onReschedule = viewModel::rescheduleTask,
+        weekTasks = allTasks
+    )
+
+    // Ekran ustawień (liquid glass) — nakładka pełnoekranowa nad listą.
+    if (showSettings) {
+        pl.media30.todoisto.ui.screens.SettingsScreen(
+            dark = darkTheme,
+            photo = photoBg,
+            hasApiKey = openAiKey.isNotBlank(),
+            dailyGoal = uiState.goalDaily,
+            weeklyGoal = uiState.goalWeekly,
+            startViewToday = startView != "upcoming",
+            dateRecognition = dateRecognition,
+            weekStartMonday = weekStartMonday,
+            completionSound = completionSound,
+            swipeRightCompletes = swipeRightCompletes,
+            aiPromptTokens = aiPromptTokens,
+            aiCompletionTokens = aiCompletionTokens,
+            aiImageCount = aiImageCount,
+            onResetAiUsage = viewModel::resetAiUsage,
+            adminKeySet = adminKey.isNotBlank(),
+            aiCost = aiCost,
+            onSetAdminKey = viewModel::setOpenAiAdminKey,
+            onRefreshCost = viewModel::refreshAiCost,
+            customPhotos = customPhotos,
+            activeCustomBg = activeCustomBg,
+            aiImages = aiImages,
+            bgBusy = bgBusy,
+            usePhaseBg = usePhaseBg,
+            onSelectGradient = { viewModel.setActiveCustomBg(""); viewModel.setPhotoBackground(false); viewModel.setUsePhaseBg(false) },
+            onSelectScene = { viewModel.setActiveCustomBg(""); viewModel.setPhotoBackground(true); viewModel.setUsePhaseBg(false) },
+            onAddCustomPhoto = viewModel::addCustomPhotoFromUri,
+            onSetActiveCustom = viewModel::setActiveCustomBg,
+            onRemoveCustom = viewModel::removeCustomPhoto,
+            onReorderCustom = viewModel::reorderCustomPhotos,
+            onGenerateAi = viewModel::generateAiBackgrounds,
+            onGeneratePhaseAi = viewModel::generateAiPhaseBackgrounds,
+            onAddPresets = viewModel::addPresetBackgrounds,
+            onDismissAiImages = viewModel::dismissAiImages,
+            onBack = { showSettings = false },
+            onToggleDark = { viewModel.setDarkTheme(!darkTheme) },
+            onTogglePhoto = { viewModel.setPhotoBackground(!photoBg) },
+            onSetApiKey = viewModel::setOpenAiKey,
+            onSetGoals = viewModel::setGoals,
+            onSetStartView = { today -> viewModel.setStartView(if (today) "today" else "upcoming") },
+            onSetDateRecognition = viewModel::setDateRecognition,
+            onSetWeekStartMonday = viewModel::setWeekStartMonday,
+            onSetCompletionSound = viewModel::setCompletionSound,
+            onSetSwipeRightCompletes = viewModel::setSwipeRightCompletes,
+            onOpenPool = { showSettings = false; showPool = true },
+            onOpenImport = { showSettings = false; showImport = true },
+            themeId = themeId,
+            onSelectTheme = onSelectTheme,
+            onOpenAccount = { showSettings = false; showAccount = true },
+            vm = viewModel
+        )
+    }
+
+    // Ekran „Konto" — profil, motyw kolorów, tryb nocny, wylogowanie.
+    if (showAccount) {
+        pl.media30.todoisto.ui.screens.AccountScreen(
+            account = accountProfile,
+            avatar = accountAvatar,
+            onPickAvatar = { uri -> account.importAvatarFromUri(uri) },
+            dark = darkTheme,
+            themeId = themeId,
+            onSelectTheme = onSelectTheme,
+            onToggleDark = { viewModel.setDarkTheme(!darkTheme) },
+            onLogout = { showAccount = false; account.logout() },
+            cloud = cloudState,
+            onCloudConfig = viewModel::setCloudConfig,
+            onCloudSignIn = viewModel::cloudSignIn,
+            onCloudSignUp = viewModel::cloudSignUp,
+            onCloudSignOut = viewModel::cloudSignOut,
+            onCloudBackup = viewModel::cloudBackup,
+            onCloudRestore = viewModel::cloudRestore,
+            gmailUser = gmailUser,
+            gmail = gmailState,
+            onSaveGmail = viewModel::setGmailCreds,
+            onSyncGmail = viewModel::syncGmail,
+            aiPromptTokens = aiPromptTokens,
+            aiCompletionTokens = aiCompletionTokens,
+            aiImageCount = aiImageCount,
+            onResetAiUsage = viewModel::resetAiUsage,
+            adminKeySet = adminKey.isNotBlank(),
+            aiCost = aiCost,
+            onSetAdminKey = viewModel::setOpenAiAdminKey,
+            onRefreshCost = viewModel::refreshAiCost,
+            onBack = { showAccount = false }
+        )
+    }
+
+    // Ekran „Statystyki"
+    if (showStats) {
+        pl.media30.todoisto.ui.screens.StatsScreen(
+            tasks = allTasks,
+            deferCount = deferCount,
+            openHours = openHours,
+            onBack = { showStats = false }
+        )
+    }
+
+    // Panel „Czas wolny"
+    freeTime?.let { ft ->
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.dismissFreeTime() },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = GlassSurface,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
+        ) {
+            pl.media30.todoisto.ui.screens.FreeTimePanel(
+                state = ft,
+                onAccept = viewModel::acceptSuggestion,
+                onReroll = viewModel::rerollSuggestion,
+                onAddFirst = { viewModel.dismissFreeTime(); editingActivity = null; showForm = true }
             )
         }
-        composable(
-            route = Routes.EDIT,
-            arguments = listOf(navArgument("taskId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            val taskId = backStackEntry.arguments?.getLong("taskId") ?: -1L
-            val existing = allTasks.firstOrNull { it.id == taskId }
-            val subtasks = allTasks.filter { it.parentId == taskId }
+    }
 
-            if (existing == null) {
-                androidx.compose.runtime.LaunchedEffect(taskId) { navController.popBackStack() }
-            } else {
-                AddEditTaskScreen(
-                    existing = existing,
-                    projects = projects,
-                    labels = labels,
-                    subtasks = subtasks,
-                    onSave = { updated ->
-                        viewModel.updateTask(updated)
-                        navController.popBackStack()
-                    },
-                    onAddSubtask = { viewModel.addSubtask(taskId, existing.projectId, it) },
-                    onToggleSubtask = { viewModel.toggleCompleted(it) },
-                    onDuplicate = {
-                        viewModel.duplicateTask(taskId)
-                        navController.popBackStack()
-                    },
-                    onDelete = {
-                        viewModel.deleteTask(existing)
-                        navController.popBackStack()
-                    },
-                    onClose = { navController.popBackStack() }
+    // Katalog puli
+    if (showPool) {
+        ModalBottomSheet(
+            onDismissRequest = { showPool = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = GlassSurface,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
+        ) {
+            pl.media30.todoisto.ui.screens.ActivityPoolSheet(
+                activities = activities,
+                onAdd = { editingActivity = null; showForm = true },
+                onEdit = { editingActivity = it; showForm = true },
+                onImport = { showImport = true }
+            )
+        }
+    }
+
+    // Formularz aktywności
+    if (showForm) {
+        ModalBottomSheet(
+            onDismissRequest = { showForm = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = GlassSurface,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
+        ) {
+            pl.media30.todoisto.ui.screens.ActivityFormSheet(
+                existing = editingActivity,
+                onSave = { a -> if (editingActivity == null) viewModel.addActivity(a) else viewModel.updateActivity(a) },
+                onDelete = editingActivity?.let { a -> { viewModel.deleteActivity(a.id); showForm = false } },
+                onClose = { showForm = false }
+            )
+        }
+    }
+
+    if (showEstimate) {
+        ModalBottomSheet(
+            onDismissRequest = { showEstimate = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = GlassSurface,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
+        ) {
+            pl.media30.todoisto.ui.screens.EstimateBreakdownSheet(
+                items = todayOpen, projects = projects,
+                aiState = estimateAi,
+                avgActualMinutes = avgActualMinutes,
+                onEstimateAi = { viewModel.estimateTodayWithAi(todayOpen.map { it.title }) }
+            )
+        }
+    }
+
+    scanState?.let { s ->
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.dismissScan() },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = GlassSurface,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
+        ) {
+            pl.media30.todoisto.ui.screens.ScanResultSheet(
+                state = s,
+                onAddTasks = { viewModel.addScanTasks(it) },
+                onAddSuggestion = { t, p -> viewModel.addScanSuggestion(t, p) },
+                onDismiss = { viewModel.dismissScan() }
+            )
+        }
+    }
+
+    if (showImport) {
+        ImportActivitiesDialog(
+            onDismiss = { showImport = false },
+            onImport = { url -> viewModel.importActivitiesFromCsv(url); showImport = false }
+        )
+    }
+
+    val detailTask = detailTaskId?.let { id -> allTasks.firstOrNull { it.id == id } }
+    if (detailTask != null) {
+        ModalBottomSheet(
+            onDismissRequest = { detailTaskId = null },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = GlassSurface,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp)
+        ) {
+            TaskDetailSheet(
+                task = detailTask,
+                projects = projects,
+                labels = labels,
+                subtasks = allTasks.filter { it.parentId == detailTask.id },
+                onPatch = viewModel::updateTask,
+                onToggleSubtask = viewModel::toggleCompleted,
+                onAddSubtask = { viewModel.addSubtask(detailTask.id, detailTask.projectId, it) },
+                onDuplicate = {
+                    viewModel.duplicateTask(detailTask.id)
+                    detailTaskId = null
+                },
+                onDelete = {
+                    viewModel.deleteTask(detailTask)
+                    detailTaskId = null
+                },
+                onClose = { detailTaskId = null; viewModel.dismissAi() },
+                onRetryRoute = { viewModel.retryRoute(detailTask.id) },
+                onAskAi = viewModel::askAi,
+                aiExpanded = detailAiExpanded,
+                aiState = aiAsk
+            )
+        }
+    }
+
+}
+
+/** Dialog importu aktywności z opublikowanego arkusza Google (link CSV). */
+@Composable
+private fun ImportActivitiesDialog(onDismiss: () -> Unit, onImport: (String) -> Unit) {
+    var url by remember { mutableStateOf("") }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = { onImport(url) }, enabled = url.isNotBlank()) {
+                androidx.compose.material3.Text("Importuj")
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { androidx.compose.material3.Text("Anuluj") }
+        },
+        title = { androidx.compose.material3.Text("Import z Google Sheets") },
+        text = {
+            androidx.compose.foundation.layout.Column {
+                androidx.compose.material3.Text(
+                    "Wklej link do arkusza opublikowanego jako CSV (Plik → Udostępnij → Opublikuj w internecie → CSV) lub zwykły link do arkusza.\n\nKolumny: nazwa, minuty, wysiłek (fizyczny/umysłowy/regeneracja), miejsce, energia.",
+                    fontSize = 12.5.sp
+                )
+                androidx.compose.foundation.layout.Spacer(Modifier.height(12.dp))
+                androidx.compose.material3.OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    singleLine = true,
+                    placeholder = { androidx.compose.material3.Text("https://docs.google.com/…") },
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
+        }
+    )
+}
+
+/**
+ * Ekran startowy (splash): fioletowy gradient jak w ikonie apki, białe logo
+ * wskakuje z lekkim sprężystym powiększeniem, po chwili cała plansza znika.
+ */
+@Composable
+private fun SplashOverlay(onDone: () -> Unit) {
+    val logoScale = remember { androidx.compose.animation.core.Animatable(0.82f) }
+    val logoAlpha = remember { androidx.compose.animation.core.Animatable(0f) }
+    val overlayAlpha = remember { androidx.compose.animation.core.Animatable(1f) }
+    LaunchedEffect(Unit) {
+        launch {
+            logoAlpha.animateTo(1f, androidx.compose.animation.core.tween(300))
+        }
+        logoScale.animateTo(
+            1f,
+            androidx.compose.animation.core.spring(
+                dampingRatio = 0.5f,
+                stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+            )
+        )
+        kotlinx.coroutines.delay(680)
+        overlayAlpha.animateTo(0f, androidx.compose.animation.core.tween(380))
+        onDone()
+    }
+    androidx.compose.foundation.layout.Box(
+        Modifier.fillMaxSize()
+            .graphicsLayer { alpha = overlayAlpha.value }
+            .background(
+                androidx.compose.ui.graphics.Brush.linearGradient(
+                    listOf(androidx.compose.ui.graphics.Color(0xFFB558F6), androidx.compose.ui.graphics.Color(0xFF5B2BE0))
+                )
+            ),
+        contentAlignment = androidx.compose.ui.Alignment.Center
+    ) {
+        androidx.compose.foundation.layout.Column(
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+        ) {
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(pl.media30.todoisto.R.drawable.ic_launcher_foreground),
+                contentDescription = "Todoisto",
+                modifier = Modifier.size(168.dp).graphicsLayer {
+                    scaleX = logoScale.value; scaleY = logoScale.value; alpha = logoAlpha.value
+                }
+            )
+            androidx.compose.material3.Text(
+                "Todoisto",
+                fontSize = 26.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.W800,
+                color = androidx.compose.ui.graphics.Color.White,
+                modifier = Modifier.graphicsLayer { alpha = logoAlpha.value }
+            )
         }
     }
 }

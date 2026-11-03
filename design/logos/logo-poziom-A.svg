@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Checki u góry, pod nimi poziomy dymek AI i pozioma linia (obok siebie) -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#B558F6"/>
+      <stop offset="1" stop-color="#5B2BE0"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg)"/>
+<polyline points="123,170 157,204 221,122" fill="none" stroke="#FFFFFF" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="291,170 325,204 389,122" fill="none" stroke="#FFFFFF" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 120.0 278.0 H 216.0 A 52.0 52.0 0 0 1 216.0 382.0 H 120.0 A 52.0 52.0 0 0 1 120.0 278.0 Z M 109.5 338 a 13 13 0 1 0 26 0 a 13 13 0 1 0 -26 0 Z M 155.0 320 a 13 13 0 1 0 26 0 a 13 13 0 1 0 -26 0 Z M 200.5 335 a 13 13 0 1 0 26 0 a 13 13 0 1 0 -26 0 Z" fill="#FFFFFF" fill-rule="evenodd"/>
+<rect x="297.0" y="313.0" width="150" height="34" rx="17.0" fill="#FFFFFF"/>
+</svg>

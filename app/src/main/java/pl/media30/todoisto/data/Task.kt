@@ -28,7 +28,26 @@ data class Task(
     val projectId: Long? = null,
     val sectionId: Long? = null,
     val parentId: Long? = null,
+    /** Obszar dla zadań bez projektu (Skrzynka); zadania z projektem dziedziczą obszar projektu. */
+    val areaId: Long? = null,
     val labelIds: List<Long> = emptyList(),
+    /** Attachment URLs — image links render as thumbnails, the rest as link rows. */
+    val attachments: List<String> = emptyList(),
+    /** Przypomnienie w miejscu: współrzędne + nazwa (promień 300 m). */
+    val locLat: Double? = null,
+    val locLon: Double? = null,
+    val locName: String? = null,
     val position: Int = 0,
-    val createdAt: Long = 0L
+    val createdAt: Long = 0L,
+    /** Znacznik ostatniej modyfikacji (ms) — do scalania przy synchronizacji. */
+    val updatedAt: Long = 0L,
+    /** Nagrobek: true = usunięte (ukryte w UI, ale niesione dalej dla synchronizacji). */
+    val deleted: Boolean = false,
+    /** Link do kopii w narzędziu docelowym (np. strona w Notion) — po udanym przekazaniu. */
+    val remoteUrl: String? = null,
+    /**
+     * Stan przekazania do narzędzia projektu (lokalny, nie synchronizowany):
+     * null = nie dotyczy, "pending" = w kolejce, "sent" = wysłane, "error:…" = ostatni błąd.
+     */
+    val routeState: String? = null
 )

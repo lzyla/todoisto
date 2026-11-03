@@ -11,3 +11,10 @@ local.properties
 /app/build
 # Built APK artifacts (reproducible via ./gradlew assembleDebug)
 *.apk
+
+# Kotlin compiler daemon logs
+.kotlin/
+
+# Desktop module build output
+/desktop/build
+/shared/build

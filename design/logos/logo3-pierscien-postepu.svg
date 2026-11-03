@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Koncept 3: „Pierścień postępu" — dzień domknięty w 3/4, w środku ukończenie -->
+  <defs>
+    <linearGradient id="bg3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#241B54"/>
+      <stop offset="1" stop-color="#1E3A8A"/>
+    </linearGradient>
+    <linearGradient id="ring3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#A78BFA"/>
+      <stop offset="1" stop-color="#60A5FA"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg3)"/>
+  <!-- tor pierścienia (delikatny) -->
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="34"/>
+  <!-- postęp 270° (od godziny 12) -->
+  <circle cx="256" cy="256" r="150" fill="none" stroke="url(#ring3)" stroke-width="34"
+          stroke-linecap="round" stroke-dasharray="706.9 235.6" transform="rotate(-90 256 256)"/>
+  <!-- grot „biegnącego czasu" na końcu pierścienia (godzina 9) -->
+  <circle cx="106" cy="256" r="17" fill="#60A5FA"/>
+  <!-- check w środku -->
+  <polyline points="196,262 242,308 330,204" fill="none" stroke="#FFFFFF"
+            stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

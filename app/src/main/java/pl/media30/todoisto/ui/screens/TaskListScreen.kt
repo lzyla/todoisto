@@ -1,109 +1,197 @@
 package pl.media30.todoisto.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Autorenew
+import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Inbox
-import androidx.compose.material.icons.outlined.LightMode
-import androidx.compose.material.icons.outlined.Sell
-import androidx.compose.material.icons.outlined.Today
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.WbSunny
+import androidx.compose.material.icons.outlined.Weekend
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import dev.chrisbanes.haze.haze
 import kotlinx.coroutines.launch
 import pl.media30.todoisto.data.Label
 import pl.media30.todoisto.data.PaletteColors
+import pl.media30.todoisto.data.Priority
 import pl.media30.todoisto.data.Project
 import pl.media30.todoisto.data.QuickAddParser
 import pl.media30.todoisto.data.Task
 import pl.media30.todoisto.ui.AppView
 import pl.media30.todoisto.ui.QuickAddOverrides
-import pl.media30.todoisto.ui.SectionGroup
+import pl.media30.todoisto.data.AppClock
 import pl.media30.todoisto.ui.SortMode
+import pl.media30.todoisto.ui.TaskNode
 import pl.media30.todoisto.ui.TodoUiState
-import pl.media30.todoisto.ui.components.RoutinesBar
-import pl.media30.todoisto.ui.components.TaskItem
+import pl.media30.todoisto.ui.components.GlassCheck
+import pl.media30.todoisto.ui.components.RoutinesPanel
+import pl.media30.todoisto.ui.components.TaskRowZen
 import pl.media30.todoisto.ui.components.bouncy
-import pl.media30.todoisto.ui.components.glassFieldColors
+import pl.media30.todoisto.ui.components.zenMetaLine
 import pl.media30.todoisto.ui.theme.GlassAccent
-import pl.media30.todoisto.ui.theme.GlassPanelTint
+import pl.media30.todoisto.ui.theme.GlassDockBg
+import pl.media30.todoisto.ui.theme.GlassDrawerBg
+import pl.media30.todoisto.ui.theme.GlassFill
+import pl.media30.todoisto.ui.theme.GlassHair
+import pl.media30.todoisto.ui.theme.GlassInputBg
+import pl.media30.todoisto.ui.theme.GlassRim
+import pl.media30.todoisto.ui.theme.GlassShadow
 import pl.media30.todoisto.ui.theme.GlassSurface
-import pl.media30.todoisto.ui.theme.GlassTheme
 import pl.media30.todoisto.ui.theme.GlassTextPrimary
 import pl.media30.todoisto.ui.theme.GlassTextSecondary
+import pl.media30.todoisto.ui.theme.GlassTheme
+import pl.media30.todoisto.ui.theme.GlassTint
+import pl.media30.todoisto.ui.theme.LocalHazeState
+import pl.media30.todoisto.ui.theme.Sora
+import pl.media30.todoisto.ui.theme.controlCenterGlass
+import pl.media30.todoisto.ui.theme.glass
+import pl.media30.todoisto.ui.theme.glassBlur
+import pl.media30.todoisto.ui.theme.livingGradient
+import pl.media30.todoisto.ui.theme.taskTile
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle as JTextStyle
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val PL = Locale.forLanguageTag("pl")
+private val EASE = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
+private val MS = listOf("sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru")
+
+private fun weekdayName(date: LocalDate): String =
+    date.dayOfWeek.getDisplayName(JTextStyle.FULL, PL)
+
+private fun dateCaption(date: LocalDate): String {
+    val month = date.month.getDisplayName(JTextStyle.FULL, PL)
+    // dopełniacz: lipiec → lipca (przybliżenie przez format "d MMMM" locale PL)
+    return "${weekdayName(date)}, " + java.time.format.DateTimeFormatter.ofPattern("d MMMM", PL).format(date)
+}
+
+private fun shortDate(epochDay: Long): String {
+    val d = LocalDate.ofEpochDay(epochDay)
+    return "${d.dayOfMonth} ${MS[d.monthValue - 1]}"
+}
+
 @Composable
 fun TaskListScreen(
     uiState: TodoUiState,
@@ -129,17 +217,99 @@ fun TaskListScreen(
     onSort: (SortMode) -> Unit,
     onSetGoals: (Int, Int) -> Unit,
     onToggleTheme: () -> Unit,
-    routinesExpandedInitially: Boolean = false
+    onMoveOverdueToToday: () -> Unit = {},
+    onOpenActivityPool: () -> Unit = {},
+    onFreeTime: () -> Unit = {},
+    onEditRoutines: () -> Unit = {},
+    isPhotoBackground: Boolean = false,
+    onTogglePhotoBackground: () -> Unit = {},
+    activities: List<pl.media30.todoisto.data.Activity> = emptyList(),
+    onAddActivityQuick: () -> Unit = {},
+    onSharePlan: () -> Unit = {},
+    onDeferToTomorrow: (Task) -> Unit = {},
+    onOpenAutomation: (Task) -> Unit = {},
+    areas: List<pl.media30.todoisto.data.Area> = emptyList(),
+    activeAreaId: Long? = null,
+    onSelectArea: (Long?) -> Unit = {},
+    onAddArea: (String, Long) -> Unit = { _, _ -> },
+    onOpenEstimate: () -> Unit = {},
+    hasApiKey: Boolean = false,
+    onSetApiKey: (String) -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    onOpenStats: () -> Unit = {},
+    onOpenAccount: () -> Unit = {},
+    accountInitial: String = "",
+    accountAvatar: String = "",
+    swipeRightCompletes: Boolean = true,
+    onReorder: (List<Long>) -> Unit = {},
+    onScanNote: (ByteArray) -> Unit = {},
+    onReschedule: (Task, Long) -> Unit = { _, _ -> },
+    routinesExpandedInitially: Boolean = false,
+    weekTasks: List<Task> = emptyList(),
+    onSetEnergy: (pl.media30.todoisto.data.EnergyLevel?) -> Unit = {},
+    onEaseWithAi: (Task) -> Unit = {}
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var menuOpen by remember { mutableStateOf(false) }
     var sortMenuOpen by remember { mutableStateOf(false) }
-    var showQuickAdd by remember { mutableStateOf(false) }
+    var energySheet by remember { mutableStateOf(false) }
+    var easeSheet by remember { mutableStateOf(false) }
+    var routSheet by remember { mutableStateOf(false) }
+    var scanSheetOpen by remember { mutableStateOf(false) }
+    var voiceOpen by remember { mutableStateOf(false) }
+    var qaOpen by remember { mutableStateOf(false) }
+    var qaText by remember { mutableStateOf("") }
+    // Wybory z chipów (Termin/Priorytet/Projekt/Etykiety) — nadpisują to, co wpisano w tekście,
+    // więc zmiana zdania (p1 → p2) po prostu podmienia wartość zamiast ją dublować.
+    var qaDue by remember { mutableStateOf<Long?>(null) }
+    var qaPrio by remember { mutableStateOf<Priority?>(null) }
+    var qaProject by remember { mutableStateOf<Long?>(null) }
+    var qaLabels by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    val qaReset = { qaDue = null; qaPrio = null; qaProject = null; qaLabels = emptySet() }
+    var routOpen by remember { mutableStateOf(routinesExpandedInitially) }
+    var briefOpen by remember { mutableStateOf(false) }
+    var briefLoading by remember { mutableStateOf(false) }
+    var briefLoaded by remember { mutableStateOf(false) }
+    var briefActionDone by remember { mutableStateOf(false) }
     var dialog by remember { mutableStateOf<DialogKind?>(null) }
+    val hazeState = remember { dev.chrisbanes.haze.HazeState() }
+
+    // Skan kartki: pełnowymiarowe zdjęcie (aparat) LUB wybór z galerii → AI wyciąga zadania.
+    val scanCtx = androidx.compose.ui.platform.LocalContext.current
+    val hasRegistry = androidx.activity.compose.LocalActivityResultRegistryOwner.current != null
+    var scanUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    val takePhoto = if (hasRegistry) androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.TakePicture()
+    ) { ok ->
+        val uri = scanUri
+        if (ok && uri != null) pl.media30.todoisto.data.NoteScan.bytesFromUri(scanCtx, uri)?.let(onScanNote)
+    } else null
+    val pickPhoto = if (hasRegistry) androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) pl.media30.todoisto.data.NoteScan.bytesFromUri(scanCtx, uri)?.let(onScanNote)
+    } else null
+
+    // Wstecz (systemowe) zamyka kolejno otwarte nakładki — intuicyjna nawigacja.
+    androidx.activity.compose.BackHandler(enabled = qaOpen) { qaOpen = false; qaReset() }
+    androidx.activity.compose.BackHandler(enabled = briefOpen) { briefOpen = false }
+    androidx.activity.compose.BackHandler(enabled = routOpen) { routOpen = false }
+    androidx.activity.compose.BackHandler(enabled = drawerState.isOpen) { scope.launch { drawerState.close() } }
 
     LaunchedEffect(quickAddPrefill) {
-        if (!quickAddPrefill.isNullOrBlank()) showQuickAdd = true
+        if (!quickAddPrefill.isNullOrBlank()) {
+            qaText = quickAddPrefill
+            qaOpen = true
+        }
+    }
+    LaunchedEffect(briefOpen) {
+        if (briefOpen && !briefLoaded) {
+            briefLoading = true
+            kotlinx.coroutines.delay(1200)
+            briefLoading = false
+            briefLoaded = true
+        }
     }
 
     ModalNavigationDrawer(
@@ -150,222 +320,457 @@ fun TaskListScreen(
                 projects = projects,
                 labels = labels,
                 uiState = uiState,
-                isDarkTheme = isDarkTheme,
-                onSelect = {
-                    onSelectView(it)
-                    scope.launch { drawerState.close() }
-                },
-                onAddProject = { dialog = DialogKind.AddProject },
-                onAddLabel = { dialog = DialogKind.AddLabel },
-                onGoalsClick = { dialog = DialogKind.Goals },
-                onToggleTheme = onToggleTheme
+                isDark = isDarkTheme,
+                onSelect = { onSelectView(it); scope.launch { drawerState.close() } },
+                onAddProject = { dialog = DialogKind.NewProject },
+                onAddLabel = { dialog = DialogKind.NewLabel },
+                onGoals = { dialog = DialogKind.Goals },
+                onToggleDark = onToggleTheme,
+                onOpenActivityPool = { onOpenActivityPool(); scope.launch { drawerState.close() } },
+                onFreeTime = { onFreeTime(); scope.launch { drawerState.close() } },
+                onEditRoutines = { routSheet = true; scope.launch { drawerState.close() } },
+                isPhotoBackground = isPhotoBackground,
+                onTogglePhotoBackground = onTogglePhotoBackground,
+                activities = activities,
+                onAddActivity = { onAddActivityQuick(); scope.launch { drawerState.close() } },
+                onOpenEstimate = { onOpenEstimate(); scope.launch { drawerState.close() } },
+                hasApiKey = hasApiKey,
+                onOpenApiKey = { dialog = DialogKind.ApiKey },
+                onOpenSettings = { onOpenSettings(); scope.launch { drawerState.close() } },
+                onOpenStats = { onOpenStats(); scope.launch { drawerState.close() } },
+                onOpenAccount = { onOpenAccount(); scope.launch { drawerState.close() } },
+                accountAvatar = accountAvatar,
+                accountInitial = accountInitial
             )
         }
     ) {
-        Scaffold(
-            containerColor = Color.Transparent,
-            topBar = {
-                TopAppBar(
-                    title = { Text(uiState.title, fontWeight = FontWeight.Bold, color = GlassTextPrimary) },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.AutoMirrored.Filled.List, "Menu", tint = GlassTextPrimary)
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalHazeState provides hazeState,
+            LocalSwipeRightCompletes provides swipeRightCompletes,
+            LocalReschedule provides onReschedule
+        ) {
+        // Kolejność „stron" do swipowania w lewo/prawo (główne widoki).
+        val pageOrder = remember { listOf(AppView.Today, AppView.Upcoming, AppView.Inbox, AppView.Completed) }
+        var swipeAccum by remember { mutableStateOf(0f) }
+        Box(
+            Modifier.fillMaxSize().pointerInput(uiState.view) {
+                // Swipe całej strony: przeciągnięcie w lewo → następny widok,
+                // w prawo → poprzedni. Zadziała w wolnych obszarach; na kafelku
+                // pierwszeństwo ma jego własny gest (np. odhaczenie).
+                val threshold = 80.dp.toPx()
+                detectHorizontalDragGestures(
+                    onDragStart = { swipeAccum = 0f },
+                    onDragEnd = {
+                        val idx = pageOrder.indexOf(uiState.view)
+                        if (idx != -1) {
+                            if (swipeAccum <= -threshold) pageOrder.getOrNull(idx + 1)?.let(onSelectView)
+                            else if (swipeAccum >= threshold) pageOrder.getOrNull(idx - 1)?.let(onSelectView)
                         }
+                        swipeAccum = 0f
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = GlassPanelTint.copy(alpha = 0.08f),
-                        titleContentColor = GlassTextPrimary
-                    ),
-                    actions = {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(Icons.Filled.MoreVert, "Więcej", tint = GlassTextPrimary)
-                        }
-                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            DropdownMenuItem(
-                                text = { Text("Sortowanie: ${uiState.sortMode.label}") },
-                                onClick = { menuOpen = false; sortMenuOpen = true }
+                    onDragCancel = { swipeAccum = 0f },
+                    onHorizontalDrag = { _, delta -> swipeAccum += delta }
+                )
+            }
+        ) {
+            // Inset status bara liczony TU (obok paska pigułek), a nie w ZenContent —
+            // wewnątrz Boxa z haze() kontekst insetów się zeruje i nagłówek wjeżdżał
+            // na pasek. Przekazujemy gotową wartość do treści.
+            val statusTop = androidx.compose.foundation.layout.WindowInsets.statusBars
+                .asPaddingValues().calculateTopPadding()
+            // ── Treść — zaczyna się i PRZYCINA tuż pod paskiem pigułek, więc tekst
+            //    nigdy nie wjeżdża na przyciski (pozostaje pod nimi). ───────────
+            Box(Modifier.fillMaxSize().padding(top = statusTop + 60.dp).haze(hazeState)) {
+                ZenContent(uiState, projects, labels, onToggle, onTaskClick, onDeferToTomorrow, onOpenAutomation, 0.dp, onReorder, onSetEnergy, onEaseWithAi)
+            }
+
+            // ── Pasek górny — jeden równy rząd (liquid glass) ────────────────
+            Row(
+                Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Awatar / menu — otwiera panel (szufladę z ustawieniami i nawigacją).
+                CircleGlassButton({ scope.launch { drawerState.open() } }) {
+                    Icon(Icons.Filled.Menu, "Menu", tint = GlassTextPrimary, modifier = Modifier.size(18.dp))
+                }
+                AreaSwitcher(areas, activeAreaId, onSelectArea) { dialog = DialogKind.NewArea }
+                Spacer(Modifier.weight(1f))
+                // Buźka energii dnia (tylko w „Dziś") — dotknięcie otwiera krótką chmurkę.
+                uiState.energyLevel?.let { lvl ->
+                    Box {
+                        CircleGlassButton({ energySheet = true }) { Text(lvl.emoji, fontSize = 18.sp) }
+                        GlassMenu(expanded = energySheet, onDismiss = { energySheet = false }) {
+                            val headline = when (lvl) {
+                                pl.media30.todoisto.data.EnergyLevel.LOW -> "Dziś na luzie"
+                                pl.media30.todoisto.data.EnergyLevel.HIGH -> "Zdziałasz dużo"
+                                else -> "Przyzwoicie"
+                            }
+                            Row(Modifier.padding(start = 18.dp, end = 18.dp, top = 6.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(lvl.emoji, fontSize = 38.sp)
+                                Spacer(Modifier.width(10.dp))
+                                Text(headline, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.W700, color = GlassTextPrimary)
+                            }
+                            // Powody w jednej linii, ogólnie — bez dokładnych liczb (sen, tętno).
+                            val why = if (uiState.energyManual) "Wybrane przez Ciebie"
+                                else uiState.energyReasons.take(2)
+                                    .map { it.replace(Regex("\\s*\\(.*?\\)"), "").replace(" spoczynkowe", "").lowercase() }
+                                    .joinToString(", ").replaceFirstChar { c -> c.uppercase() }
+                            if (why.isNotBlank()) {
+                                Text(why, fontSize = 13.sp, lineHeight = 17.sp, color = GlassTextSecondary,
+                                    modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 8.dp))
+                            }
+                            val heavy = uiState.heavyTasks.size
+                            Text(
+                                when (lvl) {
+                                    pl.media30.todoisto.data.EnergyLevel.LOW ->
+                                        "Zacznij od lżejszych zadań." + when {
+                                            heavy == 1 -> " Przy jednym zadaniu skorzystaj z pomocy AI."
+                                            heavy > 1 -> " Przy kilku zadaniach skorzystaj z pomocy AI."
+                                            else -> ""
+                                        }
+                                    pl.media30.todoisto.data.EnergyLevel.HIGH -> "Zacznij od trudnych zadań."
+                                    else -> "Kolejność bez zmian."
+                                },
+                                fontSize = 13.5.sp, lineHeight = 18.sp, color = GlassTextPrimary,
+                                modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 8.dp)
                             )
-                            val project = uiState.currentProject
-                            if (project != null) {
-                                DropdownMenuItem(
-                                    text = { Text(if (project.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") },
-                                    onClick = { menuOpen = false; onToggleProjectFavorite(project.id) }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Dodaj sekcję") },
-                                    onClick = { menuOpen = false; dialog = DialogKind.AddSection }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Duplikuj projekt") },
-                                    onClick = { menuOpen = false; onDuplicateProject(project.id) }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(if (project.isArchived) "Przywróć z archiwum" else "Archiwizuj projekt") },
-                                    onClick = { menuOpen = false; onArchiveProject(project.id, !project.isArchived) }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Usuń projekt") },
-                                    onClick = { menuOpen = false; onDeleteProject(project.id) }
-                                )
+                            if (lvl == pl.media30.todoisto.data.EnergyLevel.LOW && heavy > 0) {
+                                GlassMenuItem("Ułatw z AI ($heavy)", Icons.Outlined.AutoAwesome) { energySheet = false; easeSheet = true }
                             }
-                            val label = uiState.currentLabel
-                            if (label != null) {
-                                DropdownMenuItem(
-                                    text = { Text(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych") },
-                                    onClick = { menuOpen = false; onToggleLabelFavorite(label.id) }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Usuń etykietę") },
-                                    onClick = { menuOpen = false; onDeleteLabel(label.id) }
-                                )
-                            }
-                            DropdownMenuItem(
-                                text = { Text("Usuń ukończone") },
-                                onClick = { menuOpen = false; onClearCompleted() }
-                            )
-                        }
-                        DropdownMenu(expanded = sortMenuOpen, onDismissRequest = { sortMenuOpen = false }) {
-                            SortMode.entries.forEach { mode ->
-                                DropdownMenuItem(
-                                    text = { Text((if (mode == uiState.sortMode) "✓ " else "") + mode.label) },
-                                    onClick = { sortMenuOpen = false; onSort(mode) }
-                                )
-                            }
+                            if (uiState.energyManual) GlassMenuItem("Wg danych", Icons.Outlined.Autorenew) { onSetEnergy(null); energySheet = false }
                         }
                     }
-                )
-            },
-            floatingActionButton = {
-                ExtendedFloatingActionButton(
-                    onClick = { showQuickAdd = true },
-                    shape = RoundedCornerShape(50),
-                    containerColor = GlassAccent,
-                    contentColor = Color.White,
-                    icon = { Icon(Icons.Filled.Add, null) },
-                    text = { Text("Dodaj zadanie", fontWeight = FontWeight.SemiBold) }
-                )
-            },
-            bottomBar = {
-                if (uiState.view == AppView.Today) {
-                    RoutinesBar(
-                        routines = uiState.routines,
-                        doneCount = uiState.routinesDone,
-                        onComplete = onToggle,
-                        initiallyExpanded = routinesExpandedInitially
+                }
+                // Tydzień (asystent AI) — kółko
+                CircleGlassButton({ briefOpen = !briefOpen }) {
+                    Icon(Icons.Outlined.AutoAwesome, "Podsumowanie tygodnia", tint = GlassAccent, modifier = Modifier.size(18.dp))
+                }
+                // (Mikrofon przeniesiony na dolny pasek.)
+                // Menu akcji ⋮ — kółko z rozwijanym menu
+                Box {
+                    CircleGlassButton({ menuOpen = true }) {
+                        Icon(Icons.Filled.MoreVert, "Więcej", tint = GlassTextSecondary, modifier = Modifier.size(18.dp))
+                    }
+                    GlassMenu(expanded = menuOpen, onDismiss = { menuOpen = false }) {
+                        GlassMenuItem("Sortowanie: ${uiState.sortMode.label}", Icons.Outlined.Autorenew) { menuOpen = false; sortMenuOpen = true }
+                        GlassMenuItem("Skanuj kartkę", Icons.Outlined.PhotoCamera) { menuOpen = false; scanSheetOpen = true }
+                        uiState.currentProject?.let { project ->
+                            GlassMenuDivider()
+                            GlassMenuItem(if (project.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych", Icons.Filled.Star) { menuOpen = false; onToggleProjectFavorite(project.id) }
+                            GlassMenuItem("Dodaj sekcję", Icons.Filled.Add) { menuOpen = false; dialog = DialogKind.NewSection }
+                            GlassMenuItem("Duplikuj projekt", Icons.Outlined.CalendarToday) { menuOpen = false; onDuplicateProject(project.id) }
+                            GlassMenuItem(if (project.isArchived) "Przywróć z archiwum" else "Archiwizuj projekt", Icons.Outlined.Archive) { menuOpen = false; onArchiveProject(project.id, !project.isArchived) }
+                            GlassMenuItem("Usuń projekt", Icons.Outlined.Delete, danger = true) { menuOpen = false; onDeleteProject(project.id) }
+                        }
+                        uiState.currentLabel?.let { label ->
+                            GlassMenuDivider()
+                            GlassMenuItem(if (label.isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych", Icons.Filled.Star) { menuOpen = false; onToggleLabelFavorite(label.id) }
+                            GlassMenuItem("Usuń etykietę", Icons.Outlined.Delete, danger = true) { menuOpen = false; onDeleteLabel(label.id) }
+                        }
+                    }
+                }
+                if (routSheet) {
+                    QAPickSheet("Moje rutyny", onDismiss = { routSheet = false }) {
+                        if (uiState.allRoutines.isEmpty()) {
+                            Text("Brak rutyn. Rutyna to zadanie z powtarzaniem, bez godziny, z priorytetem P3 lub P4.",
+                                fontSize = 13.sp, color = Color(0xFF6E6285), modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp))
+                        }
+                        uiState.allRoutines.forEach { t ->
+                            val every = when (t.recurrence) {
+                                pl.media30.todoisto.data.Recurrence.DAILY -> "codziennie"
+                                pl.media30.todoisto.data.Recurrence.WEEKLY -> "co tydzień"
+                                pl.media30.todoisto.data.Recurrence.MONTHLY -> "co miesiąc"
+                                pl.media30.todoisto.data.Recurrence.YEARLY -> "co rok"
+                                else -> ""
+                            }
+                            QAPickRow(
+                                label = t.title + " · " + every, selected = false,
+                                onClick = { routSheet = false; onTaskClick(t) },
+                                icon = { Icon(Icons.Outlined.Autorenew, null, tint = Color(0xFF6B3FE0), modifier = Modifier.size(20.dp)) }
+                            )
+                        }
+                        Text("Dotknij rutyny, żeby zmienić nazwę, powtarzanie lub priorytet. Nowa rutyna: dodaj zadanie z powtarzaniem, bez godziny, z priorytetem P3/P4.",
+                            fontSize = 12.sp, color = Color(0xFF6E6285), modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp))
+                    }
+                }
+                if (easeSheet) {
+                    QAPickSheet("Ułatw z AI — które zadanie?", onDismiss = { easeSheet = false }) {
+                        uiState.heavyTasks.forEach { t ->
+                            QAPickRow(
+                                label = t.title, selected = false,
+                                onClick = { easeSheet = false; onEaseWithAi(t) },
+                                icon = { Icon(Icons.Outlined.AutoAwesome, null, tint = Color(0xFF6B3FE0), modifier = Modifier.size(20.dp)) }
+                            )
+                        }
+                    }
+                }
+                if (sortMenuOpen) {
+                    SortSheet(
+                        current = uiState.sortMode,
+                        onPick = { onSort(it); sortMenuOpen = false },
+                        onDismiss = { sortMenuOpen = false }
+                    )
+                }
+                if (scanSheetOpen) {
+                    ScanChooserSheet(
+                        onCamera = {
+                            scanSheetOpen = false
+                            if (takePhoto != null) {
+                                val (u, _) = pl.media30.todoisto.data.NoteScan.newCaptureUri(scanCtx)
+                                scanUri = u; takePhoto.launch(u)
+                            }
+                        },
+                        onGallery = {
+                            scanSheetOpen = false
+                            pickPhoto?.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        },
+                        onDismiss = { scanSheetOpen = false }
                     )
                 }
             }
-        ) { innerPadding ->
-            Box(Modifier.padding(innerPadding).fillMaxSize()) {
-                Crossfade(targetState = uiState.isEmpty, label = "listOrEmpty") { empty ->
-                    if (empty) {
-                        EmptyState(uiState.view, hasRoutines = uiState.routines.isNotEmpty())
-                    } else {
-                        TaskList(uiState.groups, labels, onToggle, onTaskClick)
-                    }
+
+            // ── Panel Rutyn nad dockiem ──────────────────────────────────────
+            if (uiState.view == AppView.Today) {
+                AnimatedVisibility(
+                    visible = routOpen,
+                    enter = slideInVertically(tween(450, easing = EASE)) { it / 4 } + fadeIn(tween(350)),
+                    exit = slideOutVertically(tween(350, easing = EASE)) { it / 4 } + fadeOut(tween(250)),
+                    modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 104.dp)
+                ) {
+                    RoutinesPanel(
+                        routines = uiState.routines,
+                        doneCount = uiState.routinesDone,
+                        onComplete = onToggle,
+                        onCollapse = { routOpen = false },
+                        onEdit = { routSheet = true }
+                    )
                 }
             }
+
+            // ── Dock: Rutyny · Dziś · Nadchodzące · Wolne (czas wolny) · Mikrofon ──
+            Row(
+                Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 2.dp)
+                    .controlCenterGlass(RoundedCornerShape(26.dp)).padding(horizontal = 4.dp, vertical = 3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                // Rutyny: ikona z odznaką liczby + (na widoku Dziś) pierścień postępu dnia.
+                val todayStartMs = remember { AppClock.today().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() }
+                val doneToday = weekTasks.count { it.isCompleted && (it.completedAt ?: 0L) >= todayStartMs }
+                val dayFrac = if (doneToday + uiState.todayCount == 0) 0f else doneToday.toFloat() / (doneToday + uiState.todayCount)
+                val ringFrac by animateFloatAsState(if (uiState.view == AppView.Today) dayFrac else 0f, tween(650, easing = EASE), label = "dayRing")
+                val ringColor by animateColorAsState(if (dayFrac >= 1f) Color(0xFFF4B740) else GlassAccent, tween(500), label = "dayRingC")
+                DockItem(
+                    icon = if (uiState.routines.isEmpty() && uiState.routinesDone > 0) Icons.Outlined.CheckCircle else Icons.Outlined.Autorenew,
+                    label = "Rutyny",
+                    selected = false,
+                    badge = uiState.routines.size.takeIf { it > 0 },
+                    ringFrac = ringFrac,
+                    ringColor = ringColor
+                ) { routOpen = !routOpen }
+                DockItem(Icons.Outlined.CalendarToday, "Dziś", uiState.view == AppView.Today) { onSelectView(AppView.Today) }
+                DockItem(Icons.Outlined.DateRange, "Nadchodz.", uiState.view == AppView.Upcoming) { onSelectView(AppView.Upcoming) }
+                DockItem(Icons.Outlined.Bolt, "Wolne", selected = false) { onFreeTime() }
+                DockItem(Icons.Filled.Mic, "Mikrofon", selected = false) { voiceOpen = true }
+            }
+
+            // ── Scrim Quick Add ─────────────────────────────────────────────
+            if (qaOpen) {
+                Box(
+                    Modifier.fillMaxSize()
+                        .background(Color(0x4D1C0A42))
+                        .clickable(remember { MutableInteractionSource() }, null) { qaOpen = false; qaReset() }
+                )
+            }
+
+            // ── Morfujący FAB Quick Add ─────────────────────────────────────
+            QuickAddMorph(
+                open = qaOpen,
+                text = qaText,
+                onText = { qaText = it },
+                projects = projects,
+                labels = labels,
+                due = qaDue, onDue = { qaDue = it },
+                prio = qaPrio, onPrio = { qaPrio = it },
+                projectId = qaProject, onProject = { qaProject = it },
+                labelIds = qaLabels, onLabelIds = { qaLabels = it },
+                onToggleOpen = {
+                    qaOpen = !qaOpen
+                    if (!qaOpen) { onPrefillConsumed(); qaReset() }
+                },
+                onSubmit = {
+                    if (qaText.isNotBlank()) {
+                        onQuickAdd(qaText, QuickAddOverrides(
+                            dueDate = qaDue, priority = qaPrio, projectId = qaProject, labelIds = qaLabels.toList()))
+                        qaReset()
+                        qaText = ""
+                        qaOpen = false
+                        onPrefillConsumed()
+                    }
+                },
+                onScanCamera = {
+                    if (takePhoto != null) {
+                        val (u, _) = pl.media30.todoisto.data.NoteScan.newCaptureUri(scanCtx)
+                        scanUri = u; takePhoto.launch(u)
+                    }
+                },
+                onScanGallery = {
+                    pickPhoto?.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
+                modifier = Modifier.align(Alignment.BottomEnd)
+            )
+
+            // ── Asystent tygodnia (zjeżdża z góry) ──────────────────────────
+            if (briefOpen) {
+                Box(
+                    Modifier.fillMaxSize().background(Color(0x5218083C))
+                        .clickable(remember { MutableInteractionSource() }, null) { briefOpen = false }
+                )
+            }
+            AnimatedVisibility(
+                visible = briefOpen,
+                enter = slideInVertically(tween(550, easing = EASE)) { -it } + fadeIn(tween(300)),
+                exit = slideOutVertically(tween(400, easing = EASE)) { -it } + fadeOut(tween(250)),
+                modifier = Modifier.align(Alignment.TopCenter)
+            ) {
+                WeekBrief(
+                    loading = briefLoading,
+                    weekTasks = weekTasks,
+                    uiState = uiState,
+                    actionDone = briefActionDone,
+                    onAction = { briefActionDone = true; onMoveOverdueToToday() },
+                    onItemClick = { onTaskClick(it); briefOpen = false },
+                    onClose = { briefOpen = false }
+                )
+            }
+
+            // ── Animowana nakładka nagrywania głosu ─────────────────────────
+            if (voiceOpen) {
+                VoiceCaptureOverlay(
+                    onResult = { text -> onQuickAdd(text, QuickAddOverrides()); voiceOpen = false },
+                    onDismiss = { voiceOpen = false }
+                )
+            }
+        }
         }
     }
 
-    if (showQuickAdd) {
-        QuickAddSheet(
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            initialText = quickAddPrefill.orEmpty(),
-            projects = projects,
-            onDismiss = {
-                showQuickAdd = false
-                onPrefillConsumed()
-            },
-            onAdd = { text, overrides ->
-                onQuickAdd(text, overrides)
-                showQuickAdd = false
-                onPrefillConsumed()
-            }
-        )
-    }
-
     when (dialog) {
-        DialogKind.AddProject -> NameColorDialog(
-            title = "Nowy projekt",
-            onDismiss = { dialog = null },
-            onConfirm = { name, color -> onAddProject(name, color); dialog = null }
-        )
-        DialogKind.AddLabel -> NameColorDialog(
-            title = "Nowa etykieta",
-            onDismiss = { dialog = null },
-            onConfirm = { name, color -> onAddLabel(name, color); dialog = null }
-        )
-        DialogKind.AddSection -> NameDialog(
-            title = "Nowa sekcja",
-            onDismiss = { dialog = null },
-            onConfirm = { name ->
-                (uiState.view as? AppView.ProjectView)?.let { onAddSection(it.id, name) }
-                dialog = null
-            }
-        )
-        DialogKind.Goals -> GoalsDialog(
-            daily = uiState.goalDaily,
-            weekly = uiState.goalWeekly,
-            onDismiss = { dialog = null },
-            onConfirm = { d, w -> onSetGoals(d, w); dialog = null }
-        )
+        DialogKind.NewArea -> NameColorDialog("Nowy obszar", "Nazwa obszaru", true, { dialog = null }) { n, c -> onAddArea(n, c); dialog = null }
+        DialogKind.NewProject -> NameColorDialog("Nowy projekt", "Nazwa projektu", true, { dialog = null }) { n, c -> onAddProject(n, c); dialog = null }
+        DialogKind.NewLabel -> NameColorDialog("Nowa etykieta", "Nazwa etykiety", true, { dialog = null }) { n, c -> onAddLabel(n, c); dialog = null }
+        DialogKind.NewSection -> NameColorDialog("Nowa sekcja", "Nazwa sekcji", false, { dialog = null }) { n, _ ->
+            (uiState.view as? AppView.ProjectView)?.let { onAddSection(it.id, n) }
+            dialog = null
+        }
+        DialogKind.Goals -> GoalsDialog(uiState.goalDaily, uiState.goalWeekly, { dialog = null }) { d, w -> onSetGoals(d, w); dialog = null }
+        DialogKind.ApiKey -> ApiKeyDialog(hasApiKey, { dialog = null }) { k -> onSetApiKey(k); dialog = null }
         null -> {}
     }
 }
 
-private enum class DialogKind { AddProject, AddLabel, AddSection, Goals }
+private enum class DialogKind { NewArea, NewProject, NewLabel, NewSection, Goals, ApiKey }
 
 @Composable
-private fun TaskList(
-    groups: List<SectionGroup>,
-    labels: List<Label>,
-    onToggle: (Task) -> Unit,
-    onTaskClick: (Task) -> Unit
-) {
-    LazyColumn(
-        contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 100.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        groups.forEach { group ->
-            if (group.name != null) {
-                item(key = "sec-${group.sectionId}") {
-                    Text(
-                        group.name,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = GlassTextSecondary,
-                        modifier = Modifier.padding(start = 4.dp, top = 6.dp)
-                    )
-                }
+private fun ApiKeyDialog(hasKey: Boolean, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var key by remember { mutableStateOf("") }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = { onSave(key) }, enabled = key.isNotBlank()) { Text("Zapisz") }
+        },
+        dismissButton = {
+            Row {
+                if (hasKey) androidx.compose.material3.TextButton(onClick = { onSave("") }) { Text("Usuń") }
+                androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Anuluj") }
             }
-            items(group.nodes, key = { it.task.id }) { node ->
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.animateItem(
-                        fadeInSpec = spring(stiffness = Spring.StiffnessLow),
-                        placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
-                        fadeOutSpec = spring(stiffness = Spring.StiffnessMedium)
-                    )
+        },
+        title = { Text("Klucz AI (OpenAI)") },
+        text = {
+            Column {
+                Text(
+                    (if (hasKey) "Klucz jest ustawiony. Wklej nowy, aby zmienić.\n\n" else "") +
+                    "Klucz utworzysz na platform.openai.com → API keys. Zostaje tylko na tym urządzeniu.",
+                    fontSize = 12.5.sp
+                )
+                Spacer(Modifier.height(12.dp))
+                androidx.compose.material3.OutlinedTextField(
+                    value = key, onValueChange = { key = it }, singleLine = true,
+                    placeholder = { Text("sk-…") }, modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    )
+}
+
+// ─── Elementy paska i docka ──────────────────────────────────────────────────
+
+@Composable
+private fun AreaSwitcher(
+    areas: List<pl.media30.todoisto.data.Area>,
+    activeAreaId: Long?,
+    onSelect: (Long?) -> Unit,
+    onAdd: () -> Unit
+) {
+    var open by remember { mutableStateOf(false) }
+    val active = areas.firstOrNull { it.id == activeAreaId }
+    val dotColor = active?.let { Color(it.colorArgb) } ?: GlassAccent
+    Box {
+        Row(
+            Modifier
+                .height(42.dp)
+                .glassBlur(RoundedCornerShape(21.dp))
+                .bouncy(0.94f) { open = true }
+                .padding(start = 13.dp, end = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(Modifier.size(9.dp).clip(CircleShape).background(dotColor))
+            Spacer(Modifier.width(7.dp))
+            Text(active?.name ?: "Wszystko", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary, maxLines = 1, softWrap = false)
+            Icon(Icons.Filled.KeyboardArrowDown, null, tint = GlassTextSecondary, modifier = Modifier.size(15.dp).padding(start = 2.dp))
+        }
+        if (open) {
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            androidx.compose.ui.window.Popup(
+                alignment = Alignment.TopStart,
+                offset = androidx.compose.ui.unit.IntOffset(0, with(density) { 48.dp.roundToPx() }),
+                onDismissRequest = { open = false },
+                properties = androidx.compose.ui.window.PopupProperties(focusable = true)
+            ) {
+                val visible = remember { androidx.compose.animation.core.MutableTransitionState(false) }
+                visible.targetState = true
+                AnimatedVisibility(
+                    visibleState = visible,
+                    enter = fadeIn(tween(160)) + androidx.compose.animation.scaleIn(
+                        tween(240, easing = EASE), initialScale = 0.82f,
+                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.2f, 0f)
+                    ) + expandVertically(tween(240, easing = EASE)),
+                    exit = fadeOut(tween(120))
                 ) {
-                    TaskItem(
-                        task = node.task,
-                        labels = labels.filter { node.task.labelIds.contains(it.id) },
-                        onToggle = { onToggle(node.task) },
-                        onClick = { onTaskClick(node.task) },
-                        subtaskDone = node.subtasks.count { it.isCompleted },
-                        subtaskTotal = node.subtasks.size,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    node.subtasks.forEach { sub ->
-                        TaskItem(
-                            task = sub,
-                            labels = emptyList(),
-                            onToggle = { onToggle(sub) },
-                            onClick = { onTaskClick(sub) },
-                            compact = true,
-                            modifier = Modifier.fillMaxWidth().padding(start = 28.dp)
-                        )
+                    Column(
+                        Modifier.width(232.dp)
+                            .shadow(26.dp, RoundedCornerShape(24.dp))
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(GlassDockBg)
+                            .border(1.dp, GlassRim.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
+                            .padding(vertical = 8.dp)
+                    ) {
+                        AreaMenuItem("Wszystko", null, activeAreaId == null) { open = false; onSelect(null) }
+                        areas.forEach { a ->
+                            AreaMenuItem(a.name, Color(a.colorArgb), activeAreaId == a.id) { open = false; onSelect(a.id) }
+                        }
+                        Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp).height(1.dp).background(GlassHair))
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                                .bouncy(0.97f) { open = false; onAdd() }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Filled.Add, null, tint = GlassAccent, modifier = Modifier.size(17.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Text("Nowy obszar", fontSize = 14.sp, fontWeight = FontWeight.W700, color = GlassAccent)
+                        }
                     }
                 }
             }
@@ -373,7 +778,1389 @@ private fun TaskList(
     }
 }
 
-// ---- Drawer ----------------------------------------------------------------
+@Composable
+private fun AreaMenuItem(name: String, dot: Color?, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+            .background(if (selected) GlassAccent.copy(alpha = 0.14f) else Color.Transparent)
+            .bouncy(0.97f, onClick).padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.size(11.dp).clip(CircleShape).background(dot ?: GlassTextSecondary.copy(alpha = 0.4f)),
+            contentAlignment = Alignment.Center
+        ) {}
+        Spacer(Modifier.width(12.dp))
+        Text(name, fontSize = 14.sp, fontWeight = if (selected) FontWeight.W800 else FontWeight.W600, color = GlassTextPrimary, modifier = Modifier.weight(1f))
+        if (selected) Icon(Icons.Filled.Check, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
+    }
+}
+
+/** Menu w stylu glass (jak pigułka „Tydzień") — zamiast kryjącego DropdownMenu. */
+@Composable
+private fun GlassMenu(expanded: Boolean, onDismiss: () -> Unit, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    if (!expanded) return
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    androidx.compose.ui.window.Popup(
+        alignment = Alignment.TopEnd,
+        offset = androidx.compose.ui.unit.IntOffset(0, with(density) { 38.dp.roundToPx() }),
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.PopupProperties(focusable = true)
+    ) {
+        val vis = remember { androidx.compose.animation.core.MutableTransitionState(false) }
+        vis.targetState = true
+        AnimatedVisibility(
+            visibleState = vis,
+            enter = fadeIn(tween(160)) + androidx.compose.animation.scaleIn(
+                tween(220, easing = EASE), initialScale = 0.85f,
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0f)
+            ) + expandVertically(tween(220, easing = EASE)),
+            exit = fadeOut(tween(120))
+        ) {
+            Column(
+                Modifier.width(236.dp)
+                    .shadow(20.dp, RoundedCornerShape(22.dp))
+                    .clip(RoundedCornerShape(22.dp))
+                    // Menu leży wprost na treści (bez przyciemnienia), więc frosted,
+                    // czytelne szkło — treść pod spodem NIE prześwituje.
+                    .background(GlassSurface)
+                    .border(1.dp, GlassRim.copy(alpha = 0.6f), RoundedCornerShape(22.dp))
+                    .padding(vertical = 8.dp),
+                content = content
+            )
+        }
+    }
+}
+
+@Composable
+private fun GlassMenuItem(text: String, icon: ImageVector? = null, danger: Boolean = false, onClick: () -> Unit) {
+    val fg = if (danger) Color(0xFFD1453B) else GlassTextPrimary
+    val tint = if (danger) Color(0xFFD1453B) else GlassAccent
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 6.dp).clip(RoundedCornerShape(13.dp))
+            .bouncy(0.98f, onClick).padding(horizontal = 12.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (icon != null) {
+            Box(
+                Modifier.size(28.dp).clip(RoundedCornerShape(9.dp)).background(tint.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) { Icon(icon, null, tint = tint, modifier = Modifier.size(16.dp)) }
+            Spacer(Modifier.width(11.dp))
+        }
+        Text(text, fontSize = 14.sp, fontWeight = FontWeight.W600, color = fg)
+    }
+}
+
+@Composable
+private fun GlassMenuDivider() {
+    Box(
+        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 5.dp)
+            .height(1.dp).background(GlassRim.copy(alpha = 0.4f))
+    )
+}
+
+@Composable
+private fun CircleGlassButton(onClick: () -> Unit, content: @Composable () -> Unit) {
+    Box(
+        Modifier.size(42.dp).glassBlur(CircleShape).bouncy(0.9f, onClick),
+        contentAlignment = Alignment.Center,
+        content = { content() }
+    )
+}
+
+@Composable
+private fun DockItem(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    badge: Int? = null,
+    ringFrac: Float = 0f,
+    ringColor: Color = GlassAccent,
+    onClick: () -> Unit
+) {
+    // Stały rozmiar i pozycja — zaznaczenie zmienia tylko kolor, nic się nie
+    // rozjeżdża ani nie zwiększa. Ikona nad krótką etykietą.
+    val fg by animateColorAsState(if (selected) GlassAccent else GlassTextPrimary, tween(300), label = "dockFg")
+    Column(
+        Modifier.width(68.dp).clip(RoundedCornerShape(16.dp)).bouncy(0.92f, onClick)
+            .padding(vertical = 5.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Box(
+                Modifier.size(24.dp).drawWithContent {
+                    drawContent()
+                    if (ringFrac > 0f) {
+                        val stroke = 2.5.dp.toPx()
+                        drawArc(
+                            color = ringColor,
+                            startAngle = -90f, sweepAngle = 360f * ringFrac, useCenter = false,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round),
+                            topLeft = Offset(stroke / 2f, stroke / 2f),
+                            size = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke)
+                        )
+                    }
+                },
+                contentAlignment = Alignment.Center
+            ) { Icon(icon, label, tint = fg, modifier = Modifier.size(19.dp)) }
+            if (badge != null) {
+                Box(
+                    Modifier.align(Alignment.TopEnd).offset(7.dp, (-6).dp)
+                        .size(16.dp).background(Color.White, CircleShape).padding(2.dp)
+                        .background(GlassAccent, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "$badge", color = Color.White, fontSize = 8.5.sp,
+                        fontWeight = FontWeight.W800, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 8.5.sp
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(2.dp))
+        Text(label, fontSize = 10.sp, fontWeight = FontWeight.W800, color = fg, maxLines = 1, softWrap = false)
+    }
+}
+
+// ─── Treść widoków ───────────────────────────────────────────────────────────
+
+@Composable
+private fun ZenContent(
+    uiState: TodoUiState,
+    projects: List<Project>,
+    labels: List<Label>,
+    onToggle: (Task) -> Unit,
+    onTaskClick: (Task) -> Unit,
+    onDefer: (Task) -> Unit,
+    onOpenAutomation: (Task) -> Unit,
+    statusTop: androidx.compose.ui.unit.Dp,
+    onReorder: (List<Long>) -> Unit = {},
+    onSetEnergy: (pl.media30.todoisto.data.EnergyLevel?) -> Unit = {},
+    onEaseWithAi: (Task) -> Unit = {}
+) {
+    val today = AppClock.today()
+    val collapsed = remember { mutableStateMapOf<String, Boolean>() }
+
+    // Bucket pory dnia (dla widoku Dzisiaj).
+    fun bucketOf(t: Task): String {
+        val m = t.dueTimeMinutes
+        return when {
+            m == null -> "Rano"
+            m < 12 * 60 -> "Rano"
+            m < 17 * 60 -> "Po południu"
+            else -> "Wieczorem"
+        }
+    }
+
+    // Przeciąganie zadań (drag&drop) BEZ trybów — działa wprost na liście Dzisiaj.
+    // Kolejność wg position (utrzymana przez przeciąganie), grupy wg pory dnia.
+    val flatNodes = uiState.groups.flatMap { it.nodes }
+    val flatIds = flatNodes.map { it.task.id }
+    val orderedNodes = remember { androidx.compose.runtime.mutableStateListOf<TaskNode>() }
+    androidx.compose.runtime.LaunchedEffect(flatIds) {
+        orderedNodes.clear()
+        orderedNodes.addAll(flatNodes.sortedBy { it.task.position })
+    }
+
+    // Puls „nowego zadania": id spoza znanego zbioru → jedno sprężyste wejście.
+    // Pierwsze (niepuste) załadowanie tylko zasila zbiór — bez animowania wszystkiego.
+    val seenIds = remember { mutableSetOf<Long>() }
+    val listReady = remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(flatIds) {
+        if (!listReady.value) {
+            if (flatIds.isNotEmpty()) { seenIds.addAll(flatIds); listReady.value = true }
+        } else seenIds.addAll(flatIds)
+    }
+    fun isNewTask(id: Long): Boolean = listReady.value && id !in seenIds
+
+    // Celebracja końca dnia: lista Dzisiaj miała zadania i właśnie się opróżniła.
+    val hadTasksToday = remember { mutableStateOf(false) }
+    val lazyState = rememberLazyListState()
+    val reorderState = rememberReorderableLazyListState(lazyState) { from, to ->
+        val f = orderedNodes.indexOfFirst { it.task.id == from.key }
+        val t = orderedNodes.indexOfFirst { it.task.id == to.key }
+        // Przenosimy tylko w obrębie tej samej pory dnia — bez „przeskoków" między grupami.
+        if (f in orderedNodes.indices && t in orderedNodes.indices &&
+            bucketOf(orderedNodes[f].task) == bucketOf(orderedNodes[t].task)) {
+            orderedNodes.add(t, orderedNodes.removeAt(f))
+        }
+    }
+
+    // Sam kontener treści jest już odsunięty i przycięty pod paskiem pigułek
+    // (patrz padding Boxa z haze()), więc tu wystarczy drobny zapas u góry.
+    LazyColumn(state = lazyState, contentPadding = PaddingValues(start = 18.dp, top = statusTop + 10.dp, end = 18.dp, bottom = 170.dp)) {
+        when (uiState.view) {
+            AppView.Today -> {
+                item(key = "hdr") {
+                    Column(Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Dzisiaj", style = MaterialTheme.typography.headlineSmall, color = GlassTextPrimary)
+                        Spacer(Modifier.height(4.dp))
+                        Text(dateCaption(today), fontSize = 12.5.sp, color = GlassTextSecondary)
+                        Spacer(Modifier.height(7.dp))
+                        Box(Modifier.size(34.dp, 3.dp).clip(RoundedCornerShape(2.dp)).background(GlassAccent.copy(alpha = 0.5f)))
+                    }
+                }
+                if (orderedNodes.isEmpty()) {
+                    item(key = "empty") {
+                        // Dyskretna nagroda — tylko gdy lista opróżniła się na naszych oczach.
+                        if (hadTasksToday.value) CelebrationBurst()
+                        EmptyState(
+                            if (uiState.routines.isNotEmpty()) "Zostały tylko rutyny" else "Wszystko zrobione",
+                            if (uiState.routines.isNotEmpty()) "Główna lista pusta — sprawdź rutyny przyciskiem ⟳ na dole." else "Dodaj kolejne zadanie plusem w rogu."
+                        )
+                    }
+                } else {
+                    hadTasksToday.value = true
+                    val todayEp = today.toEpochDay()
+                    val overdueNodes = orderedNodes.filter { it.task.dueDate != null && it.task.dueDate!! < todayEp }
+                    val todayNodes = orderedNodes.filter { it.task.dueDate == null || it.task.dueDate!! >= todayEp }
+
+                    // ── ZALEGŁE — rozwijana sekcja na górze (bez etykiety przy każdym zadaniu) ──
+                    if (overdueNodes.isNotEmpty()) {
+                        item(key = "sec-overdue") {
+                            val isCol = collapsed["overdue"] == true
+                            val chev by animateFloatAsState(if (isCol) -90f else 0f, tween(400, easing = EASE), label = "chevOv")
+                            Row(
+                                Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(12.dp))
+                                    .then(if (!isCol) Modifier.livingGradient(RoundedCornerShape(12.dp), 0.12f) else Modifier)
+                                    .bouncy(0.98f) { collapsed["overdue"] = !isCol }.padding(horizontal = 6.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AnimatedSectionLabel("ZALEGŁE", overdueNodes.size, Color(0xFFC2410C), Modifier.weight(1f))
+                                Icon(Icons.Filled.KeyboardArrowDown, null, tint = Color(0xFFC2410C), modifier = Modifier.size(13.dp).rotate(chev))
+                            }
+                        }
+                        if (collapsed["overdue"] != true) {
+                            overdueNodes.forEach { node ->
+                                item(key = "ov-${node.task.id}") {
+                                    val isNew = remember(node.task.id) { isNewTask(node.task.id) }
+                                    val pulse = remember(node.task.id) { androidx.compose.animation.core.Animatable(if (isNew) 0.92f else 1f) }
+                                    LaunchedEffect(node.task.id) {
+                                        if (isNew) pulse.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.5f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))
+                                    }
+                                    Column(Modifier.padding(vertical = 4.dp).graphicsLayer { scaleX = pulse.value; scaleY = pulse.value }) {
+                                        ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ── DZISIAJ — rozwijana sekcja z podziałem na porę dnia ──
+                    item(key = "sec-today") {
+                        val isCol = collapsed["today"] == true
+                        val chev by animateFloatAsState(if (isCol) -90f else 0f, tween(400, easing = EASE), label = "chevToday")
+                        Row(
+                            Modifier.fillMaxWidth().padding(top = 14.dp).clip(RoundedCornerShape(12.dp))
+                                .then(if (!isCol) Modifier.livingGradient(RoundedCornerShape(12.dp), 0.12f) else Modifier)
+                                .bouncy(0.98f) { collapsed["today"] = !isCol }.padding(horizontal = 6.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AnimatedSectionLabel("DZISIAJ", todayNodes.size, GlassTextSecondary, Modifier.weight(1f))
+                            Icon(Icons.Filled.KeyboardArrowDown, null, tint = GlassTextSecondary, modifier = Modifier.size(13.dp).rotate(chev))
+                        }
+                    }
+                    if (collapsed["today"] != true) {
+                        listOf("Rano", "Po południu", "Wieczorem").forEach { b ->
+                            val inBucket = todayNodes.filter { bucketOf(it.task) == b }
+                            if (inBucket.isNotEmpty()) {
+                                item(key = "sec-$b") {
+                                    val isCol = collapsed[b] == true
+                                    val chev by animateFloatAsState(if (isCol) -90f else 0f, tween(400, easing = EASE), label = "chev")
+                                    Row(
+                                        Modifier.fillMaxWidth().padding(top = 10.dp, start = 8.dp).clip(RoundedCornerShape(12.dp))
+                                            .bouncy(0.98f) { collapsed[b] = !isCol }.padding(horizontal = 6.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(b.uppercase(), fontSize = 10.5.sp, fontWeight = FontWeight.W700, letterSpacing = 1.3.sp, color = GlassTextSecondary.copy(alpha = 0.8f), modifier = Modifier.weight(1f))
+                                        Icon(Icons.Filled.KeyboardArrowDown, null, tint = GlassTextSecondary, modifier = Modifier.size(12.dp).rotate(chev))
+                                    }
+                                }
+                                if (collapsed[b] != true) {
+                                    inBucket.forEach { node ->
+                                        item(key = node.task.id) {
+                                            val isNew = remember(node.task.id) { isNewTask(node.task.id) }
+                                            val pulse = remember(node.task.id) { androidx.compose.animation.core.Animatable(if (isNew) 0.92f else 1f) }
+                                            LaunchedEffect(node.task.id) {
+                                                if (isNew) pulse.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.5f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))
+                                            }
+                                            ReorderableItem(reorderState, key = node.task.id) { dragging ->
+                                                // Przeciąganie: uniesienie + delikatny przechył + fioletowa poświata
+                                                // (kafelek „w palcach" wyraźnie odróżnia się od reszty listy).
+                                                val scale by animateFloatAsState(if (dragging) 1.035f else 1f, tween(180), label = "dragScale")
+                                                val elevation by animateDpAsState(if (dragging) 16.dp else 0.dp, tween(180), label = "dragElev")
+                                                val tilt by animateFloatAsState(if (dragging) 1.4f else 0f, tween(200), label = "dragTilt")
+                                                val glow by animateFloatAsState(if (dragging) 1f else 0f, tween(200), label = "dragGlow")
+                                                Column(
+                                                    Modifier
+                                                        .padding(vertical = 4.dp)
+                                                        .graphicsLayer {
+                                                            scaleX = scale * pulse.value; scaleY = scale * pulse.value
+                                                            rotationZ = tilt
+                                                        }
+                                                        .shadow(elevation, RoundedCornerShape(20.dp), spotColor = GlassAccent, ambientColor = GlassAccent.copy(alpha = 0.7f))
+                                                        .then(if (glow > 0f) Modifier.border(1.dp, GlassAccent.copy(alpha = 0.45f * glow), RoundedCornerShape(20.dp)) else Modifier)
+                                                        .longPressDraggableHandle(onDragStopped = { onReorder(orderedNodes.map { it.task.id }) })
+                                                ) {
+                                                    ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            AppView.Upcoming -> {
+                item(key = "hdr") {
+                    Column(Modifier.padding(top = 10.dp, start = 4.dp, bottom = 4.dp)) {
+                        Text("najbliższe 7 dni", fontSize = 13.sp, fontWeight = FontWeight.W600, color = GlassTextSecondary)
+                        Text("Nadchodzące", style = MaterialTheme.typography.headlineMedium, color = GlassTextPrimary)
+                    }
+                }
+                val nodes = uiState.groups.firstOrNull()?.nodes.orEmpty()
+                (1..7).forEach { off ->
+                    val date = today.plusDays(off.toLong())
+                    val epoch = date.toEpochDay()
+                    val dayNodes = nodes.filter { it.task.dueDate == epoch }
+                    item(key = "day-$off") {
+                        Row(Modifier.padding(top = 18.dp, start = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                if (off == 1) "Jutro" else weekdayName(date).replaceFirstChar { it.uppercase() },
+                                fontSize = 14.5.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("${date.dayOfMonth} ${MS[date.monthValue - 1]}", fontSize = 12.sp, color = GlassTextSecondary)
+                        }
+                        if (dayNodes.isEmpty()) {
+                            Text(
+                                "Nic zaplanowanego", fontSize = 12.5.sp,
+                                color = GlassTextSecondary.copy(alpha = 0.7f),
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                dayNodes.forEachIndexed { i, node ->
+                                    ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else -> {
+                item(key = "hdr") {
+                    Row(Modifier.padding(top = 14.dp, start = 4.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        val dotColor = uiState.currentProject?.let { Color(it.colorArgb) }
+                            ?: uiState.currentLabel?.let { Color(it.colorArgb) }
+                            ?: GlassAccent
+                        Box(Modifier.size(12.dp).clip(RoundedCornerShape(6.dp)).background(dotColor))
+                        Spacer(Modifier.width(10.dp))
+                        Text(uiState.title, style = MaterialTheme.typography.titleLarge, color = GlassTextPrimary)
+                        Spacer(Modifier.width(10.dp))
+                        val n = uiState.groups.sumOf { it.nodes.size }
+                        Text(
+                            "$n " + when { n == 1 -> "zadanie"; n in 2..4 -> "zadania"; else -> "zadań" },
+                            fontSize = 12.5.sp, fontWeight = FontWeight.W600, color = GlassTextSecondary,
+                            modifier = Modifier.padding(top = 6.dp)
+                        )
+                    }
+                }
+                if (uiState.isEmpty) {
+                    item(key = "empty") {
+                        val (h, s) = when (uiState.view) {
+                            AppView.Inbox -> "Skrzynka pusta" to "Zadania bez terminu i projektu trafią tutaj."
+                            AppView.Completed -> "Brak ukończonych" to "Odhaczone zadania pojawią się w tym miejscu."
+                            is AppView.ProjectView -> "Projekt jest pusty" to "Dodaj pierwsze zadanie plusem w rogu."
+                            else -> "Brak zadań z tą etykietą" to "Oznacz zadania tą etykietą, aby je tu zebrać."
+                        }
+                        EmptyState(h, s)
+                    }
+                } else {
+                    uiState.groups.forEach { group ->
+                        if (group.name != null) {
+                            zenSection(group.name, group.nodes, collapsed, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
+                        } else {
+                            item(key = "flat-${group.sectionId}") {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    group.nodes.forEach { node ->
+                                        ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.zenSection(
+    name: String,
+    nodes: List<TaskNode>,
+    collapsed: androidx.compose.runtime.snapshots.SnapshotStateMap<String, Boolean>,
+    uiState: TodoUiState,
+    projects: List<Project>,
+    labels: List<Label>,
+    onToggle: (Task) -> Unit,
+    onTaskClick: (Task) -> Unit,
+    onDefer: (Task) -> Unit,
+    onOpenAutomation: (Task) -> Unit
+) {
+    item(key = "sec-$name") {
+        val isCollapsed = collapsed[name] == true
+        val chev by animateFloatAsState(if (isCollapsed) -90f else 0f, tween(400, easing = EASE), label = "chev")
+        Column(Modifier.padding(top = 14.dp)) {
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                    .bouncy(0.98f) { collapsed[name] = !isCollapsed }
+                    .padding(horizontal = 6.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    name.uppercase(),
+                    fontSize = 11.sp, fontWeight = FontWeight.W800, letterSpacing = 1.54.sp,
+                    color = GlassTextSecondary, modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    Icons.Filled.KeyboardArrowDown, null,
+                    tint = GlassTextSecondary,
+                    modifier = Modifier.size(13.dp).rotate(chev)
+                )
+            }
+            AnimatedVisibility(
+                visible = !isCollapsed,
+                enter = expandVertically(tween(500, easing = EASE)) + fadeIn(),
+                exit = shrinkVertically(tween(500, easing = EASE)) + fadeOut()
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    nodes.forEachIndexed { i, node ->
+                        ZenRowWithSubs(node, uiState, projects, labels, onToggle, onTaskClick, onDefer, onOpenAutomation)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun ZenRowWithSubs(
+    node: TaskNode,
+    uiState: TodoUiState,
+    projects: List<Project>,
+    labels: List<Label>,
+    onToggle: (Task) -> Unit,
+    onTaskClick: (Task) -> Unit,
+    onDefer: (Task) -> Unit,
+    onOpenAutomation: (Task) -> Unit
+) {
+    val task = node.task
+    val todayEpoch = AppClock.today().toEpochDay()
+    val dueChip: String? = task.dueDate?.let { due ->
+        val show = when (uiState.view) {
+            AppView.Today -> due < todayEpoch
+            AppView.Upcoming -> false
+            else -> true
+        }
+        // Dziś → bez daty (liczy się tylko godzina); inaczej dzień + miesiąc.
+        if (!show || due == todayEpoch) null else shortDate(due)
+    }
+    val meta = zenMetaLine(
+        dueChip = dueChip,
+        timeShown = task.dueTimeMinutes != null,
+        durationMin = task.durationMinutes,
+        recurrenceLabel = task.recurrence?.label?.lowercase(),
+        deadline = task.deadline?.let { "do " + shortDate(it) },
+        priority = task.priority,
+        projectName = if (uiState.view is AppView.ProjectView) null else projects.firstOrNull { it.id == task.projectId }?.name,
+        labelNames = labels.filter { task.labelIds.contains(it.id) }.map { it.name },
+        subDone = node.subtasks.count { it.isCompleted },
+        subTotal = node.subtasks.size,
+        linkDomains = task.attachments.map { it.removePrefix("https://").removePrefix("http://").substringBefore('/') },
+        locationName = task.locName
+    )
+    // #4 — znacznik dla długiego zadania ze zbliżającym się deadline'em
+    val longTask = (task.durationMinutes ?: 0) >= 60
+    val dlSoon = task.deadline?.let { it - todayEpoch in 0..2 } == true
+    val deadlineWarn = longTask && dlSoon && !task.isCompleted
+    // #4b — czy zadanie da się przyspieszyć/zautomatyzować (marker „⚡ AI")
+    val automatable = remember(task.title, task.notes) {
+        !task.isCompleted && pl.media30.todoisto.data.AutomationAdvisor.advise(task.title, task.notes).canAutomate
+    }
+
+    // #3 — swipe: w prawo = ukończ, w lewo = odłóż na jutro.
+    // Traktujemy to jako AKCJĘ, nie „dismiss": po odpaleniu wracamy do środka
+    // (confirmValueChange = false), a lista sama zaktualizuje się z danych.
+    // key(task.id) — stabilny stan swipe'u mimo zmian listy (bez pomyłki wierszy).
+    androidx.compose.runtime.key(task.id) {
+        val view = LocalView.current
+        val rowScope = rememberCoroutineScope()
+        // Konfigurowalne przesunięcia: prawe = ukończ lub przełóż (ustawienia).
+        val rightCompletes = LocalSwipeRightCompletes.current
+        // Swipe „przełóż" rozwija w dół wybór daty (do kiedy); po wyborze się zwija.
+        var reschedOpen by remember { mutableStateOf(false) }
+        // Animacje wyjścia: ukończenie (kreska + zanik) / przełożenie (zanik w dół).
+        var completing by remember { mutableStateOf(false) }
+        var leaving by remember { mutableStateOf(false) }
+        val strike by animateFloatAsState(if (completing) 1f else 0f, tween(240, easing = EASE), label = "strike")
+        val exitProg by animateFloatAsState(if (completing || leaving) 1f else 0f, tween(430, easing = EASE), label = "exit")
+        // Ukończenie z animacją: kreska rysuje się, kafelek cichnie, DOPIERO potem zapis.
+        val doComplete: () -> Unit = {
+            if (!task.isCompleted && !completing) {
+                completing = true
+                rowScope.launch {
+                    kotlinx.coroutines.delay(430)
+                    onToggle(task)
+                    // Reset — zadanie cykliczne zostaje na liście i ma wrócić do normy.
+                    kotlinx.coroutines.delay(300); completing = false
+                }
+            } else if (task.isCompleted) onToggle(task)
+        }
+        val dismiss = androidx.compose.material3.rememberSwipeToDismissBoxState(
+            confirmValueChange = { value ->
+                val toEnd = value == androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd
+                val toStart = value == androidx.compose.material3.SwipeToDismissBoxValue.EndToStart
+                val complete = (toEnd && rightCompletes) || (toStart && !rightCompletes)
+                val defer = (toStart && rightCompletes) || (toEnd && !rightCompletes)
+                when {
+                    complete -> view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM).also { doComplete() }
+                    defer -> view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK).also { reschedOpen = !reschedOpen }
+                }
+                false // akcja odpalona — kafelek wraca na miejsce
+            },
+            positionalThreshold = { it * 0.45f }
+        )
+        androidx.compose.material3.SwipeToDismissBox(
+            state = dismiss,
+            modifier = Modifier.clip(RoundedCornerShape(20.dp)),
+            backgroundContent = { SwipeBg(dismiss.dismissDirection, rightCompletes) }
+        ) {
+            Column(
+                Modifier.fillMaxWidth()
+                    .graphicsLayer {
+                        // Wyciszenie kafelka w drodze „na zewnątrz" (ukończenie/przełożenie).
+                        alpha = 1f - 0.5f * exitProg
+                        val s = 1f - 0.035f * exitProg
+                        scaleX = s; scaleY = s
+                        if (leaving) translationY = 26f * exitProg
+                    }
+                    .taskTile { onTaskClick(task) }
+            ) {
+                if (deadlineWarn) {
+                    Row(Modifier.padding(start = 14.dp, top = 10.dp)) {
+                        Text(
+                            "⏳ Napięty deadline",
+                            fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = Color(0xFFB45309),
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0x33F59E0B)).padding(horizontal = 9.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+                // Ikonka AI po prawej, na wysokości zadania; godzina pod spodem
+                val timeStr = task.dueTimeMinutes?.let { "%d:%02d".format(it / 60, it % 60) }
+                TaskRowZen(
+                    task, meta, doComplete, { onTaskClick(task) },
+                    strikeProgress = strike, forceChecked = completing,
+                    trailing = if (automatable) {
+                        {
+                            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                // Delikatny „oddech" odznaki AI — subtelna zachęta do dotknięcia.
+                                val aiPulse = rememberInfiniteTransition(label = "aiPulse")
+                                val aiScale by aiPulse.animateFloat(
+                                    1f, 1.045f,
+                                    infiniteRepeatable(tween(1600, easing = EASE), RepeatMode.Reverse),
+                                    label = "aiScale"
+                                )
+                                Row(
+                                    Modifier
+                                        .graphicsLayer { scaleX = aiScale; scaleY = aiScale }
+                                        .shadow(4.dp, RoundedCornerShape(50), spotColor = Color(0xFFC98A00), ambientColor = Color(0xFFC98A00))
+                                        .clip(RoundedCornerShape(50)).background(Color(0xFFFFC94D))
+                                        .bouncy(0.9f) { onOpenAutomation(task) }.padding(horizontal = 9.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Outlined.AutoAwesome, null, tint = Color(0xFF5B3D00), modifier = Modifier.size(12.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("AI", fontSize = 10.5.sp, fontWeight = FontWeight.W800, color = Color(0xFF5B3D00))
+                                }
+                                if (timeStr != null) Text(timeStr, fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassAccent)
+                            }
+                        }
+                    } else null
+                )
+                node.subtasks.forEach { sub ->
+                    TaskRowZen(sub, "", { onToggle(sub) }, { onTaskClick(sub) }, compact = true)
+                }
+                // Swipe „przełóż" → dolny arkusz z wyborem daty (jak w Todoist),
+                // zamiast rozwijanego boxa w liście.
+                if (reschedOpen) {
+                    val resched = LocalReschedule.current
+                    // Przełożenie z animacją: arkusz znika, kafelek „odpływa" w dół, potem zapis.
+                    val onPick: (Long) -> Unit = { day ->
+                        reschedOpen = false
+                        if (!leaving) {
+                            leaving = true
+                            rowScope.launch {
+                                kotlinx.coroutines.delay(430); resched(task, day)
+                                kotlinx.coroutines.delay(300); leaving = false  // np. „Dziś" — kafelek zostaje
+                            }
+                        }
+                    }
+                    ReschedSheet(
+                        todayEpoch = todayEpoch,
+                        initialEpochDay = task.dueDate ?: todayEpoch,
+                        onPick = onPick,
+                        onDismiss = { reschedOpen = false }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Tło ujawniane podczas swipe: zielony „ukończ" (→) / bursztynowy „jutro" (←). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeBg(dir: androidx.compose.material3.SwipeToDismissBoxValue, rightCompletes: Boolean = true) {
+    // W spoczynku NIE rysujemy nic (przezroczyste tło pod kafelkiem).
+    if (dir == androidx.compose.material3.SwipeToDismissBoxValue.Settled) {
+        Box(Modifier.fillMaxSize()); return
+    }
+    val toEnd = dir == androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd
+    // Ta strona ukańcza, jeśli (prawo i prawe=ukończ) lub (lewo i prawe=odłóż).
+    val isComplete = toEnd == rightCompletes
+    val color = if (isComplete) Color(0xFF1F8A5B) else Color(0xFFEB8909)
+    Row(
+        Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).background(color)
+            .padding(horizontal = 22.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = if (toEnd) Arrangement.Start else Arrangement.End
+    ) {
+        Icon(
+            if (isComplete) Icons.Filled.Check else Icons.Outlined.DateRange,
+            null, tint = Color.White, modifier = Modifier.size(22.dp)
+        )
+        // Strona „przełóż": sama ikona — bez napisu, żeby nie zaśmiecać kafelka.
+        if (isComplete) {
+            Spacer(Modifier.width(8.dp))
+            Text("Ukończ", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W800)
+        }
+    }
+}
+
+/**
+ * Nagłówek sekcji z PŁYNNYM licznikiem: przy zmianie liczby stara cyfra
+ * wyjeżdża w dół, nowa wjeżdża z góry (zamiast skokowej podmiany).
+ */
+@Composable
+private fun AnimatedSectionLabel(label: String, count: Int, color: Color, modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Text("$label · ", fontSize = 11.sp, fontWeight = FontWeight.W800, letterSpacing = 1.2.sp, color = color)
+        androidx.compose.animation.AnimatedContent(
+            targetState = count,
+            transitionSpec = {
+                val up = targetState > initialState
+                (slideInVertically(tween(220, easing = EASE)) { if (up) it else -it } + fadeIn(tween(180))) togetherWith
+                    (slideOutVertically(tween(180, easing = EASE)) { if (up) -it else it } + fadeOut(tween(120)))
+            },
+            label = "sectionCount"
+        ) { c ->
+            Text("$c", fontSize = 11.sp, fontWeight = FontWeight.W800, letterSpacing = 1.2.sp, color = color)
+        }
+    }
+}
+
+/**
+ * Dyskretna celebracja końca dnia: jednorazowy rozbłysk drobin w kolorach
+ * apki nad komunikatem „Wszystko zrobione" (≈0,9 s, bez pętli, bez dźwięku).
+ */
+@Composable
+private fun CelebrationBurst() {
+    val prog = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(Unit) { prog.animateTo(1f, tween(950, easing = EASE)) }
+    val accent = GlassAccent
+    val colors = listOf(accent, Color(0xFFF4B740), Color(0xFFFF8FB1), Color(0xFF6ED3B3), Color(0xFF9AA6FF))
+    androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(84.dp)) {
+        val p = prog.value
+        if (p <= 0.02f || p >= 0.98f) return@Canvas
+        val cx = size.width / 2f
+        val cy = size.height * 0.75f
+        repeat(14) { i ->
+            val ang = (i.toFloat() / 14f) * 6.2832f + 0.4f * (i % 4)
+            val spread = 0.55f + 0.15f * (i % 3)
+            val dist = size.height * (0.35f + 1.15f * p) * spread
+            val x = cx + kotlin.math.cos(ang) * dist * 1.6f
+            val y = cy + kotlin.math.sin(ang) * dist - size.height * 0.45f * p
+            drawCircle(
+                color = colors[i % colors.size].copy(alpha = (1f - p) * 0.85f),
+                radius = (2.6.dp.toPx() + (i % 3) * 1.1.dp.toPx()) * (1f - 0.35f * p),
+                center = Offset(x, y)
+            )
+        }
+    }
+}
+
+/** Najbliższa sobota (dla chipa „Weekend"). */
+private fun nextWeekend(todayEpoch: Long): Long {
+    var next = java.time.LocalDate.ofEpochDay(todayEpoch).plusDays(1)
+    while (next.dayOfWeek != java.time.DayOfWeek.SATURDAY) next = next.plusDays(1)
+    return next.toEpochDay()
+}
+
+/** Skrót dnia tygodnia po polsku (pon. / wt. / …) dla wybranego dnia. */
+private fun weekdayShort(epochDay: Long): String =
+    LocalDate.ofEpochDay(epochDay).dayOfWeek.getDisplayName(JTextStyle.SHORT, PL)
+
+/**
+ * Arkusz przełożenia w stylu Todoist: szybkie wiersze (Dziś/Jutro/Weekend
+ * z dniem tygodnia) + wbudowany kalendarz i przycisk „Zapisz".
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReschedSheet(
+    todayEpoch: Long,
+    initialEpochDay: Long,
+    onPick: (Long) -> Unit,
+    onDismiss: () -> Unit,
+    onClear: (() -> Unit)? = null
+) {
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFFF3EEFB),
+        dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = Color(0xFFC9B8E8)) }
+    ) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                .padding(start = 16.dp, end = 16.dp, bottom = 22.dp)
+        ) {
+            Text("Termin", fontSize = 17.sp, fontWeight = FontWeight.W800, color = Color(0xFF2E2542),
+                modifier = Modifier.padding(start = 6.dp, bottom = 12.dp))
+            // Szybkie wybory jako wiersze — z dniem tygodnia po prawej (jak w Todoist).
+            ReschedRow(Icons.Outlined.WbSunny, "Dziś", weekdayShort(todayEpoch)) { onPick(todayEpoch) }
+            ReschedRow(Icons.Outlined.WbSunny, "Jutro", weekdayShort(todayEpoch + 1)) { onPick(todayEpoch + 1) }
+            ReschedRow(Icons.Outlined.Weekend, "Następny weekend", weekdayShort(nextWeekend(todayEpoch))) { onPick(nextWeekend(todayEpoch)) }
+            if (onClear != null) ReschedRow(Icons.Filled.Close, "Bez terminu", "") { onClear() }
+            Spacer(Modifier.height(12.dp))
+            // Wbudowany kalendarz — wybór dowolnego dnia bez osobnego okienka.
+            val state = rememberDatePickerState(initialSelectedDateMillis = initialEpochDay * 86_400_000L)
+            androidx.compose.material3.DatePicker(
+                state = state,
+                title = null,
+                headline = null,
+                showModeToggle = false,
+                colors = androidx.compose.material3.DatePickerDefaults.colors(
+                    containerColor = Color.White,
+                    selectedDayContainerColor = Color(0xFF6B3FE0),
+                    todayDateBorderColor = Color(0xFF6B3FE0),
+                    todayContentColor = Color(0xFF6B3FE0)
+                ),
+                modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White)
+            )
+            Spacer(Modifier.height(16.dp))
+            // „Zapisz" — zatwierdza wybrany w kalendarzu dzień.
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF6B3FE0))
+                    .bouncy(0.97f) {
+                        state.selectedDateMillis?.let { ms ->
+                            onPick(java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneOffset.UTC).toLocalDate().toEpochDay())
+                        }
+                    }
+                    .padding(vertical = 15.dp),
+                horizontalArrangement = Arrangement.Center
+            ) { Text("Zapisz", color = Color.White, fontSize = 14.5.sp, fontWeight = FontWeight.W800) }
+        }
+    }
+}
+
+/** Wiersz szybkiego wyboru daty: ikona + nazwa + dzień tygodnia po prawej. */
+@Composable
+private fun ReschedRow(icon: ImageVector, label: String, weekday: String, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(14.dp))
+            .background(Color.White).bouncy(0.98f, onClick)
+            .padding(horizontal = 15.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = Color(0xFF6B3FE0), modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(13.dp))
+        Text(label, fontSize = 14.5.sp, fontWeight = FontWeight.W600, color = Color(0xFF2E2542))
+        Spacer(Modifier.weight(1f))
+        Text(weekday, fontSize = 13.sp, fontWeight = FontWeight.W600, color = Color(0xFF9A8FB8))
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReschedDatePicker(initialEpochDay: Long, onDismiss: () -> Unit, onPick: (Long) -> Unit) {
+    val state = rememberDatePickerState(initialSelectedDateMillis = initialEpochDay * 86_400_000L)
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                state.selectedDateMillis?.let { ms ->
+                    onPick(java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneOffset.UTC).toLocalDate().toEpochDay())
+                }
+            }) { Text("OK") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Anuluj") } }
+    ) { DatePicker(state = state) }
+}
+
+/** Preferencja: przesunięcie w prawo ukańcza (true) lub odkłada (false). */
+val LocalSwipeRightCompletes = androidx.compose.runtime.staticCompositionLocalOf { true }
+
+/** Callback przełożenia zaległego zadania na konkretny dzień (epochDay). */
+val LocalReschedule = androidx.compose.runtime.staticCompositionLocalOf<(Task, Long) -> Unit> { { _, _ -> } }
+
+/** Dolny arkusz skanowania kartki — dwa duże kafelki: Aparat / Galeria. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ScanChooserSheet(onCamera: () -> Unit, onGallery: () -> Unit, onDismiss: () -> Unit) {
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFFF2ECFB),
+        dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = Color(0xFFC9B8E8)) }
+    ) {
+        Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 28.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(34.dp).clip(CircleShape)
+                        .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFA47CFF), Color(0xFF6B3FE0)))),
+                    contentAlignment = Alignment.Center
+                ) { Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(18.dp)) }
+                Spacer(Modifier.width(11.dp))
+                Text("Skanuj kartkę", fontSize = 16.sp, fontWeight = FontWeight.W800, color = Color(0xFF3B2E5A))
+            }
+            Spacer(Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ScanTile(
+                    "Zrób zdjęcie", "Aparat", Icons.Outlined.PhotoCamera,
+                    Color(0xFF6B3FE0), Modifier.weight(1f), onCamera
+                )
+                ScanTile(
+                    "Wybierz z galerii", "Zdjęcie", Icons.Outlined.Image,
+                    Color(0xFFEB8909), Modifier.weight(1f), onGallery
+                )
+            }
+            Spacer(Modifier.height(14.dp))
+            // Wyjaśnienie POD kaflami — najpierw wybór, opis potem.
+            Text(
+                "AI wyciągnie zadania ze zdjęcia listy lub notatki.",
+                fontSize = 12.5.sp, color = Color(0xFF897BAE),
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+        }
+    }
+}
+
+/** Duży kafelek w arkuszu skanowania. */
+@Composable
+private fun ScanTile(
+    title: String, sub: String, icon: androidx.compose.ui.graphics.vector.ImageVector,
+    accent: Color, modifier: Modifier = Modifier, onClick: () -> Unit
+) {
+    Column(
+        modifier
+            .shadow(12.dp, RoundedCornerShape(22.dp), spotColor = accent.copy(alpha = 0.5f))
+            .clip(RoundedCornerShape(22.dp))
+            .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.White, Color(0xFFF6F1FE))))
+            .border(1.dp, accent.copy(alpha = 0.14f), RoundedCornerShape(22.dp))
+            .bouncy(0.96f, onClick).padding(vertical = 22.dp, horizontal = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            Modifier.size(54.dp).clip(CircleShape)
+                .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(accent.copy(alpha = 0.20f), accent.copy(alpha = 0.10f)))),
+            contentAlignment = Alignment.Center
+        ) { Icon(icon, null, tint = accent, modifier = Modifier.size(27.dp)) }
+        Spacer(Modifier.height(12.dp))
+        Text(title, fontSize = 13.5.sp, fontWeight = FontWeight.W800, color = Color(0xFF2E2542))
+        Text(sub, fontSize = 11.sp, fontWeight = FontWeight.W600, color = accent.copy(alpha = 0.85f))
+    }
+}
+
+/** Dolny arkusz wyboru sortowania — czytelne wiersze z opisem i „ptaszkiem". */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SortSheet(current: SortMode, onPick: (SortMode) -> Unit, onDismiss: () -> Unit) {
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFFF2ECFB),
+        dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = Color(0xFFC9B8E8)) }
+    ) {
+        Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 26.dp)) {
+            Text(
+                "Sortuj zadania", fontSize = 15.sp, fontWeight = FontWeight.W800,
+                color = Color(0xFF3B2E5A), modifier = Modifier.padding(start = 6.dp, bottom = 10.dp)
+            )
+            SortMode.entries.forEach { mode ->
+                val sel = mode == current
+                Row(
+                    Modifier.fillMaxWidth().padding(bottom = 7.dp).clip(RoundedCornerShape(15.dp))
+                        .background(if (sel) Color(0xFF6B3FE0) else Color(0xCCFFFFFF))
+                        .bouncy(0.97f) { onPick(mode) }
+                        .padding(horizontal = 15.dp, vertical = 13.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            mode.label, fontSize = 14.sp, fontWeight = FontWeight.W800,
+                            color = if (sel) Color.White else Color(0xFF3B2E5A)
+                        )
+                        Text(
+                            mode.hint, fontSize = 11.5.sp, fontWeight = FontWeight.W500,
+                            color = if (sel) Color(0xFFE4D8FA) else Color(0xFF897BAE)
+                        )
+                    }
+                    if (sel) Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(19.dp))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Poranny pasek energii: jedno dotknięcie (słabo / średnio / dobrze) ustawia kolejność dnia.
+ * Pokazuje też, DLACZEGO lista wygląda tak, a nie inaczej, i pozwala to wyłączyć.
+ * Przy słabszej formie oferuje „Ułatw z AI” dla ciężkich zadań.
+ */
+@Composable
+private fun EmptyState(head: String, sub: String) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 70.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            Modifier.size(74.dp).glass(CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Filled.Check, null, tint = GlassAccent, modifier = Modifier.size(30.dp))
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(head, fontSize = 16.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+        Spacer(Modifier.height(4.dp))
+        Text(sub, fontSize = 13.sp, color = GlassTextSecondary, modifier = Modifier.padding(horizontal = 24.dp))
+    }
+}
+
+// ─── Morfujący FAB Quick Add ─────────────────────────────────────────────────
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun QuickAddMorph(
+    open: Boolean,
+    text: String,
+    onText: (String) -> Unit,
+    projects: List<Project>,
+    labels: List<Label>,
+    due: Long?, onDue: (Long?) -> Unit,
+    prio: Priority?, onPrio: (Priority?) -> Unit,
+    projectId: Long?, onProject: (Long?) -> Unit,
+    labelIds: Set<Long>, onLabelIds: (Set<Long>) -> Unit,
+    onToggleOpen: () -> Unit,
+    onSubmit: () -> Unit,
+    onScanCamera: () -> Unit = {},
+    onScanGallery: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    BoxWithConstraintsFix(modifier.navigationBarsPadding().imePadding()) { maxW, maxH ->
+        val width by animateDpAsState(if (open) maxW - 28.dp else 64.dp, tween(500, easing = EASE), label = "qaW")
+        // Wysokość dopasowana do dostępnego miejsca (nad klawiaturą) — panel się mieści w całości.
+        val openH = 460.dp.coerceAtMost(maxH - 20.dp)
+        val height by animateDpAsState(if (open) openH else 64.dp, tween(500, easing = EASE), label = "qaH")
+        val bottomPad by animateDpAsState(if (open) 16.dp else 84.dp, tween(500, easing = EASE), label = "qaB")
+        val bg by animateColorAsState(if (open) GlassSurface else GlassAccent, tween(400), label = "qaBg")
+        val rot by animateFloatAsState(if (open) 45f else 0f, tween(500, easing = EASE), label = "qaRot")
+        val parsed = remember(text) { QuickAddParser().parse(text) }
+        // Który arkusz-lista jest wysunięty: "due" | "prio" | "project" | "labels" | null.
+        var sheet by remember { mutableStateOf<String?>(null) }
+        val focus = androidx.compose.ui.platform.LocalFocusManager.current
+        val open2: (String) -> Unit = { focus.clearFocus(); sheet = it }
+        val today = AppClock.today().toEpochDay()
+        val effDue = due ?: parsed.dueDate
+        val effPrio = prio ?: parsed.priority
+        val effProject = projects.firstOrNull { it.id == projectId }
+            ?: parsed.projectName?.let { n -> projects.firstOrNull { it.name.equals(n, true) } }
+        val projectLabel = effProject?.name ?: parsed.projectName
+        val effLabelNames = (labelIds.mapNotNull { id -> labels.firstOrNull { it.id == id }?.name } + parsed.labelNames).distinct()
+        when (sheet) {
+            "due" -> ReschedSheet(
+                todayEpoch = today, initialEpochDay = effDue ?: today,
+                onPick = { onDue(it); sheet = null }, onDismiss = { sheet = null },
+                onClear = if (effDue != null) ({ onDue(null); sheet = null }) else null
+            )
+            "prio" -> QAPickSheet("Priorytet", onDismiss = { sheet = null }) {
+                Priority.entries.forEach { pr ->
+                    QAPickRow(
+                        label = pr.label, selected = effPrio == pr, onClick = { onPrio(pr); sheet = null },
+                        icon = { Icon(Icons.Outlined.Flag, null, tint = pr.color, modifier = Modifier.size(21.dp)) }
+                    )
+                }
+            }
+            "project" -> QAPickSheet("Projekt", onDismiss = { sheet = null }) {
+                QAPickRow(
+                    label = "Skrzynka", selected = effProject == null && projectLabel == null,
+                    onClick = { onProject(null); sheet = null },
+                    icon = { Icon(Icons.Outlined.Inbox, null, tint = GlassTextSecondary, modifier = Modifier.size(21.dp)) }
+                )
+                projects.filter { !it.isArchived }.forEach { pj ->
+                    QAPickRow(
+                        label = pj.name, selected = effProject?.id == pj.id, onClick = { onProject(pj.id); sheet = null },
+                        icon = { Text("#", fontSize = 18.sp, fontWeight = FontWeight.W800, color = Color(pj.colorArgb)) }
+                    )
+                }
+            }
+            "labels" -> QAPickSheet("Etykiety", onDismiss = { sheet = null }) {
+                if (labels.isEmpty()) Text("Brak etykiet — dodaj je w menu bocznym albo wpisz @nazwa.", fontSize = 13.sp, color = GlassTextSecondary, modifier = Modifier.padding(8.dp))
+                labels.forEach { lb ->
+                    val on = lb.id in labelIds
+                    QAPickRow(
+                        label = lb.name, selected = on,
+                        onClick = { onLabelIds(if (on) labelIds - lb.id else labelIds + lb.id) },
+                        icon = { Icon(Icons.Outlined.LocalOffer, null, tint = Color(lb.colorArgb), modifier = Modifier.size(20.dp)) }
+                    )
+                }
+            }
+        }
+
+        Box(
+            Modifier
+                .padding(end = 14.dp, bottom = bottomPad)
+                .size(width, height)
+                .then(
+                    // Otwarty panel = czytelne frosted szkło (treść listy pod spodem NIE
+                    // prześwituje); zamknięty = FAB akcentowy.
+                    if (open) Modifier
+                        .shadow(22.dp, RoundedCornerShape(29.dp))
+                        .clip(RoundedCornerShape(29.dp))
+                        .background(GlassSurface)
+                        .livingGradient(RoundedCornerShape(29.dp), 0.08f)
+                        .border(1.dp, GlassRim.copy(alpha = 0.6f), RoundedCornerShape(29.dp))
+                    else Modifier
+                        .shadow(20.dp, CircleShape, spotColor = GlassAccent, ambientColor = GlassAccent.copy(alpha = 0.7f))
+                        .clip(CircleShape).background(GlassAccent)
+                )
+        ) {
+            if (open) {
+                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 15.dp, bottom = 12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 46.dp)) {
+                        Text("Nowe zadanie", fontSize = 13.5.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    BasicTextField(
+                        value = text,
+                        onValueChange = onText,
+                        textStyle = TextStyle(fontSize = 13.5.sp, color = GlassTextPrimary, fontWeight = FontWeight.W600),
+                        cursorBrush = SolidColor(GlassAccent),
+                        decorationBox = { inner ->
+                            Box(
+                                Modifier.fillMaxWidth()
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(GlassInputBg)
+                                    .padding(horizontal = 14.dp, vertical = 12.dp)
+                            ) {
+                                if (text.isEmpty()) {
+                                    Text("np. Raport jutro o 15:00 #Praca @pilne p1", fontSize = 13.5.sp, color = GlassTextSecondary.copy(alpha = 0.55f))
+                                }
+                                inner()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    // Rozpoznane tokeny / podpowiedź
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (text.isBlank()) {
+                            Text("Rozpoznam datę, godzinę, #projekt, @etykietę, priorytet i cykl.", fontSize = 11.5.sp, color = GlassTextSecondary.copy(alpha = 0.75f))
+                        } else {
+                            parsed.dueTimeMinutes?.let { QAChip("%d:%02d".format(it / 60, it % 60), GlassAccent) }
+                            parsed.recurrence?.let { QAChip("⟳ " + it.label.lowercase(), GlassTextSecondary) }
+                            parsed.durationMinutes?.let { QAChip("$it min", GlassTextSecondary) }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    // Przewijany w bok pasek wyborów (jak w Todoist) — dotknięcie wysuwa listę od dołu.
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        val addToken: (String) -> Unit = { tok -> onText((text.trimEnd() + " " + tok + " ").trimStart()) }
+                        QAPickChip(
+                            icon = Icons.Outlined.CalendarToday,
+                            text = effDue?.let { if (it == today) "Dzisiaj" else if (it == today + 1) "Jutro" else shortDate(it) } ?: "Termin",
+                            color = Color(0xFF1F8A5B), active = effDue != null
+                        ) { open2("due") }
+                        QAPickChip(
+                            icon = Icons.Outlined.Flag,
+                            text = if (effPrio != Priority.P4) "P${effPrio.ordinal + 1}" else "Priorytet",
+                            color = effPrio.color, active = effPrio != Priority.P4
+                        ) { open2("prio") }
+                        QAPickChip(
+                            icon = Icons.Outlined.Inbox,
+                            text = projectLabel ?: "Skrzynka",
+                            color = effProject?.let { Color(it.colorArgb) } ?: Color(0xFF4D6BFF), active = projectLabel != null
+                        ) { open2("project") }
+                        QAPickChip(
+                            icon = Icons.Outlined.LocalOffer,
+                            text = if (effLabelNames.isEmpty()) "Etykiety" else effLabelNames.joinToString(", ") { "@$it" },
+                            color = Color(0xFFC24DFF), active = effLabelNames.isNotEmpty()
+                        ) { open2("labels") }
+                        QAToken("o 15:00", GlassAccent) { addToken("o 15:00") }
+                        QAToken("codziennie", Color(0xFF2E9C4F)) { addToken("codziennie") }
+                        QAToken("co tydzień", Color(0xFF2E9C4F)) { addToken("co tydzień") }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    // Skan listy z kartki — widoczne przyciski (aparat / galeria).
+                    Text("SKAN Z KARTKI", fontSize = 9.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.8.sp, color = GlassTextSecondary)
+                    Spacer(Modifier.height(6.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            Modifier.weight(1f).clip(RoundedCornerShape(13.dp)).background(GlassAccent.copy(alpha = 0.14f))
+                                .bouncy(0.96f) { onScanCamera() }.padding(vertical = 10.dp),
+                            horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Outlined.PhotoCamera, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Zrób zdjęcie", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassAccent)
+                        }
+                        Row(
+                            Modifier.weight(1f).clip(RoundedCornerShape(13.dp)).background(GlassAccent.copy(alpha = 0.14f))
+                                .bouncy(0.96f) { onScanGallery() }.padding(vertical = 10.dp),
+                            horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Outlined.Image, null, tint = GlassAccent, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Z galerii", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassAccent)
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Anuluj", fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = GlassTextSecondary,
+                            modifier = Modifier.clip(RoundedCornerShape(50)).bouncy(0.95f, onClick = onToggleOpen).padding(horizontal = 16.dp, vertical = 10.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "Dodaj", fontSize = 12.5.sp, fontWeight = FontWeight.W800, color = Color.White,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(GlassAccent.copy(alpha = if (text.isBlank()) 0.45f else 1f))
+                                .bouncy(0.95f, onClick = onSubmit)
+                                .padding(horizontal = 22.dp, vertical = 10.dp)
+                        )
+                    }
+                }
+            }
+            // Plus / X — na końcu, żeby leżał NAD przewijaną treścią (inaczej nie łapie dotknięć)
+            Box(
+                Modifier.align(Alignment.TopEnd).size(if (open) 58.dp else 64.dp)
+                    .bouncy(0.88f, onClick = onToggleOpen),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Filled.Add, if (open) "Zamknij" else "Dodaj zadanie",
+                    tint = if (open) GlassTextSecondary else Color.White,
+                    modifier = Modifier.size(24.dp).rotate(rot)
+                )
+            }
+        }
+    }
+}
+
+/** Pomocniczy BoxWithConstraints przekazujący maxWidth. */
+@Composable
+private fun BoxWithConstraintsFix(modifier: Modifier, content: @Composable (androidx.compose.ui.unit.Dp, androidx.compose.ui.unit.Dp) -> Unit) {
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier) { content(maxWidth, maxHeight) }
+}
+
+@Composable
+private fun QAPickChip(icon: ImageVector, text: String, color: Color, active: Boolean, onClick: () -> Unit) {
+    val eff = if (GlassTheme.dark) androidx.compose.ui.graphics.lerp(color, Color.White, 0.5f) else color
+    Row(
+        Modifier.clip(RoundedCornerShape(50))
+            .background(color.copy(alpha = if (active) 0.20f else 0.10f))
+            .border(1.dp, color.copy(alpha = if (active) 0.55f else 0.22f), RoundedCornerShape(50))
+            .bouncy(0.93f, onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = eff, modifier = Modifier.size(15.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(text, fontSize = 12.sp, fontWeight = FontWeight.W800, color = eff, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** Lista wysuwana od dołu (Todoist-style): tytuł + wiersze z ptaszkiem przy aktualnym wyborze. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QAPickSheet(title: String, onDismiss: () -> Unit, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFFF3EEFB),
+        dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = Color(0xFFC9B8E8)) }
+    ) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 24.dp)) {
+            Text(title, fontSize = 17.sp, fontWeight = FontWeight.W800, color = Color(0xFF2E2542), modifier = Modifier.padding(start = 6.dp, bottom = 10.dp))
+            content()
+        }
+    }
+}
+
+@Composable
+private fun QAPickRow(label: String, selected: Boolean, onClick: () -> Unit, icon: @Composable () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = 7.dp).clip(RoundedCornerShape(14.dp))
+            .background(if (selected) Color(0xFFE6DAFB) else Color.White)
+            .bouncy(0.98f, onClick).padding(horizontal = 15.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.width(26.dp), contentAlignment = Alignment.CenterStart) { icon() }
+        Spacer(Modifier.width(10.dp))
+        Text(label, fontSize = 14.5.sp, fontWeight = FontWeight.W600, color = Color(0xFF2E2542), modifier = Modifier.weight(1f))
+        if (selected) Icon(Icons.Filled.Check, null, tint = Color(0xFF6B3FE0), modifier = Modifier.size(19.dp))
+    }
+}
+
+@Composable
+private fun QAChip(text: String, color: Color) {
+    val eff = if (GlassTheme.dark) androidx.compose.ui.graphics.lerp(color, Color.White, 0.5f) else color
+    Text(
+        text, fontSize = 11.sp, fontWeight = FontWeight.W800, color = eff,
+        modifier = Modifier.clip(RoundedCornerShape(50)).background(color.copy(alpha = if (GlassTheme.dark) 0.24f else 0.12f)).padding(horizontal = 10.dp, vertical = 3.dp)
+    )
+}
+
+@Composable
+private fun QAToken(text: String, color: Color, onClick: () -> Unit) {
+    val eff = if (GlassTheme.dark) androidx.compose.ui.graphics.lerp(color, Color.White, 0.5f) else color
+    Text(
+        text, fontSize = 11.5.sp, fontWeight = FontWeight.W800, color = eff,
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(color.copy(alpha = if (GlassTheme.dark) 0.24f else 0.12f))
+            .bouncy(0.92f, onClick = onClick)
+            .padding(horizontal = 11.dp, vertical = 5.dp)
+    )
+}
+
+// ─── Asystent tygodnia ───────────────────────────────────────────────────────
+
+@Composable
+private fun WeekBrief(
+    loading: Boolean,
+    weekTasks: List<Task>,
+    uiState: TodoUiState,
+    actionDone: Boolean,
+    onAction: () -> Unit,
+    onItemClick: (Task) -> Unit,
+    onClose: () -> Unit
+) {
+    val today = AppClock.today()
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp)
+            .clip(RoundedCornerShape(bottomStart = 34.dp, bottomEnd = 34.dp))
+            .background(GlassSurface)
+            .border(1.dp, GlassRim.copy(alpha = 0.6f), RoundedCornerShape(bottomStart = 34.dp, bottomEnd = 34.dp))
+            .statusBarsPadding()
+            .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(17.dp))
+            Spacer(Modifier.width(9.dp))
+            Text("Asystent tygodnia", fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary, modifier = Modifier.weight(1f))
+            Text(
+                "AI", fontSize = 10.sp, fontWeight = FontWeight.W800, letterSpacing = 0.8.sp, color = GlassAccent,
+                modifier = Modifier.clip(RoundedCornerShape(50)).background(GlassTint).padding(horizontal = 9.dp, vertical = 3.dp)
+            )
+        }
+        Spacer(Modifier.height(13.dp))
+        if (loading) {
+            ShimmerBar(0.78f); Spacer(Modifier.height(10.dp))
+            ShimmerBar(0.92f); Spacer(Modifier.height(10.dp))
+            ShimmerBar(0.64f); Spacer(Modifier.height(8.dp))
+            Text("Analizuję Twój tydzień…", fontSize = 11.5.sp, color = GlassTextSecondary.copy(alpha = 0.8f))
+        } else {
+            Text("NAJWAŻNIEJSZE W TYM TYGODNIU", fontSize = 10.5.sp, fontWeight = FontWeight.W800, letterSpacing = 1.26.sp, color = GlassTextSecondary)
+            Spacer(Modifier.height(9.dp))
+            val todayEpoch = today.toEpochDay()
+            val items = weekTasks
+                .filter { it.parentId == null && !it.isCompleted && it.recurrence == null && it.dueDate != null && it.dueDate!! > todayEpoch && it.dueDate!! <= todayEpoch + 7 }
+                .sortedWith(compareBy({ it.priority.ordinal }, { it.dueDate }))
+                .take(4)
+            items.forEach { t ->
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).bouncy(0.98f) { onItemClick(t) }.padding(vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(Modifier.size(9.dp).clip(RoundedCornerShape(5.dp)).background(if (t.priority != Priority.P4) t.priority.color else GlassAccent))
+                    Spacer(Modifier.width(11.dp))
+                    Text(t.title, fontSize = 13.5.sp, fontWeight = FontWeight.W600, color = GlassTextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Spacer(Modifier.width(8.dp))
+                    val d = LocalDate.ofEpochDay(t.dueDate!!)
+                    Text(
+                        if (t.dueDate == todayEpoch + 1) "jutro" else weekdayName(d).take(3) + " " + d.dayOfMonth,
+                        fontSize = 11.5.sp, fontWeight = FontWeight.W800, color = GlassTextSecondary
+                    )
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            val overdue = weekTasks.count { it.parentId == null && !it.isCompleted && it.dueDate != null && it.dueDate!! < todayEpoch }
+            val counts = (1..7).map { off -> weekTasks.count { it.parentId == null && !it.isCompleted && it.dueDate == todayEpoch + off } }
+            val busiest = counts.withIndex().maxByOrNull { it.value }
+            val insight = buildString {
+                if (overdue > 0) append("Masz $overdue zaległych zadań. ")
+                if (busiest != null && busiest.value >= 2) {
+                    val d = today.plusDays((busiest.index + 1).toLong())
+                    append("Najbardziej obciążony dzień to ${weekdayName(d)} (${busiest.value} zadań). ")
+                }
+                val free = counts.count { it == 0 }
+                if (free > 0) append("Masz $free wolnych dni na nadrobienie zaległości.")
+                if (isEmpty()) append("Tydzień wygląda spokojnie — dobre okno na zadania z listy Pomysłów.")
+            }
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(GlassTint)
+                    .border(1.dp, GlassHair, RoundedCornerShape(18.dp)).padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                Text(insight, fontSize = 12.5.sp, lineHeight = 19.sp, color = GlassTextPrimary)
+                if (overdue > 0) {
+                    Spacer(Modifier.height(9.dp))
+                    Text(
+                        if (actionDone) "Przeniesiono ✓" else "Przenieś zaległe na dzisiaj",
+                        fontSize = 11.5.sp, fontWeight = FontWeight.W800, color = Color.White,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(GlassAccent.copy(alpha = if (actionDone) 0.55f else 1f))
+                            .bouncy(0.95f) { if (!actionDone) onAction() }
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Box(
+            Modifier.align(Alignment.CenterHorizontally).size(44.dp, 5.dp)
+                .clip(RoundedCornerShape(3.dp)).background(GlassHair)
+                .bouncy(0.9f, onClick = onClose)
+        )
+    }
+}
+
+@Composable
+private fun ShimmerBar(widthFraction: Float) {
+    val t = rememberInfiniteTransition(label = "shimmer")
+    val x by t.animateFloat(0f, 1f, infiniteRepeatable(tween(1100, easing = LinearEasing), RepeatMode.Restart), label = "x")
+    Box(
+        Modifier.fillMaxWidth(widthFraction).height(14.dp).clip(RoundedCornerShape(7.dp))
+            .background(
+                Brush.horizontalGradient(
+                    listOf(GlassTint, GlassHair, GlassTint),
+                    startX = -260f + 780f * x,
+                    endX = 260f + 780f * x
+                )
+            )
+    )
+}
+
+// ─── Szuflada ────────────────────────────────────────────────────────────────
 
 @Composable
 private fun DrawerContent(
@@ -381,581 +2168,535 @@ private fun DrawerContent(
     projects: List<Project>,
     labels: List<Label>,
     uiState: TodoUiState,
-    isDarkTheme: Boolean,
+    isDark: Boolean,
     onSelect: (AppView) -> Unit,
     onAddProject: () -> Unit,
     onAddLabel: () -> Unit,
-    onGoalsClick: () -> Unit,
-    onToggleTheme: () -> Unit
+    onGoals: () -> Unit,
+    onToggleDark: () -> Unit,
+    onOpenActivityPool: () -> Unit,
+    onFreeTime: () -> Unit = {},
+    onEditRoutines: () -> Unit = {},
+    isPhotoBackground: Boolean,
+    onTogglePhotoBackground: () -> Unit,
+    activities: List<pl.media30.todoisto.data.Activity>,
+    onAddActivity: () -> Unit,
+    onOpenEstimate: () -> Unit,
+    hasApiKey: Boolean,
+    onOpenApiKey: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenStats: () -> Unit,
+    onOpenAccount: () -> Unit = {},
+    accountAvatar: String = "",
+    accountInitial: String = ""
 ) {
-    val activeProjects = projects.filter { !it.isArchived }
-    val archived = projects.filter { it.isArchived }
-    val favorites: List<Pair<AppView, Triple<Color, String, ImageVector?>>> =
-        projects.filter { it.isFavorite && !it.isArchived }
-            .map { AppView.ProjectView(it.id) as AppView to Triple(Color(it.colorArgb), it.name, null as ImageVector?) } +
-        labels.filter { it.isFavorite }
-            .map { AppView.LabelView(it.id) as AppView to Triple(Color(it.colorArgb), it.name, Icons.Outlined.Sell as ImageVector?) }
-
     ModalDrawerSheet(
-        drawerContainerColor = GlassSurface,
-        modifier = Modifier.fillMaxWidth(0.84f)
+        drawerContainerColor = GlassDrawerBg,
+        drawerShape = RoundedCornerShape(topEnd = 32.dp, bottomEnd = 32.dp),
+        modifier = Modifier.width(296.dp)
     ) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "Todoisto",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = GlassTextPrimary,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = onToggleTheme) {
-                    Icon(
-                        if (isDarkTheme) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
-                        contentDescription = "Zmień motyw",
-                        tint = GlassTextSecondary
-                    )
-                }
-            }
-
-            GoalsCard(uiState, onClick = onGoalsClick)
-            Spacer(Modifier.height(12.dp))
-
-            DrawerItem(Icons.Outlined.Today, "Dzisiaj", uiState.todayCount, current == AppView.Today) { onSelect(AppView.Today) }
-            DrawerItem(Icons.Outlined.DateRange, "Nadchodzące", 0, current == AppView.Upcoming) { onSelect(AppView.Upcoming) }
-            DrawerItem(Icons.Outlined.Inbox, "Skrzynka", uiState.inboxCount, current == AppView.Inbox) { onSelect(AppView.Inbox) }
-            DrawerItem(Icons.Outlined.CheckCircle, "Ukończone", 0, current == AppView.Completed) { onSelect(AppView.Completed) }
-
-            if (favorites.isNotEmpty()) {
-                DrawerHeader("Ulubione", null)
-                favorites.forEach { (view, meta) ->
-                    DrawerDot(meta.first, meta.second, current == view, icon = meta.third ?: Icons.Filled.Star) {
-                        onSelect(view)
-                    }
-                }
-            }
-
-            DrawerHeader("Projekty", onAddProject)
-            activeProjects.forEach { p ->
-                DrawerDot(Color(p.colorArgb), p.name, current == AppView.ProjectView(p.id)) { onSelect(AppView.ProjectView(p.id)) }
-            }
-            if (activeProjects.isEmpty()) DrawerHint("Brak projektów")
-
-            DrawerHeader("Etykiety", onAddLabel)
-            labels.forEach { l ->
-                DrawerDot(Color(l.colorArgb), l.name, current == AppView.LabelView(l.id), icon = Icons.Outlined.Sell) {
-                    onSelect(AppView.LabelView(l.id))
-                }
-            }
-            if (labels.isEmpty()) DrawerHint("Brak etykiet")
-
-            if (archived.isNotEmpty()) {
-                DrawerHeader("Archiwum", null)
-                archived.forEach { p ->
-                    DrawerDot(Color(p.colorArgb).copy(alpha = 0.5f), p.name, current == AppView.ProjectView(p.id)) {
-                        onSelect(AppView.ProjectView(p.id))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun GoalsCard(uiState: TodoUiState, onClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(GlassPanelTint.copy(alpha = 0.10f))
-            .border(1.dp, GlassPanelTint.copy(alpha = 0.25f), RoundedCornerShape(20.dp))
-            .bouncy(scaleDown = 0.97f, onClick = onClick)
-            .padding(14.dp)
-    ) {
-        Text(
-            "Cele produktywności",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            color = GlassTextSecondary
-        )
-        Spacer(Modifier.height(8.dp))
-        GoalRow("Dzisiaj", uiState.doneToday, uiState.goalDaily)
-        Spacer(Modifier.height(6.dp))
-        GoalRow("Tydzień", uiState.doneWeek, uiState.goalWeekly)
-    }
-}
-
-@Composable
-private fun GoalRow(label: String, done: Int, goal: Int) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = GlassTextPrimary, modifier = Modifier.width(56.dp))
-        LinearProgressIndicator(
-            progress = { if (goal <= 0) 0f else (done.toFloat() / goal).coerceIn(0f, 1f) },
-            color = GlassAccent,
-            trackColor = GlassPanelTint.copy(alpha = 0.15f),
-            modifier = Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(50))
-        )
-        Spacer(Modifier.width(10.dp))
-        Text("$done/$goal", style = MaterialTheme.typography.labelMedium, color = GlassTextSecondary)
-    }
-}
-
-@Composable
-private fun DrawerItem(icon: ImageVector, label: String, count: Int, selected: Boolean, onClick: () -> Unit) {
-    val bg by animateColorAsState(
-        targetValue = if (selected) GlassPanelTint.copy(alpha = 0.16f) else Color.Transparent,
-        label = "drawerBg"
-    )
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(50))
-            .background(bg)
-            .bouncy(scaleDown = 0.97f, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, null, tint = if (selected) GlassAccent else GlassTextSecondary, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(14.dp))
-        Text(label, color = GlassTextPrimary, modifier = Modifier.weight(1f))
-        if (count > 0) Text("$count", color = GlassTextSecondary, style = MaterialTheme.typography.labelMedium)
-    }
-}
-
-@Composable
-private fun DrawerDot(color: Color, label: String, selected: Boolean, icon: ImageVector? = null, onClick: () -> Unit) {
-    val bg by animateColorAsState(
-        targetValue = if (selected) GlassPanelTint.copy(alpha = 0.16f) else Color.Transparent,
-        label = "drawerBg"
-    )
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(50))
-            .background(bg)
-            .bouncy(scaleDown = 0.97f, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (icon != null) {
-            Icon(icon, null, tint = color, modifier = Modifier.size(18.dp))
-        } else {
-            Box(Modifier.size(12.dp).clip(CircleShape).background(color))
-        }
-        Spacer(Modifier.width(14.dp))
-        Text(label, color = GlassTextPrimary)
-    }
-}
-
-@Composable
-private fun DrawerHeader(title: String, onAdd: (() -> Unit)?) {
-    Spacer(Modifier.height(18.dp))
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 12.dp)) {
-        Text(title, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = GlassTextSecondary, modifier = Modifier.weight(1f))
-        if (onAdd != null) {
-            IconButton(onClick = onAdd) { Icon(Icons.Filled.Add, "Dodaj", tint = GlassTextSecondary, modifier = Modifier.size(20.dp)) }
-        }
-    }
-}
-
-@Composable
-private fun DrawerHint(text: String) {
-    Text(text, style = MaterialTheme.typography.bodyMedium, color = GlassTextSecondary.copy(alpha = 0.6f), modifier = Modifier.padding(start = 12.dp, bottom = 4.dp))
-}
-
-// ---- Quick Add -------------------------------------------------------------
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun QuickAddSheet(
-    sheetState: androidx.compose.material3.SheetState,
-    initialText: String,
-    projects: List<Project>,
-    onDismiss: () -> Unit,
-    onAdd: (String, QuickAddOverrides) -> Unit
-) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = GlassSurface
-    ) {
-        QuickAddContent(initialText = initialText, projects = projects, onAdd = onAdd)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-@Composable
-internal fun QuickAddContent(
-    initialText: String,
-    projects: List<Project>,
-    onAdd: (String, QuickAddOverrides) -> Unit
-) {
-    var text by remember { mutableStateOf(initialText) }
-    val parsed = remember(text) { QuickAddParser().parse(text) }
-    val fmt = remember { DateTimeFormatter.ofPattern("d MMM", Locale.forLanguageTag("pl")) }
-
-    var manualDue by remember { mutableStateOf<Long?>(null) }
-    var manualPriority by remember { mutableStateOf<pl.media30.todoisto.data.Priority?>(null) }
-    var manualProject by remember { mutableStateOf<Project?>(null) }
-    var manualRecurrence by remember { mutableStateOf<pl.media30.todoisto.data.Recurrence?>(null) }
-    var projectMenu by remember { mutableStateOf(false) }
-    var recurrenceMenu by remember { mutableStateOf(false) }
-    var showDatePicker by remember { mutableStateOf(false) }
-
-    val today = LocalDate.now().toEpochDay()
-    val effDue = manualDue ?: parsed.dueDate
-    val effPriority = manualPriority ?: parsed.priority
-    val effRecurrence = manualRecurrence ?: parsed.recurrence
-    val activeProjects = projects.filter { !it.isArchived }
-
-    fun overrides() = QuickAddOverrides(
-        dueDate = manualDue,
-        priority = manualPriority,
-        projectId = manualProject?.id,
-        recurrence = manualRecurrence
-    )
-
-    Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
-        OutlinedTextField(
-            value = text,
-            onValueChange = { text = it },
-            placeholder = { Text("Co jest do zrobienia?") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = false,
-            shape = RoundedCornerShape(22.dp),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { if (text.isNotBlank()) onAdd(text, overrides()) }),
-            colors = glassFieldColors()
-        )
-
-        // Termin: Dzisiaj / Jutro / konkretna data
-        Spacer(Modifier.height(14.dp))
-        androidx.compose.foundation.layout.FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            ChoiceChip("Dzisiaj", selected = effDue == today) {
-                manualDue = if (manualDue == today) null else today
-            }
-            ChoiceChip("Jutro", selected = effDue == today + 1) {
-                manualDue = if (manualDue == today + 1) null else today + 1
-            }
-            val customDate = effDue?.takeIf { it != today && it != today + 1 }
-            ChoiceChip(
-                text = customDate?.let { "📅 " + LocalDate.ofEpochDay(it).format(fmt) } ?: "📅 Data",
-                selected = customDate != null
-            ) { showDatePicker = true }
-        }
-
-        // Priorytet
-        Spacer(Modifier.height(10.dp))
-        androidx.compose.foundation.layout.FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            pl.media30.todoisto.data.Priority.entries.forEach { p ->
-                ChoiceChip(
-                    text = "P${p.ordinal + 1}",
-                    selected = effPriority == p,
-                    tint = p.color
-                ) { manualPriority = if (manualPriority == p) null else p }
-            }
-        }
-
-        // Projekt + cykliczność
-        Spacer(Modifier.height(10.dp))
-        androidx.compose.foundation.layout.FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Box {
-                ChoiceChip(
-                    text = "# " + (manualProject?.name ?: parsed.projectName ?: "Skrzynka"),
-                    selected = manualProject != null || parsed.projectName != null
-                ) { projectMenu = true }
-                DropdownMenu(expanded = projectMenu, onDismissRequest = { projectMenu = false }) {
-                    DropdownMenuItem(
-                        text = { Text("Skrzynka") },
-                        onClick = { manualProject = null; projectMenu = false }
-                    )
-                    activeProjects.forEach { p ->
-                        DropdownMenuItem(
-                            text = { Text(p.name) },
-                            onClick = { manualProject = p; projectMenu = false }
-                        )
-                    }
-                }
-            }
-            Box {
-                ChoiceChip(
-                    text = "🔁 " + (effRecurrence?.label ?: "Powtarzaj"),
-                    selected = effRecurrence != null
-                ) { recurrenceMenu = true }
-                DropdownMenu(expanded = recurrenceMenu, onDismissRequest = { recurrenceMenu = false }) {
-                    DropdownMenuItem(
-                        text = { Text("Nie powtarzaj") },
-                        onClick = { manualRecurrence = null; recurrenceMenu = false }
-                    )
-                    pl.media30.todoisto.data.Recurrence.entries.forEach { r ->
-                        DropdownMenuItem(
-                            text = { Text(r.label) },
-                            onClick = { manualRecurrence = r; recurrenceMenu = false }
-                        )
-                    }
-                }
-            }
-        }
-
-        // Reszta rozpoznana z tekstu (godzina, czas trwania, etykiety, deadline)
-        val extras = parsed.dueTimeMinutes != null || parsed.durationMinutes != null ||
-            parsed.labelNames.isNotEmpty() || parsed.deadline != null
-        if (extras) {
-            Spacer(Modifier.height(10.dp))
-            androidx.compose.foundation.layout.FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth().animateContentSize()
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 20.dp)) {
+            // Nagłówek konta: awatar (zdjęcie/inicjał) obok Todoisto — dotknięcie otwiera Konto.
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).bouncy(0.98f, onOpenSettings)
+                    .padding(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                parsed.dueTimeMinutes?.let { PreviewChip("🕒 %02d:%02d".format(it / 60, it % 60)) }
-                parsed.durationMinutes?.let { PreviewChip("⏱ " + durationText(it)) }
-                parsed.labelNames.forEach { PreviewChip("@ $it") }
-                parsed.deadline?.let { PreviewChip("⏳ do " + dueText(it, fmt)) }
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-        ExtendedFloatingActionButton(
-            onClick = { if (text.isNotBlank()) onAdd(text, overrides()) },
-            shape = RoundedCornerShape(50),
-            containerColor = GlassAccent,
-            contentColor = Color.White,
-            modifier = Modifier.fillMaxWidth(),
-            icon = { Icon(Icons.Filled.Add, null) },
-            text = { Text("Dodaj", fontWeight = FontWeight.SemiBold) }
-        )
-    }
-
-    if (showDatePicker) {
-        val state = androidx.compose.material3.rememberDatePickerState(
-            initialSelectedDateMillis = effDue?.let { it * 24L * 60 * 60 * 1000 }
-        )
-        androidx.compose.material3.DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    state.selectedDateMillis?.let { millis ->
-                        manualDue = java.time.Instant.ofEpochMilli(millis)
-                            .atZone(java.time.ZoneOffset.UTC).toLocalDate().toEpochDay()
+                Box(
+                    Modifier.size(42.dp).clip(CircleShape).background(GlassAccent),
+                    contentAlignment = Alignment.Center
+                ) {
+                    when {
+                        accountAvatar.isNotBlank() -> coil.compose.AsyncImage(
+                            model = java.io.File(accountAvatar), contentDescription = "Konto",
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier.size(42.dp).clip(CircleShape)
+                        )
+                        accountInitial.isNotBlank() -> Text(accountInitial, fontSize = 19.sp, fontWeight = FontWeight.W900, color = Color.White)
+                        else -> Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(20.dp))
                     }
-                    showDatePicker = false
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Anuluj") } }
-        ) {
-            androidx.compose.material3.DatePicker(state = state)
+                }
+                Spacer(Modifier.width(11.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(buildAnnotatedLogo(), fontSize = 18.sp)
+                    Text("Konto i ustawienia", fontSize = 11.5.sp, fontWeight = FontWeight.W600, color = GlassTextSecondary)
+                }
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = GlassTextSecondary, modifier = Modifier.size(20.dp))
+            }
+
+            DrawerRow(Icons.Outlined.CalendarToday, "Dzisiaj", uiState.todayCount, current == AppView.Today) { onSelect(AppView.Today) }
+            DrawerRow(Icons.Outlined.DateRange, "Nadchodzące", null, current == AppView.Upcoming) { onSelect(AppView.Upcoming) }
+            DrawerRow(Icons.Outlined.Inbox, "Skrzynka", uiState.inboxCount, current == AppView.Inbox) { onSelect(AppView.Inbox) }
+            DrawerRow(Icons.Outlined.CheckCircle, "Ukończone", null, current == AppView.Completed) { onSelect(AppView.Completed) }
+            DrawerRow(Icons.Outlined.Bolt, "Czas wolny — co teraz?", null, false, onFreeTime)
+            DrawerRow(Icons.Outlined.Autorenew, "Rutyny — edycja", null, false, onEditRoutines)
+            DrawerRow(Icons.Outlined.Bolt, "Pula aktywności", null, false, onOpenActivityPool)
+            DrawerRow(Icons.Outlined.Insights, "Statystyki", null, false, onOpenStats)
+
+            // Szacowanie: ile pracy zostało na dziś (suma czasów zadań) — klik → rozbicie
+            EstimateCard(uiState.todayCount, uiState.estTodayMinutes, onOpenEstimate)
+
+            // Ulubione
+            val favs = projects.filter { it.isFavorite && !it.isArchived }.map { Triple(AppView.ProjectView(it.id) as AppView, "#${it.name}", Color(it.colorArgb)) } +
+                labels.filter { it.isFavorite }.map { Triple(AppView.LabelView(it.id) as AppView, "@${it.name}", Color(it.colorArgb)) }
+            if (favs.isNotEmpty()) {
+                Row(Modifier.padding(start = 12.dp, top = 16.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Star, null, tint = Color(0xFFF4B740), modifier = Modifier.size(15.dp))
+                    Spacer(Modifier.width(7.dp))
+                    Text("ULUBIONE", fontSize = 10.5.sp, fontWeight = FontWeight.W800, letterSpacing = 1.26.sp, color = GlassTextSecondary)
+                }
+                favs.forEach { (view, name, color) ->
+                    DrawerDotRow(color, name, current == view) { onSelect(view) }
+                }
+            }
+
+            // Projekty
+            Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 16.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("PROJEKTY", fontSize = 10.5.sp, fontWeight = FontWeight.W800, letterSpacing = 1.26.sp, color = GlassTextSecondary, modifier = Modifier.weight(1f))
+                Box(Modifier.size(24.dp).clip(CircleShape).bouncy(0.85f, onClick = onAddProject), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Add, "Nowy projekt", tint = GlassTextSecondary, modifier = Modifier.size(13.dp))
+                }
+            }
+            projects.filter { !it.isArchived }.forEach { p ->
+                DrawerDotRow(Color(p.colorArgb), p.name, current == AppView.ProjectView(p.id)) { onSelect(AppView.ProjectView(p.id)) }
+            }
+
+            // Etykiety (pigułki)
+            Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 16.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("ETYKIETY", fontSize = 10.5.sp, fontWeight = FontWeight.W800, letterSpacing = 1.26.sp, color = GlassTextSecondary, modifier = Modifier.weight(1f))
+                Box(Modifier.size(24.dp).clip(CircleShape).bouncy(0.85f, onClick = onAddLabel), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Add, "Nowa etykieta", tint = GlassTextSecondary, modifier = Modifier.size(13.dp))
+                }
+            }
+            FlowRowLabels(labels, current, onSelect)
+
+            // Aktywności (pula) — lista + dodawanie
+            Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 16.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Bolt, null, tint = GlassAccent, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(7.dp))
+                Text("AKTYWNOŚCI", fontSize = 10.5.sp, fontWeight = FontWeight.W800, letterSpacing = 1.26.sp, color = GlassTextSecondary, modifier = Modifier.weight(1f))
+                Box(Modifier.size(24.dp).clip(CircleShape).bouncy(0.85f, onClick = onAddActivity), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Add, "Dodaj aktywność", tint = GlassTextSecondary, modifier = Modifier.size(13.dp))
+                }
+            }
+            if (activities.isEmpty()) {
+                Text(
+                    "Brak aktywności — dodaj pierwszą plusem.",
+                    fontSize = 12.sp, color = GlassTextSecondary.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
+                )
+            } else {
+                activities.forEach { a ->
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                            .bouncy(0.98f, onClick = onAddActivity).padding(horizontal = 12.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(effortIcon(a.effortType), null, tint = effortColor(a.effortType), modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text(a.name, fontSize = 13.5.sp, fontWeight = FontWeight.W600, color = GlassTextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        Text("${a.durationMinutes}m", fontSize = 11.5.sp, fontWeight = FontWeight.W700, color = GlassTextSecondary)
+                    }
+                }
+            }
+
+            // Archiwum
+            val archived = projects.filter { it.isArchived }
+            if (archived.isNotEmpty()) {
+                Row(Modifier.padding(start = 12.dp, top = 16.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Archive, null, tint = GlassTextSecondary, modifier = Modifier.size(15.dp))
+                    Spacer(Modifier.width(7.dp))
+                    Text("ARCHIWUM", fontSize = 10.5.sp, fontWeight = FontWeight.W800, letterSpacing = 1.26.sp, color = GlassTextSecondary)
+                }
+                archived.forEach { p ->
+                    DrawerDotRow(Color(p.colorArgb).copy(alpha = 0.5f), p.name, current == AppView.ProjectView(p.id), dimmed = true) { onSelect(AppView.ProjectView(p.id)) }
+                }
+            }
+
+            Spacer(Modifier.weight(1f).height(16.dp))
+
+            // Cele produktywności — na samym dole
+            Column(
+                Modifier.padding(horizontal = 8.dp).padding(bottom = 12.dp)
+                    .clip(RoundedCornerShape(20.dp)).background(GlassTint)
+                    .bouncy(0.98f, onClick = onGoals).padding(horizontal = 14.dp, vertical = 13.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(7.dp))
+                    Text("CELE PRODUKTYWNOŚCI", fontSize = 11.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.69.sp, color = GlassTextSecondary, modifier = Modifier.weight(1f))
+                    Icon(Icons.Outlined.Edit, null, tint = GlassTextSecondary, modifier = Modifier.size(14.dp))
+                }
+                Spacer(Modifier.height(9.dp))
+                GoalBar("Dzisiaj", uiState.doneToday, uiState.goalDaily)
+                Spacer(Modifier.height(8.dp))
+                GoalBar("Tydzień", uiState.doneWeek, uiState.goalWeekly)
+            }
+
+            // Motyw, tło i klucz AI przeniesione do Ustawień (☰ → Ustawienia).
         }
     }
 }
 
+/** Szacowanie: ile zadań i ile czasu zostało dziś do zrobienia. Klik → rozbicie na zadania. */
 @Composable
-private fun ChoiceChip(
-    text: String,
-    selected: Boolean,
-    tint: Color = GlassAccent,
-    onClick: () -> Unit
-) {
-    val shape = RoundedCornerShape(50)
-    val bg by animateColorAsState(
-        targetValue = when {
-            !selected -> GlassPanelTint.copy(alpha = 0.10f)
-            GlassTheme.dark -> Color.White
-            else -> tint.copy(alpha = 0.16f)
-        },
-        label = "choiceBg"
-    )
+private fun EstimateCard(count: Int, minutes: Int, onClick: () -> Unit) {
     Row(
-        modifier = Modifier
-            .clip(shape)
-            .background(bg)
-            .border(1.dp, if (selected) tint else GlassPanelTint.copy(alpha = 0.30f), shape)
-            .bouncy(scaleDown = 0.9f, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 9.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp)
+            .clip(RoundedCornerShape(18.dp)).background(GlassTint).bouncy(0.98f, onClick).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Icon(Icons.Outlined.Schedule, null, tint = GlassAccent, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text("SZACOWANY CZAS NA DZIŚ", fontSize = 9.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.9.sp, color = GlassTextSecondary)
+            Spacer(Modifier.height(3.dp))
+            Text(
+                if (count == 0) "Nic nie zaplanowane" else "$count " + when { count == 1 -> "zadanie"; count in 2..4 -> "zadania"; else -> "zadań" } + " · " + estTime(minutes),
+                fontSize = 14.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary
+            )
+        }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = GlassTextSecondary, modifier = Modifier.size(18.dp))
+    }
+}
+
+private fun estTime(minutes: Int): String = when {
+    minutes <= 0 -> "—"
+    minutes < 60 -> "~${minutes} min"
+    minutes % 60 == 0 -> "~${minutes / 60}h"
+    else -> "~${minutes / 60}h ${minutes % 60}min"
+}
+
+/** #4a — rozbicie „Szacowanego czasu na dziś" na poszczególne zadania z minutami. */
+@Composable
+fun EstimateBreakdownSheet(
+    items: List<Task>,
+    projects: List<Project>,
+    aiState: pl.media30.todoisto.ui.TodoViewModel.EstimateAiState = pl.media30.todoisto.ui.TodoViewModel.EstimateAiState(),
+    avgActualMinutes: Int = 0,
+    onEstimateAi: () -> Unit = {}
+) {
+    val total = items.sumOf { it.durationMinutes ?: 20 }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 26.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.Schedule, null, tint = GlassAccent, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Szacowany czas na dziś", fontSize = 19.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary, modifier = Modifier.weight(1f))
+            Text(estTime(total), fontSize = 13.sp, fontWeight = FontWeight.W800, color = GlassAccent)
+        }
+        Spacer(Modifier.height(14.dp))
+
+        // Porównanie: suma zadań vs szacunek AI.
+        if (items.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Suma zadań
+                Column(
+                    Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(GlassTint).padding(14.dp)
+                ) {
+                    Text("SUMA ZADAŃ", fontSize = 9.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.8.sp, color = GlassTextSecondary)
+                    Spacer(Modifier.height(4.dp))
+                    Text(estTime(total), fontSize = 18.sp, fontWeight = FontWeight.W900, color = GlassTextPrimary)
+                }
+                // Szacunek AI
+                Column(
+                    Modifier.weight(1f).clip(RoundedCornerShape(16.dp))
+                        .background(GlassAccent.copy(alpha = 0.12f))
+                        .then(if (aiState.minutes == null && !aiState.loading) Modifier.bouncy(0.97f, onEstimateAi) else Modifier)
+                        .padding(14.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(12.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("SZACUNEK AI", fontSize = 9.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.8.sp, color = GlassAccent)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    when {
+                        aiState.loading -> Text("Liczę…", fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassAccent)
+                        aiState.minutes != null -> Text(estTime(aiState.minutes!!), fontSize = 18.sp, fontWeight = FontWeight.W900, color = GlassAccent)
+                        else -> Text("Dotknij, aby policzyć", fontSize = 12.sp, fontWeight = FontWeight.W700, color = GlassAccent)
+                    }
+                }
+            }
+            // Różnica / komunikaty.
+            aiState.minutes?.let { ai ->
+                Spacer(Modifier.height(8.dp))
+                val diff = ai - total
+                val txt = when {
+                    diff == 0 -> "AI szacuje podobnie jak suma zadań."
+                    diff > 0 -> "AI szacuje o ${estTime(diff).removePrefix("~")} więcej niż suma."
+                    else -> "AI szacuje o ${estTime(-diff).removePrefix("~")} mniej niż suma."
+                }
+                Text(txt, fontSize = 11.5.sp, color = GlassTextSecondary)
+            }
+            if (aiState.needsKey) {
+                Spacer(Modifier.height(8.dp))
+                Text("Dodaj klucz API w Ustawieniach, aby użyć szacowania AI.", fontSize = 11.5.sp, fontWeight = FontWeight.W700, color = Color(0xFFEB8909))
+            }
+            aiState.error?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, fontSize = 11.5.sp, fontWeight = FontWeight.W700, color = Color(0xFFEB4034))
+            }
+            if (avgActualMinutes > 0) {
+                Spacer(Modifier.height(8.dp))
+                Text("Twoja średnia z ukończonych zadań: ~$avgActualMinutes min/zadanie.", fontSize = 11.5.sp, color = GlassTextSecondary)
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+        if (items.isEmpty()) {
+            Text("Nic nie zaplanowane na dziś.", fontSize = 13.sp, color = GlassTextSecondary)
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items.forEach { t ->
+                    val mins = t.durationMinutes ?: 20
+                    val est = t.durationMinutes == null
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(GlassTint).padding(horizontal = 14.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(Modifier.size(8.dp).clip(CircleShape).background(if (t.priority != Priority.P4) t.priority.color else GlassAccent))
+                        Spacer(Modifier.width(11.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(t.title, fontSize = 14.sp, fontWeight = FontWeight.W600, color = GlassTextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            projects.firstOrNull { it.id == t.projectId }?.let {
+                                Text("#${it.name}", fontSize = 11.sp, color = GlassTextSecondary)
+                            }
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            (if (est) "≈" else "") + "$mins min",
+                            fontSize = 12.5.sp, fontWeight = FontWeight.W800,
+                            color = if (est) GlassTextSecondary else GlassTextPrimary
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "≈ = brak ustawionego czasu, przyjęto 20 min.",
+                fontSize = 11.sp, color = GlassTextSecondary.copy(alpha = 0.8f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun buildAnnotatedLogo() = androidx.compose.ui.text.buildAnnotatedString {
+    pushStyle(androidx.compose.ui.text.SpanStyle(fontFamily = Sora, fontWeight = FontWeight.W800, color = GlassTextPrimary, letterSpacing = (-0.38).sp))
+    append("todoist")
+    pushStyle(androidx.compose.ui.text.SpanStyle(color = GlassAccent))
+    append("o")
+}
+
+@Composable
+private fun DrawerRow(icon: ImageVector, label: String, count: Int?, selected: Boolean, onClick: () -> Unit) {
+    val bg by animateColorAsState(if (selected) GlassTint else Color.Transparent, label = "drawBg")
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(bg)
+            .bouncy(0.98f, onClick = onClick).padding(horizontal = 12.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = GlassAccent, modifier = Modifier.size(17.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(label, fontSize = 14.sp, fontWeight = FontWeight.W700, color = GlassTextPrimary, modifier = Modifier.weight(1f))
+        if (count != null && count > 0) Text("$count", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassTextSecondary)
+    }
+}
+
+@Composable
+private fun DrawerDotRow(color: Color, label: String, selected: Boolean, dimmed: Boolean = false, onClick: () -> Unit) {
+    val bg by animateColorAsState(if (selected) GlassTint else Color.Transparent, label = "drawBg")
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(bg)
+            .bouncy(0.98f, onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.padding(horizontal = 3.dp).size(11.dp).clip(RoundedCornerShape(6.dp)).background(color))
+        Spacer(Modifier.width(12.dp))
         Text(
-            text,
-            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = if (selected) tint else GlassTextSecondary
+            label, fontSize = 14.sp, fontWeight = FontWeight.W600,
+            color = if (dimmed) GlassTextSecondary else GlassTextPrimary,
+            modifier = Modifier.weight(1f)
         )
     }
 }
 
-private fun durationText(minutes: Int): String {
-    val h = minutes / 60
-    val m = minutes % 60
-    return when {
-        h > 0 && m > 0 -> "${h}h ${m}min"
-        h > 0 -> "${h}h"
-        else -> "${m}min"
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FlowRowLabels(labels: List<Label>, current: AppView, onSelect: (AppView) -> Unit) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.padding(horizontal = 12.dp)
+    ) {
+        labels.forEach { l ->
+            val col = Color(l.colorArgb)
+            val eff = if (GlassTheme.dark) androidx.compose.ui.graphics.lerp(col, Color.White, 0.4f) else col
+            Text(
+                "@${l.name}", fontSize = 11.5.sp, fontWeight = FontWeight.W800, color = eff,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(col.copy(alpha = if (GlassTheme.dark) 0.22f else 0.12f))
+                    .bouncy(0.92f) { onSelect(AppView.LabelView(l.id)) }
+                    .padding(horizontal = 11.dp, vertical = 5.dp)
+            )
+        }
+        if (labels.isEmpty()) {
+            Text("Brak etykiet", fontSize = 12.sp, color = GlassTextSecondary.copy(alpha = 0.6f))
+        }
     }
 }
 
 @Composable
-private fun PreviewChip(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.labelMedium,
-        color = GlassTextPrimary,
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(GlassPanelTint.copy(alpha = 0.12f))
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-    )
-}
-
-private fun dueText(epochDay: Long, fmt: DateTimeFormatter): String {
-    val today = LocalDate.now().toEpochDay()
-    return when (epochDay) {
-        today -> "Dzisiaj"
-        today + 1 -> "Jutro"
-        else -> LocalDate.ofEpochDay(epochDay).format(fmt)
+private fun GoalBar(label: String, done: Int, goal: Int) {
+    Column {
+        Row(Modifier.fillMaxWidth()) {
+            Text(label, fontSize = 11.5.sp, fontWeight = FontWeight.W700, color = GlassTextPrimary, modifier = Modifier.weight(1f))
+            Text("$done / $goal", fontSize = 11.5.sp, fontWeight = FontWeight.W700, color = GlassTextSecondary)
+        }
+        Spacer(Modifier.height(4.dp))
+        val target = (done.toFloat() / goal).coerceIn(0f, 1f)
+        val frac by animateFloatAsState(target, spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessLow), label = "goalFrac")
+        Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(GlassHair)) {
+            Box(
+                Modifier.fillMaxWidth(frac.coerceIn(0.001f, 1f)).height(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(Brush.horizontalGradient(listOf(Color(0xFFA47CFF), Color(0xFF6B3FE0))))
+            )
+        }
     }
 }
 
-// ---- Dialogs ---------------------------------------------------------------
+// ─── Dialogi (Nowy projekt/etykieta/sekcja · Cele ze stepperami) ─────────────
 
 @Composable
-private fun NameColorDialog(title: String, onDismiss: () -> Unit, onConfirm: (String, Long) -> Unit) {
+private fun DialogScrim(onDismiss: () -> Unit, content: @Composable () -> Unit) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Box(
+            Modifier.width(300.dp).clip(RoundedCornerShape(28.dp)).background(GlassSurface)
+                .border(1.dp, GlassRim.copy(alpha = 0.6f), RoundedCornerShape(28.dp))
+                .padding(20.dp)
+        ) { content() }
+    }
+}
+
+@Composable
+private fun NameColorDialog(
+    title: String,
+    placeholder: String,
+    hasColor: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (String, Long) -> Unit
+) {
     var name by remember { mutableStateOf("") }
     var color by remember { mutableStateOf(PaletteColors.options.first()) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = GlassSurface,
-        title = { Text(title, color = GlassTextPrimary) },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Nazwa") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(22.dp),
-                    colors = glassFieldColors(),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(16.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    DialogScrim(onDismiss) {
+        Column {
+            Text(title, style = MaterialTheme.typography.titleMedium, color = GlassTextPrimary)
+            Spacer(Modifier.height(15.dp))
+            BasicTextField(
+                value = name, onValueChange = { name = it },
+                textStyle = TextStyle(fontSize = 14.sp, color = GlassTextPrimary, fontWeight = FontWeight.W600),
+                cursorBrush = SolidColor(GlassAccent),
+                decorationBox = { inner ->
+                    Box(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(GlassInputBg)
+                            .border(1.dp, GlassHair, RoundedCornerShape(14.dp)).padding(horizontal = 14.dp, vertical = 12.dp)
+                    ) {
+                        if (name.isEmpty()) Text(placeholder, fontSize = 14.sp, color = GlassTextSecondary.copy(alpha = 0.55f))
+                        inner()
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (hasColor) {
+                Spacer(Modifier.height(15.dp))
+                Text("KOLOR", fontSize = 11.5.sp, fontWeight = FontWeight.W800, letterSpacing = 0.46.sp, color = GlassTextSecondary)
+                Spacer(Modifier.height(8.dp))
+                @OptIn(ExperimentalLayoutApi::class)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     PaletteColors.options.forEach { c ->
                         Box(
-                            Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(Color(c))
-                                .border(if (c == color) 3.dp else 0.dp, GlassTextPrimary, CircleShape)
-                                .clickable { color = c }
-                        )
+                            Modifier.size(28.dp).clip(CircleShape).background(Color(c)).bouncy(0.85f) { color = c },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (c == color) Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(13.dp))
+                        }
                     }
                 }
             }
-        },
-        confirmButton = { TextButton(onClick = { if (name.isNotBlank()) onConfirm(name, color) }) { Text("Zapisz") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Anuluj") } }
-    )
-}
-
-@Composable
-private fun NameDialog(title: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
-    var name by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = GlassSurface,
-        title = { Text(title, color = GlassTextPrimary) },
-        text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Nazwa") },
-                singleLine = true,
-                shape = RoundedCornerShape(22.dp),
-                colors = glassFieldColors(),
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        confirmButton = { TextButton(onClick = { if (name.isNotBlank()) onConfirm(name) }) { Text("Zapisz") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Anuluj") } }
-    )
+            Spacer(Modifier.height(17.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Anuluj", fontSize = 13.sp, fontWeight = FontWeight.W800, color = GlassTextSecondary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(50)).bouncy(0.95f, onClick = onDismiss).padding(vertical = 11.dp)
+                )
+                Text(
+                    "Utwórz", fontSize = 13.sp, fontWeight = FontWeight.W800, color = Color.White,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.weight(1.6f).clip(RoundedCornerShape(50))
+                        .background(GlassAccent.copy(alpha = if (name.isBlank()) 0.45f else 1f))
+                        .bouncy(0.96f) { if (name.isNotBlank()) onConfirm(name.trim(), color) }
+                        .padding(vertical = 11.dp)
+                )
+            }
+        }
+    }
 }
 
 @Composable
 private fun GoalsDialog(daily: Int, weekly: Int, onDismiss: () -> Unit, onConfirm: (Int, Int) -> Unit) {
-    var dailyText by remember { mutableStateOf(daily.toString()) }
-    var weeklyText by remember { mutableStateOf(weekly.toString()) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = GlassSurface,
-        title = { Text("Cele produktywności", color = GlassTextPrimary) },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = dailyText,
-                    onValueChange = { dailyText = it.filter(Char::isDigit).take(3) },
-                    label = { Text("Cel dzienny (zadania)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    shape = RoundedCornerShape(22.dp),
-                    colors = glassFieldColors(),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = weeklyText,
-                    onValueChange = { weeklyText = it.filter(Char::isDigit).take(4) },
-                    label = { Text("Cel tygodniowy (zadania)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    shape = RoundedCornerShape(22.dp),
-                    colors = glassFieldColors(),
-                    modifier = Modifier.fillMaxWidth()
-                )
+    var day by remember { mutableStateOf(daily) }
+    var week by remember { mutableStateOf(weekly) }
+    DialogScrim(onDismiss) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.AutoAwesome, null, tint = GlassAccent, modifier = Modifier.size(19.dp))
+                Spacer(Modifier.width(9.dp))
+                Text("Cele produktywności", style = MaterialTheme.typography.titleMedium, color = GlassTextPrimary)
             }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val d = dailyText.toIntOrNull() ?: daily
-                val w = weeklyText.toIntOrNull() ?: weekly
-                onConfirm(d.coerceAtLeast(1), w.coerceAtLeast(1))
-            }) { Text("Zapisz") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Anuluj") } }
-    )
+            Spacer(Modifier.height(16.dp))
+            StepperRow("Dziennie", "zadań na dzień", day, { day = (day - 1).coerceAtLeast(1) }, { day = (day + 1).coerceAtMost(20) })
+            Spacer(Modifier.height(12.dp))
+            StepperRow("Tygodniowo", "zadań na tydzień", week, { week = (week - 5).coerceAtLeast(5) }, { week = (week + 5).coerceAtMost(80) })
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "Zapisz cele", fontSize = 13.sp, fontWeight = FontWeight.W800, color = Color.White,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(GlassAccent)
+                    .bouncy(0.97f) { onConfirm(day, week) }.padding(vertical = 12.dp)
+            )
+        }
+    }
 }
 
 @Composable
-private fun EmptyState(view: AppView, hasRoutines: Boolean = false) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                Icons.Outlined.CheckCircle,
-                null,
-                tint = GlassPanelTint.copy(alpha = 0.5f),
-                modifier = Modifier.size(72.dp).padding(bottom = 12.dp)
-            )
-            Text(
-                text = when {
-                    view == AppView.Today && hasRoutines -> "Zostały tylko rutyny 🔁"
-                    view == AppView.Today -> "Nic na dzisiaj 🎉"
-                    view == AppView.Completed -> "Brak ukończonych zadań"
-                    view == AppView.Upcoming -> "Brak nadchodzących zadań"
-                    view == AppView.Inbox -> "Skrzynka pusta"
-                    else -> "Brak zadań tutaj"
-                },
-                style = MaterialTheme.typography.bodyLarge,
-                color = GlassTextSecondary
-            )
+private fun StepperRow(title: String, sub: String, value: Int, onDec: () -> Unit, onInc: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(GlassTint).padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 13.5.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+            Text(sub, fontSize = 11.sp, color = GlassTextSecondary)
         }
+        StepBtn("−", onDec)
+        Text(
+            "$value", fontFamily = Sora, fontSize = 19.sp, fontWeight = FontWeight.W800, color = GlassAccent,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.width(48.dp)
+        )
+        StepBtn("+", onInc)
+    }
+}
+
+@Composable
+private fun StepBtn(sign: String, onClick: () -> Unit) {
+    Box(
+        Modifier.size(30.dp).clip(CircleShape).background(GlassFill).border(1.dp, GlassRim, CircleShape)
+            .bouncy(0.88f, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(sign, fontSize = 16.sp, fontWeight = FontWeight.W700, color = GlassTextPrimary)
     }
 }

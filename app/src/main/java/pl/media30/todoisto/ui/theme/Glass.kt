@@ -1,5 +1,6 @@
 package pl.media30.todoisto.ui.theme
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -8,8 +9,11 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
@@ -21,119 +25,497 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
-
-// ---- Liquid-glass theme ------------------------------------------------------
-// Modeled after Apple's Liquid Glass material: elements are uniformly
-// translucent (content shows through — no gradient fills on controls), with a
-// specular highlight around the rim as if lit from the top-left, soft diffuse
-// shadows for depth, and slow fluid motion in the backdrop.
-
-object GlassTheme {
-    /** Toggled from settings; all palette getters below react to it. */
-    var dark by mutableStateOf(false)
-}
-
-private val d get() = GlassTheme.dark
-
-val GlassBgTop: Color get() = if (d) Color(0xFF6E45D9) else Color(0xFFFDFBFF)
-val GlassBgMid: Color get() = if (d) Color(0xFF5B35C4) else Color(0xFFF6F1FE)
-val GlassBgBottom: Color get() = if (d) Color(0xFF44239E) else Color(0xFFEFE8FC)
-
-val GlassBlobViolet: Color get() = if (d) Color(0xFFB388FF) else Color(0xFFA875FF)
-val GlassBlobMagenta = Color(0xFFE96BFF)
-val GlassBlobBlue = Color(0xFF7C9EFF)
-
-val GlassAccent: Color get() = if (d) Color(0xFF9B6BFF) else Color(0xFF6B3FE0)
-val GlassTextPrimary: Color get() = if (d) Color(0xFFFFFFFF) else Color(0xFF2A1655)
-val GlassTextSecondary: Color get() = if (d) Color(0xFFE6DDFB) else Color(0xFF6E5A9E)
-
-/** Tint used for the glass panel fills and hairlines. */
-val GlassPanelTint: Color get() = if (d) Color.White else Color(0xFF8B5CFF)
-
-/** Solid surface for drawers, sheets, menus and dialogs. */
-val GlassSurface: Color get() = if (d) Color(0xFF5B35C4) else Color(0xFFF7F2FF)
+import dev.chrisbanes.haze.hazeChild
+import java.time.LocalTime
 
 /**
- * Full-screen backdrop: a gentle vertical gradient with soft colour glows that
- * drift very slowly — the "liquid" in liquid glass. The gradient lives here,
- * on the background only; the elements above stay flat and translucent.
+ * Tokeny wprost z prototypu Todoisto.dc.html (funkcja colors() + domyślne
+ * props: szkloWypelnienie .20, szkloRant 1.0, szkloCien .14, tapeta szklo3d —
+ * przy tapecie ≠ brak jasny motyw używa ciemniejszego atramentu #1B0A3E).
+ */
+/** Pora dnia sterująca kolorem tła (rano / południe / wieczór). */
+enum class DayPhase(val label: String) { MORNING("Rano"), NOON("Południe"), EVENING("Wieczór") }
+
+fun dayPhaseFromClock(hour: Int = LocalTime.now().hour): DayPhase = when (hour) {
+    in 5..10 -> DayPhase.MORNING
+    in 11..16 -> DayPhase.NOON
+    else -> DayPhase.EVENING
+}
+
+/** Wspólny stan Haze do prawdziwego rozmycia tła (backdrop blur) pod taflami. */
+val LocalHazeState = androidx.compose.runtime.staticCompositionLocalOf<dev.chrisbanes.haze.HazeState?> { null }
+
+object GlassTheme {
+    var dark by mutableStateOf(false)
+    /** Ustawiane przy starcie z zegara; wpływa tylko na tło (nie na motyw tekstu). */
+    var phase by mutableStateOf(DayPhase.NOON)
+    /** Tryb tła: false = gradient „mesh", true = malarska scena „foto" zależna od pory dnia. */
+    var photo by mutableStateOf(false)
+    /** Własne tło (ścieżka pliku); gdy ustawione, ma priorytet nad gradientem/sceną. */
+    var customBg by mutableStateOf<String?>(null)
+    // Kolory motywu (akcent + odcień kart) — ustawiane z wybranego ThemePalette.
+    var accentLight by mutableStateOf(Color(0xFF6E45D9))
+    var accentDark by mutableStateOf(Color(0xFFB99CFF))
+    var tintLight by mutableStateOf(Color(0xFFEAE2FB))
+    var tintDark by mutableStateOf(Color(0xFF7160B8))
+}
+private val d get() = GlassTheme.dark
+
+val GlassTextPrimary: Color get() = if (d) Color(0xFFFFFFFF) else Color(0xFF2A1F4D)
+val GlassTextSecondary: Color get() = if (d) Color(0xFFDCD0F8) else Color(0xFF6B5F95)
+val GlassAccent: Color get() = if (d) GlassTheme.accentDark else GlassTheme.accentLight
+
+/** Delikatny odcień kart/tafli w barwie motywu (zamiast czystej bieli). */
+val CardTint: Color get() = if (d) GlassTheme.tintDark else GlassTheme.tintLight
+
+/** --fill: wypełnienie tafli glass (delikatny fiolet, dobry kontrast z tłem). */
+val GlassFill: Color get() = if (d) CardTint.copy(alpha = 0.18f) else CardTint.copy(alpha = 0.42f)
+
+/** --rim: obwódka szkła. */
+val GlassRim: Color get() = if (d) Color.White.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.95f)
+
+/** --tint: delikatne tło aktywne/chipy. */
+val GlassTint: Color get() = if (d) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.22f)
+
+/** --hair: włosowe separatory. */
+val GlassHair: Color get() = if (d) Color.White.copy(alpha = 0.16f) else Color(0x331E0A50)
+
+/** --shd: kolor cienia. */
+val GlassShadow: Color get() = if (d) Color(0x5716054A) else Color(0x24551FC2)
+
+/** --srf: powierzchnia arkuszy/dialogów (bez realnego blura – prawie kryjąca). */
+val GlassSurface: Color get() = if (d) Color(0xF23A1E84) else Color(0xF7FCFAFF)
+
+/** --inbg: tło pól tekstowych. */
+val GlassInputBg: Color get() = if (d) Color.White.copy(alpha = 0.10f) else Color(0x128B5CFF)
+
+/** dockBg / tafla Rutyn — w pełni kryjąca (żeby treść listy nie prześwitywała). */
+val GlassDockBg: Color get() = if (d) Color(0xFF3B3357) else Color(0xFFF1ECFB)
+
+/** Tło szuflady — frosted glass: lekko prześwituje, ale teksty pozostają czytelne. */
+val GlassDrawerBg: Color get() = if (d) Color(0xE62A1E4A) else Color(0xE6FFFFFF)
+
+/** Pigułka rutyny. */
+val GlassRoutinePill: Color get() = if (d) Color.White.copy(alpha = 0.10f) else Color(0xFFFBF9FF)
+
+// Priorytety (PC z prototypu)
+val PrioColors = listOf(Color(0xFFD1453B), Color(0xFFEB8909), Color(0xFF246FE0), Color(0xFF9E9E9E))
+
+// Wielokolorowy gradient „mesh" zależny od pory dnia (bez kształtów):
+// [base] — 4 pionowe przystanki; [meshL]/[meshR] — poprzeczna warstwa,
+// dająca różnicę koloru między lewą a prawą krawędzią (efekt aurory).
+private class BgPalette(
+    val base: List<Color>,
+    val meshL: Color, val meshR: Color, val meshTop: Color, val meshAccent: Color,
+    // Dwa dodatkowe „bloby" — więcej barw, bogatszy, bardziej mieniący się gradient.
+    val meshAccent2: Color, val meshAccent3: Color
+)
+
+// Wyraźnie różne barwy (żeby nie zlewały się z fioletem UI): turkus, róż/magenta,
+// błękit, żółty, koral. Cztery żywe „bloby" nad jasną bazą (light) / głęboką (dark).
+private fun bgPalette(): BgPalette = when (GlassTheme.phase) {
+    // Rano — świt: koral + róż + żółty + turkus + brzoskwinia + złoto
+    DayPhase.MORNING -> if (d) BgPalette(
+        listOf(Color(0xFF4A3A5E), Color(0xFF3E2F54), Color(0xFF32284C), Color(0xFF261E42)),
+        Color(0xFFD46E4E), Color(0xFFC85C90), Color(0xFFC0982E), Color(0xFF2EA68C),
+        Color(0xFF8E6BEB), Color(0xFFC85CA8)
+    ) else BgPalette(
+        // Świt — fiolet + niebieski + żółty: jasne pastele (fioletowe przyciski
+        // muszą się wyraźnie odcinać od tła)
+        listOf(Color(0xFFFDFBFF), Color(0xFFF6F1FE), Color(0xFFEFE8FC), Color(0xFFF3ECFF)),
+        Color(0xFFB08CFF), Color(0xFF8FB8FF), Color(0xFFFFD97A), Color(0xFFA183FF),
+        Color(0xFF86AEFF), Color(0xFFFFD166)
+    )
+    // Południe — dzień: błękit + lawenda + mięta + róż + złoto
+    DayPhase.NOON -> if (d) BgPalette(
+        listOf(Color(0xFF2A3A66), Color(0xFF2E3A60), Color(0xFF283458), Color(0xFF20294E)),
+        Color(0xFF2EA69C), Color(0xFFC85CA8), Color(0xFF4E80C8), Color(0xFFC0A02E),
+        Color(0xFF6E45D9), Color(0xFFC0664E)
+    ) else BgPalette(
+        // Dzień — fiolet + niebieski + żółty
+        listOf(Color(0xFFFDFBFF), Color(0xFFF6F1FE), Color(0xFFEFE8FC), Color(0xFFF4EEFF)),
+        Color(0xFFAB88FF), Color(0xFF85B0FF), Color(0xFFFFDF7E), Color(0xFF9C7BF5),
+        Color(0xFF9CCBFF), Color(0xFFFFD466)
+    )
+    // Wieczór — zmierzch: fiolet + czerwień/magenta + złoty + błękit + mięta
+    DayPhase.EVENING -> if (d) BgPalette(
+        listOf(Color(0xFF5A3A88), Color(0xFF48307E), Color(0xFF382470), Color(0xFF2C1C60)),
+        Color(0xFFC24DA0), Color(0xFF5C6CD0), Color(0xFFC0664E), Color(0xFFC09A2E),
+        Color(0xFF4E80C8), Color(0xFF2EA68C)
+    ) else BgPalette(
+        // Zmierzch — fiolet + niebieski + ciepły żółty
+        listOf(Color(0xFFF3EAFF), Color(0xFFF0F0FF), Color(0xFFFFF6E6), Color(0xFFF0E8FF)),
+        Color(0xFFB48CFF), Color(0xFF8FA6FF), Color(0xFFFFC966), Color(0xFFA87FFF),
+        Color(0xFF94AEFF), Color(0xFFFFC24D)
+    )
+}
+
+// Malarska scena „foto" — niebo + poświata słońca/księżyca + pas horyzontu.
+private class PhotoScene(
+    val sky: List<Color>,   // pionowe niebo (góra→dół)
+    val glow: Color,        // barwa poświaty słońca/księżyca
+    val glowAt: Offset,     // względne (0..1) położenie poświaty
+    val horizon: Color      // barwa pasa przy dole
+)
+
+private fun photoScene(): PhotoScene = when (GlassTheme.phase) {
+    DayPhase.MORNING -> if (d) PhotoScene(
+        listOf(Color(0xFF2A2148), Color(0xFF3A2A55), Color(0xFF5A3E6E), Color(0xFF7A4E5E)),
+        Color(0xFFE8A06E), Offset(0.22f, 0.72f), Color(0xFF8A5A64)
+    ) else PhotoScene(
+        listOf(Color(0xFFBFE0FF), Color(0xFFDCE6FF), Color(0xFFFFE0D8), Color(0xFFFFD1B0)),
+        Color(0xFFFFC98A), Offset(0.22f, 0.70f), Color(0xFFFFB98E)
+    )
+    DayPhase.NOON -> if (d) PhotoScene(
+        listOf(Color(0xFF20305E), Color(0xFF2C3A66), Color(0xFF34518A), Color(0xFF4E77B0)),
+        Color(0xFF9AC4F0), Offset(0.72f, 0.20f), Color(0xFF4E77A0)
+    ) else PhotoScene(
+        listOf(Color(0xFF8FC6FF), Color(0xFFB6DEFF), Color(0xFFDCEFFF), Color(0xFFEFF8FF)),
+        Color(0xFFFFFBE8), Offset(0.74f, 0.18f), Color(0xFFCDEBFF)
+    )
+    DayPhase.EVENING -> if (d) PhotoScene(
+        listOf(Color(0xFF251550), Color(0xFF3A1C7E), Color(0xFF5B2FA0), Color(0xFF8A3E80)),
+        Color(0xFFE86EA8), Offset(0.78f, 0.74f), Color(0xFF8A3E6E)
+    ) else PhotoScene(
+        listOf(Color(0xFFB9C4FF), Color(0xFFD6C4FF), Color(0xFFF0C4E8), Color(0xFFFFC9C0)),
+        Color(0xFFFFB06E), Offset(0.78f, 0.72f), Color(0xFFF0A0A6)
+    )
+}
+
+/**
+ * Pełnoekranowe tło. Backdrop jest osobnym „rodzeństwem" [content], więc jego
+ * powolna animacja (morfizm) NIE rekomponuje treści aplikacji. Dwa tryby:
+ * gradient „mesh" (domyślny) lub malarska scena „foto" zależna od pory dnia.
  */
 @Composable
 fun GlassBackground(content: @Composable () -> Unit) {
-    val drift = rememberInfiniteTransition(label = "liquidDrift")
-    val t by drift.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 26_000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "driftT"
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(GlassBgTop, GlassBgMid, GlassBgBottom)))
-    ) {
-        Blob(GlassBlobMagenta, 360.dp, Alignment.TopStart, (-100 + 40 * t).dp, (-80 + 24 * t).dp)
-        Blob(GlassBlobViolet, 400.dp, Alignment.TopEnd, (130 - 36 * t).dp, (-120 + 30 * t).dp)
-        Blob(GlassBlobBlue, 340.dp, Alignment.BottomStart, (-70 + 28 * t).dp, (130 - 30 * t).dp)
-        Blob(GlassBlobViolet, 320.dp, Alignment.BottomEnd, (100 - 30 * t).dp, (110 - 22 * t).dp)
+    val custom = GlassTheme.customBg
+    val dark = GlassTheme.dark
+    Box(Modifier.fillMaxSize()) {
+        if (custom != null) {
+            // Własne zdjęcie jako tło + delikatna zasłona dla czytelności szkła/tekstu.
+            coil.compose.AsyncImage(
+                model = java.io.File(custom),
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(
+                        if (dark) listOf(Color(0x662A2140), Color(0x99140A2E))
+                        else listOf(Color(0x33FFFFFF), Color(0x59FFFFFF))
+                    )
+                )
+            )
+        } else {
+            Box(Modifier.fillMaxSize().glassBackdrop())
+        }
         content()
     }
 }
 
-@Composable
-private fun BoxScope.Blob(
-    color: Color,
-    size: Dp,
-    alignment: Alignment,
-    offsetX: Dp,
-    offsetY: Dp
-) {
-    Box(
-        modifier = Modifier
-            .align(alignment)
-            .offset(x = offsetX, y = offsetY)
-            .size(size)
-            .blur(100.dp)
-            .background(
+/** Animowany backdrop (drift w fazie rysowania — bez rekompozycji treści). */
+private fun Modifier.glassBackdrop(): Modifier = composed {
+    val dark = GlassTheme.dark
+    val photo = GlassTheme.photo
+    val pal = bgPalette()
+    val scene = photoScene()
+    val tr = rememberInfiniteTransition(label = "bg")
+    val t = tr.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse),
+        label = "bgT"
+    )
+    // Obrót fazy (0..1 → 2π) — orbitujące „bloby" koloru; szybciej = tło wyraźniej się mieni.
+    val ang = tr.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(8000, easing = LinearEasing), RepeatMode.Restart),
+        label = "bgAng"
+    )
+    drawBehind {
+        val p = t.value          // 0..1 tam i z powrotem
+        val drift = (p - 0.5f)   // -0.5..0.5
+        val a = ang.value * 6.2832f
+        val w = size.width; val h = size.height
+        if (photo) {
+            // niebo
+            drawRect(Brush.verticalGradient(scene.sky))
+            // poświata słońca/księżyca — dryfuje delikatnie w poziomie
+            val gx = (scene.glowAt.x + drift * 0.10f) * w
+            val gy = scene.glowAt.y * h
+            val r = maxOf(w, h) * (0.55f + 0.05f * p)
+            drawRect(
                 Brush.radialGradient(
-                    listOf(color.copy(alpha = if (GlassTheme.dark) 0.45f else 0.22f), Color.Transparent)
-                ),
-                CircleShape
+                    colors = listOf(scene.glow.copy(alpha = if (dark) 0.55f else 0.85f), Color.Transparent),
+                    center = Offset(gx, gy), radius = r
+                )
             )
+            // pas horyzontu przy dole
+            drawRect(
+                Brush.verticalGradient(
+                    0.62f to Color.Transparent, 1f to scene.horizon.copy(alpha = if (dark) 0.5f else 0.6f)
+                )
+            )
+        } else {
+            val meshA = if (dark) 0.68f else 0.84f
+            // Baza — jasna lawenda wg palety (FDFBFF → EFE8FC).
+            val baseTop = if (dark) Color(0xFF241E3C) else Color(0xFFFDFBFF)
+            val baseBot = if (dark) Color(0xFF1B1630) else Color(0xFFEFE8FC)
+            drawRect(Brush.verticalGradient(listOf(baseTop, baseBot)))
+            // Wielokolorowe „bloby" krążące po SZEROKICH elipsach — cała plansza się mieni.
+            val big = maxOf(w, h)
+            fun blob(color: Color, phase: Float, cx: Float, cy: Float, rx: Float, ry: Float, alpha: Float) {
+                val x = (cx + rx * kotlin.math.cos(a + phase)) * w
+                val y = (cy + ry * kotlin.math.sin(a + phase)) * h
+                drawRect(
+                    Brush.radialGradient(
+                        // miękkie przejście do przezroczystości w 3 przystankach = mocno rozmyty, gładki blob
+                        colors = listOf(color.copy(alpha = alpha), color.copy(alpha = alpha * 0.35f), Color.Transparent),
+                        center = Offset(x, y),
+                        radius = big * (0.58f + 0.08f * kotlin.math.sin(a + phase))  // mniejszy promień = kolory mieszają się plamami, nie warstwami
+                    )
+                )
+            }
+            // Większe amplitudy orbit = tło wyraźniej wędruje/mieni się.
+            // Centra rozrzucone po CAŁEJ planszy naprzemiennie kolorami — gradienty
+            // mieszają się plamami (mesh), a nie warstwami od góry do dołu.
+            blob(pal.meshL, 0f, 0.22f, 0.24f, 0.30f, 0.34f, meshA)                                    // fiolet ↖
+            blob(pal.meshR, 1.7f, 0.80f, 0.22f, 0.30f, 0.32f, meshA)                                   // niebieski ↗
+            blob(pal.meshTop, 3.3f, 0.74f, 0.78f, 0.32f, 0.30f, meshA * 0.95f)                         // żółty ↘
+            blob(pal.meshAccent, 4.9f, 0.58f, 0.50f, 0.34f, 0.34f, meshA * (0.72f + 0.28f * p))        // fiolet ·środek
+            blob(pal.meshAccent2, 2.5f, 0.26f, 0.80f, 0.32f, 0.30f, meshA * (0.80f + 0.20f * (1f - p))) // niebieski ↙
+            blob(pal.meshAccent3, 5.6f, 0.16f, 0.55f, 0.28f, 0.30f, meshA * 0.85f)                     // żółty ←
+            // Mleczna zasłona — ledwie muśnięcie; kolory mają zostać głębokie.
+            if (!dark) drawRect(Color.White.copy(alpha = 0.05f))
+        }
+    }
+}
+
+// Miękki, „nie-czarny" cień (spec Apple: 0 25px 60px rgba(30,30,40,.16))
+private val SoftShadow: Color get() = if (d) Color(0x59140542) else Color(0x2644239E)
+
+/**
+ * Górny refleks (2px pasek światła u samej krawędzi) — wspólny dla tafli.
+ * Rysowany w obrębie [shape] (po .clip), więc podąża za zaokrągleniem.
+ */
+private fun DrawScope.specular(topAlpha: Float) {
+    drawRect(
+        Brush.horizontalGradient(
+            listOf(Color.Transparent, Color.White.copy(alpha = topAlpha), Color.Transparent)
+        ),
+        size = Size(size.width, 2.dp.toPx())
     )
 }
 
+/** Powoli przesuwający się ukośny połysk (warstwa odbić światła). */
+private fun DrawScope.sheen(progress: Float, alpha: Float) {
+    val band = size.width * 0.32f
+    val x = size.width * progress
+    rotate(degrees = 18f, pivot = Offset(size.width / 2f, size.height / 2f)) {
+        drawRect(
+            brush = Brush.horizontalGradient(
+                colors = listOf(Color.Transparent, Color.White.copy(alpha = alpha), Color.Transparent),
+                startX = x - band, endX = x + band
+            ),
+            topLeft = Offset(x - band, -size.height * 0.25f),
+            size = Size(band * 2f, size.height * 1.5f)
+        )
+    }
+}
+
 /**
- * Liquid-glass surface: soft diffuse shadow underneath, a single flat
- * translucent fill (the background shows through), and a specular rim —
- * brightest at the top-left as if catching the light — instead of any
- * gradient fill on the element itself.
+ * „Żyjący gradient" rozwiniętego panelu: barwy motywu (fiolet→niebieski→róż)
+ * powoli przesuwają się po tafli, dopóki panel jest otwarty. Bardzo niska
+ * alpha — treść pozostaje w pełni czytelna, a panel wygląda jak żywe szkło.
  */
-fun Modifier.glass(shape: Shape = RoundedCornerShape(28.dp)): Modifier {
+fun Modifier.livingGradient(shape: Shape = RoundedCornerShape(20.dp), strength: Float = 0.16f): Modifier = composed {
+    val tr = rememberInfiniteTransition(label = "living")
+    val t by tr.animateFloat(
+        0f, 1f, infiniteRepeatable(tween(5200, easing = LinearEasing), RepeatMode.Reverse), label = "livingT"
+    )
+    val c1 = GlassAccent
+    val c2 = Color(0xFF4E80C8)   // niebieski towarzysz
+    val c3 = Color(0xFFC24DA0)   // różowy akcent
+    this.clip(shape).drawBehind {
+        val w = size.width; val h = size.height
+        val off = (t - 0.5f) * w * 1.4f
+        drawRect(
+            Brush.linearGradient(
+                colors = listOf(
+                    c1.copy(alpha = strength), c2.copy(alpha = strength * 0.85f),
+                    c3.copy(alpha = strength * 0.7f), c1.copy(alpha = strength)
+                ),
+                start = Offset(-w * 0.6f + off, 0f),
+                end = Offset(w * 1.2f + off, h)
+            )
+        )
+    }
+}
+
+/**
+ * Tafla glass (karta/tafla/przycisk) w duchu Apple Liquid Glass:
+ * miękki rozproszony cień, półprzezroczyste wypełnienie (tło prześwituje),
+ * gradientowy rant (jasny u góry → nikły u dołu), górny refleks świetlny
+ * oraz powoli dryfujący ukośny połysk. [sheenOn] wyłącza połysk dla drobnych
+ * elementów (rytm listy), by nie mnożyć animacji.
+ */
+fun Modifier.glass(shape: Shape = RoundedCornerShape(24.dp), sheenOn: Boolean = true): Modifier = composed {
     val dark = GlassTheme.dark
-    val fill = if (dark) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.42f)
-    val rimBright = Color.White.copy(alpha = if (dark) 0.65f else 1.0f)
-    val rimFaint = if (dark) Color.White.copy(alpha = 0.10f) else GlassPanelTint.copy(alpha = 0.18f)
-    val shadowColor = if (dark) Color(0x66200A66) else Color(0x33551FC2)
-    return this
-        .shadow(elevation = 14.dp, shape = shape, spotColor = shadowColor, ambientColor = shadowColor.copy(alpha = 0.35f))
+    val prog = if (sheenOn) {
+        val tr = rememberInfiniteTransition(label = "sheen")
+        tr.animateFloat(
+            initialValue = -0.35f, targetValue = 1.35f,
+            animationSpec = infiniteRepeatable(tween(7000, easing = LinearEasing), RepeatMode.Restart),
+            label = "sx"
+        ).value
+    } else -2f
+    this
+        .shadow(18.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.5f))
+        .clip(shape)
+        .background(GlassFill)
+        .drawWithContent {
+            drawContent()
+            // refleks: górny pasek światła + delikatna górna poświata (jak w szkle)
+            drawRect(
+                Brush.verticalGradient(
+                    0f to Color.White.copy(alpha = if (dark) 0.10f else 0.22f),
+                    0.5f to Color.Transparent
+                ),
+                size = Size(size.width, size.height * 0.6f)
+            )
+            specular(if (dark) 0.22f else 0.5f)
+            if (sheenOn) sheen(prog, if (dark) 0.09f else 0.14f)
+        }
+        .border(1.dp, if (dark) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.28f), shape)
+}
+
+/**
+ * Tafla szkła z PRAWDZIWYM rozmyciem tła (Haze), gdy dostępny [LocalHazeState] —
+ * treść pod spodem jest rozmyta (liquid glass). Bez stanu Haze spada do [glass].
+ */
+fun Modifier.glassBlur(shape: Shape = RoundedCornerShape(24.dp)): Modifier = composed {
+    val haze = LocalHazeState.current ?: return@composed this.then(Modifier.glass(shape))
+    val dark = GlassTheme.dark
+    // backgroundColor MUSI być podany — inaczej Haze rzuca wyjątek na ścieżce
+    // awaryjnej (brak RenderEffect: layoutlib/Paparazzi oraz API < 31).
+    // Ton zbliżony do bazy mesh-gradientu, żeby fallback ładnie się zlewał.
+    // MOCNY blur (duży promień) — treść pod spodem staje się nieczytelna.
+    val hazeStyle = dev.chrisbanes.haze.HazeStyle(
+        backgroundColor = if (dark) Color(0xFF241E3C) else Color(0xFFF3F1FA),
+        tints = emptyList(),
+        blurRadius = 34.dp
+    )
+    this
+        .shadow(16.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.5f))
+        .clip(shape)
+        .hazeChild(state = haze, style = hazeStyle)
+        // Nalot w delikatnym fiolecie — lepszy kontrast tafli z tłem; nic nie prześwituje.
+        .background(if (dark) CardTint.copy(alpha = 0.30f) else CardTint.copy(alpha = 0.58f))
+        .drawWithContent {
+            drawContent()
+            specular(if (dark) 0.20f else 0.42f)
+        }
+        .border(1.dp, if (dark) Color.White.copy(alpha = 0.20f) else Color.White.copy(alpha = 0.60f), shape)
+}
+
+/**
+ * Kafelek zadania (wg prototypu vC): w spoczynku prawie niewidoczny — leży
+ * bezpośrednio na gradiencie (ledwie muśnięcie bieli + włosowy rant). Dotknięcie
+ * MATERIALIZUJE szkło: wypełnienie rośnie, pojawia się rant i miękki cień, a cała
+ * tafla delikatnie się unosi (scale 1.02, jak w prototypie: transform:scale(1.02)
+ * + inset highlight + box-shadow). Jeden impuls haptyczny.
+ */
+fun Modifier.taskTile(onClick: () -> Unit): Modifier = composed {
+    val dark = GlassTheme.dark
+    val view = LocalView.current
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val shape = RoundedCornerShape(20.dp)
+    val fill by animateColorAsState(
+        targetValue = if (pressed) {
+            // dotknięcie — pełna biel
+            if (dark) CardTint.copy(alpha = 0.34f) else Color.White
+        } else {
+            // spoczynek — biała karta (mocny kontrast z kolorowym tłem)
+            if (dark) CardTint.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.90f)
+        },
+        animationSpec = tween(280), label = "tileFill"
+    )
+    val rim by animateColorAsState(
+        targetValue = if (pressed) {
+            if (dark) Color.White.copy(alpha = 0.34f) else Color.White.copy(alpha = 0.80f)
+        } else {
+            if (dark) Color.White.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.60f)
+        },
+        animationSpec = tween(280), label = "tileRim"
+    )
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (pressed) 1.02f else 1f,
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = androidx.compose.animation.core.Spring.StiffnessMedium),
+        label = "tileScale"
+    )
+    // Miękki cień unoszący kartę nad tłem — teraz wypełnienie jest kryjące, więc
+    // cień nie „prześwituje" jako prostokąt. Delikatnie rośnie przy dotknięciu.
+    val elev by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (pressed) 16.dp else 9.dp,
+        animationSpec = tween(280), label = "tileElev"
+    )
+    this
+        .graphicsLayer { scaleX = scale; scaleY = scale }
+        .shadow(elev, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.6f))
         .clip(shape)
         .background(fill)
-        .border(
-            width = 1.2.dp,
-            brush = Brush.linearGradient(listOf(rimBright, rimFaint, rimBright.copy(alpha = 0.25f))),
-            shape = shape
-        )
+        .border(1.dp, rim, shape)
+        .clickable(interactionSource = interaction, indication = null) {
+            view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            onClick()
+        }
+}
+
+/** Tafla „Control Center" (dock, Tydzień, kółko Rutyn) — gradientowa, jaśniejsza. */
+fun Modifier.controlCenterGlass(shape: Shape = RoundedCornerShape(50)): Modifier = composed {
+    val dark = GlassTheme.dark
+    val tr = rememberInfiniteTransition(label = "ccSheen")
+    val prog by tr.animateFloat(
+        initialValue = -0.35f, targetValue = 1.35f,
+        animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Restart),
+        label = "ccx"
+    )
+    this
+        .shadow(18.dp, shape, spotColor = SoftShadow, ambientColor = SoftShadow.copy(alpha = 0.6f))
+        .clip(shape)
+        // szklana tafla docka: mocniejsza, delikatny fiolet (lepszy kontrast z tłem)
+        .background(if (dark) Color(0xB0473C63) else Color(0xDCEAE2FB))
+        .drawWithContent {
+            drawContent()
+            // refleksy: górna poświata + pasek światła + dryfujący połysk
+            drawRect(
+                Brush.verticalGradient(
+                    0f to Color.White.copy(alpha = if (dark) 0.12f else 0.30f),
+                    0.55f to Color.Transparent
+                ),
+                size = Size(size.width, size.height * 0.7f)
+            )
+            specular(if (dark) 0.25f else 0.55f)
+            sheen(prog, if (dark) 0.09f else 0.15f)
+        }
+        .border(1.dp, if (dark) Color.White.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.5f), shape)
 }

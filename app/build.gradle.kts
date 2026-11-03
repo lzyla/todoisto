@@ -14,8 +14,8 @@ android {
         applicationId = "pl.media30.todoisto"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 131
+        versionName = "131"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -23,9 +23,31 @@ android {
         }
     }
 
+    // Historia schematów Room (app/schemas/*.json) — podstawa do pisania i
+    // sprawdzania migracji zamiast kasowania bazy przy każdej zmianie.
+    ksp {
+        arg("room.schemaLocation", "$projectDir/schemas")
+    }
+
+    // Jeden stały klucz podpisu dla WSZYSTKICH buildów (Mac, inne komputery, sesje
+    // Claude). Bez tego każdy komputer podpisuje własnym kluczem debug i Android
+    // odmawia aktualizacji („Nie zainstalowano"). To klucz aplikacji prywatnej,
+    // nie do Google Play — dlatego może leżeć w repozytorium.
+    signingConfigs {
+        create("shared") {
+            storeFile = file("keystore/todoisto.jks")
+            storePassword = "todoisto"
+            keyAlias = "todoisto"
+            keyPassword = "todoisto"
+        }
+    }
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("shared")
+        }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("shared")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -45,11 +67,14 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/NOTICE.md"
+            excludes += "META-INF/LICENSE.md"
         }
     }
 }
 
 dependencies {
+    implementation(project(":shared"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -60,7 +85,13 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
-    implementation(libs.androidx.navigation.compose)
+    implementation(libs.coil.compose)
+    implementation("dev.chrisbanes.haze:haze:1.0.2")
+    implementation("sh.calvin.reorderable:reorderable:2.4.3")
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
+    // Gmail przez IMAP (hasło do aplikacji) — bez Google Cloud Console.
+    implementation("com.sun.mail:android-mail:1.6.7")
+    implementation("com.sun.mail:android-activation:1.6.7")
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

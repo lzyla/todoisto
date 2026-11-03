@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Koncept 4: „Kalendarz + zegar" — plan dnia z odhaczonym zadaniem i czasem -->
+  <defs>
+    <linearGradient id="bg4" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6E45D9"/>
+      <stop offset="1" stop-color="#2E6BD6"/>
+    </linearGradient>
+    <linearGradient id="g4" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#3B82F6"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg4)"/>
+  <!-- karta kalendarza -->
+  <rect x="106" y="132" width="300" height="272" rx="36" fill="#FFFFFF"/>
+  <!-- nagłówek karty -->
+  <path d="M106 168 q0 -36 36 -36 h228 q36 0 36 36 v34 h-300 z" fill="#FFFFFF" opacity="0.35"/>
+  <rect x="106" y="132" width="300" height="70" rx="36" fill="url(#g4)" opacity="0.18"/>
+  <!-- ringi segregatora -->
+  <rect x="168" y="102" width="22" height="64" rx="11" fill="#FFFFFF"/>
+  <rect x="322" y="102" width="22" height="64" rx="11" fill="#FFFFFF"/>
+  <!-- check w karcie -->
+  <polyline points="176,296 232,348 336,232" fill="none" stroke="url(#g4)"
+            stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- odznaka zegara -->
+  <circle cx="382" cy="382" r="64" fill="#FFFFFF"/>
+  <circle cx="382" cy="382" r="64" fill="none" stroke="url(#g4)" stroke-width="14"/>
+  <path d="M382 352 v30 l22 14" fill="none" stroke="url(#g4)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,12 +1,32 @@
 package pl.media30.todoisto
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.cash.paparazzi.DeviceConfig
 import app.cash.paparazzi.Paparazzi
+import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import pl.media30.todoisto.data.Label
@@ -18,9 +38,20 @@ import pl.media30.todoisto.ui.AppView
 import pl.media30.todoisto.ui.SectionGroup
 import pl.media30.todoisto.ui.TaskNode
 import pl.media30.todoisto.ui.TodoUiState
-import pl.media30.todoisto.ui.screens.AddEditTaskScreen
+import pl.media30.todoisto.data.Activity
+import pl.media30.todoisto.data.EffortType
+import pl.media30.todoisto.data.EnergyCost
+import pl.media30.todoisto.data.FreeSlot
+import pl.media30.todoisto.data.Place
+import pl.media30.todoisto.data.Suggestion
+import pl.media30.todoisto.ui.FreeTimeState
+import pl.media30.todoisto.ui.screens.ActivityFormSheet
+import pl.media30.todoisto.ui.screens.ActivityPoolSheet
+import pl.media30.todoisto.ui.screens.FreeTimePanel
+import pl.media30.todoisto.ui.screens.TaskDetailSheet
 import pl.media30.todoisto.ui.screens.TaskListScreen
 import pl.media30.todoisto.ui.theme.GlassBackground
+import pl.media30.todoisto.ui.theme.GlassSurface
 import pl.media30.todoisto.ui.theme.GlassTheme
 import pl.media30.todoisto.ui.theme.TodoistoTheme
 import java.time.LocalDate
@@ -33,41 +64,53 @@ class ScreenshotTest {
         theme = "android:Theme.Material.Light.NoActionBar"
     )
 
-    private val today = LocalDate.now().toEpochDay()
+    // Stałe „dziś" — dzięki temu snapshoty są deterministyczne niezależnie od
+    // dnia uruchomienia testów (daty w danych i w renderze liczą od tej samej daty).
+    private val fixedToday = LocalDate.of(2026, 7, 18)
+
+    @Before
+    fun fixClock() { pl.media30.todoisto.data.AppClock.todayOverride = fixedToday }
+
+    @After
+    fun releaseClock() { pl.media30.todoisto.data.AppClock.todayOverride = null }
+
+    private val today = fixedToday.toEpochDay()
 
     private val projects = listOf(
-        Project(1, "Fundacja", 0xFFC24DFF, isFavorite = true),
-        Project(2, "Dom", 0xFF34D399)
+        Project(1, "Praca", 0xFF4D6BFF, isFavorite = true),
+        Project(2, "Dom", 0xFF2DD4BF),
+        Project(3, "Zdrowie", 0xFFFB7185)
     )
     private val labels = listOf(
-        Label(1, "pilne", 0xFFF87171),
-        Label(2, "email", 0xFF4D6BFF)
+        Label(1, "pilne", 0xFFC24DFF),
+        Label(2, "zakupy", 0xFFEB8909)
     )
 
     private val tasks = listOf(
-        Task(1, "Zadzwonić do Beaty", "Ustalić budżet", false, Priority.P1, today, durationMinutes = 30, projectId = 1, labelIds = listOf(1)),
-        Task(2, "Wysłać raport kwartalny", "", false, Priority.P2, today + 1, deadline = today + 3, projectId = 1),
-        Task(4, "Kupić mleko", "", false, Priority.P4, null, labelIds = listOf(2)),
-        Task(5, "Przygotować prezentację", "", false, Priority.P3, today - 1, durationMinutes = 120)
+        Task(1, "Przygotować raport miesięczny", "Wysłać do Anny przed spotkaniem zarządu", false, Priority.P1, today, dueTimeMinutes = 600, durationMinutes = 90, deadline = today + 1, projectId = 1, labelIds = listOf(1)),
+        Task(2, "Stand-up zespołu", "", false, Priority.P4, today, dueTimeMinutes = 570, recurrence = Recurrence.DAILY, projectId = 1),
+        Task(3, "Nadać paczkę na poczcie", "", false, Priority.P4, today, projectId = 2),
+        Task(4, "Przegląd pull requestów", "", false, Priority.P3, today, dueTimeMinutes = 14 * 60, durationMinutes = 45, projectId = 1),
+        Task(5, "Kupić prezent dla Zosi", "", false, Priority.P2, today, dueTimeMinutes = 15 * 60, deadline = today + 3, projectId = 2, labelIds = listOf(2), attachments = listOf("https://images.app/tort-jednorozec.jpg")),
+        Task(6, "Trening — siłownia", "", false, Priority.P4, today, dueTimeMinutes = 18 * 60 + 30, recurrence = Recurrence.WEEKLY, projectId = 3)
     )
 
     private val routines = listOf(
-        Task(3, "Podlać kwiaty", "", false, Priority.P4, today, recurrence = Recurrence.WEEKLY),
-        Task(6, "Medytacja", "", false, Priority.P4, today, recurrence = Recurrence.DAILY),
-        Task(7, "Czytanie 20 stron", "", false, Priority.P4, today, recurrence = Recurrence.DAILY)
+        Task(7, "Nauka japońskiego — 15 min", "", false, Priority.P4, today, recurrence = Recurrence.DAILY),
+        Task(8, "Podlać kwiaty", "", false, Priority.P4, today, recurrence = Recurrence.DAILY)
     )
 
     private fun uiState() = TodoUiState(
         view = AppView.Today,
         title = "Dzisiaj",
-        groups = listOf(SectionGroup(null, null, tasks.map { TaskNode(it, emptyList()) })),
+        groups = listOf(SectionGroup(null, null, tasks.map { TaskNode(it, if (it.id == 1L) listOf(Task(20, "Zebrać dane", isCompleted = true, parentId = 1), Task(21, "Wykres sprzedaży", parentId = 1)) else emptyList()) })),
         isEmpty = false,
-        todayCount = 3,
-        inboxCount = 1,
-        doneToday = 3,
-        doneWeek = 12,
+        todayCount = 6,
+        inboxCount = 2,
+        doneToday = 2,
+        doneWeek = 14,
         routines = routines,
-        routinesDone = 2
+        routinesDone = 1
     )
 
     @Composable
@@ -96,37 +139,119 @@ class ScreenshotTest {
             onClearCompleted = {},
             onSort = {},
             onSetGoals = { _, _ -> },
-            onToggleTheme = {}
+            onToggleTheme = {},
+            weekTasks = tasks
         )
     }
 
     @Test
     fun taskListLight() {
         GlassTheme.dark = false
-        paparazzi.snapshot {
-            TodoistoTheme { GlassBackground { listScreen() } }
-        }
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.NOON
+        paparazzi.snapshot { TodoistoTheme { GlassBackground { listScreen() } } }
     }
 
     @Test
-    fun taskListRoutinesExpanded() {
+    fun bgMorning() {
         GlassTheme.dark = false
-        paparazzi.snapshot {
-            TodoistoTheme { GlassBackground { listScreen(routinesExpanded = true) } }
-        }
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.MORNING
+        paparazzi.snapshot { TodoistoTheme { GlassBackground { listScreen() } } }
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.NOON
+    }
+
+    @Test
+    fun bgEvening() {
+        GlassTheme.dark = false
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.EVENING
+        paparazzi.snapshot { TodoistoTheme { GlassBackground { listScreen() } } }
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.NOON
+    }
+
+    @Test
+    fun photoMorning() {
+        GlassTheme.dark = false
+        GlassTheme.photo = true
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.MORNING
+        paparazzi.snapshot { TodoistoTheme { GlassBackground { listScreen() } } }
+        GlassTheme.photo = false
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.NOON
+    }
+
+    @Test
+    fun photoEvening() {
+        GlassTheme.dark = false
+        GlassTheme.photo = true
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.EVENING
+        paparazzi.snapshot { TodoistoTheme { GlassBackground { listScreen() } } }
+        GlassTheme.photo = false
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.NOON
+    }
+
+    @Test
+    fun taskListRoutinesOpen() {
+        GlassTheme.dark = false
+        paparazzi.snapshot { TodoistoTheme { GlassBackground { listScreen(routinesExpanded = true) } } }
     }
 
     @Test
     fun taskListDark() {
         GlassTheme.dark = true
-        paparazzi.snapshot {
-            TodoistoTheme { GlassBackground { listScreen() } }
-        }
+        paparazzi.snapshot { TodoistoTheme { GlassBackground { listScreen() } } }
         GlassTheme.dark = false
     }
 
     @Test
-    fun quickAddSheet() {
+    fun statsScreen() {
+        GlassTheme.dark = false
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.NOON
+        val day = 86_400_000L
+        val base = 1_700_000_000_000L
+        val done = (0..11).map { i ->
+            Task(title = "z$i", isCompleted = true, completedAt = base + i * day, createdAt = base + i * day - (i % 3 + 1) * day, priority = Priority.entries[i % 4])
+        }
+        val active = (0..6).map { i -> Task(title = "a$i", priority = Priority.entries[i % 4]) }
+        paparazzi.snapshot {
+            TodoistoTheme {
+                pl.media30.todoisto.ui.screens.StatsScreen(
+                    tasks = done + active,
+                    deferCount = 14,
+                    openHours = List(24) { (it * 7 + 3) % 11 },
+                    onBack = {}
+                )
+            }
+        }
+    }
+
+    @Test
+    fun settingsScreen() {
+        GlassTheme.dark = false
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.NOON
+        paparazzi.snapshot {
+            TodoistoTheme {
+                pl.media30.todoisto.ui.screens.SettingsScreen(
+                    dark = false, photo = false, hasApiKey = true,
+                    dailyGoal = 5, weeklyGoal = 25,
+                    startViewToday = true, dateRecognition = true, weekStartMonday = true,
+                    completionSound = false, swipeRightCompletes = true,
+                    aiPromptTokens = 18420, aiCompletionTokens = 7360, aiImageCount = 6, onResetAiUsage = {},
+                    adminKeySet = true, aiCost = pl.media30.todoisto.ui.AiCostState(amountUsd = 0.42),
+                    onSetAdminKey = {}, onRefreshCost = {},
+                    customPhotos = emptyList(), activeCustomBg = "", usePhaseBg = false, aiImages = null, bgBusy = false,
+                    onSelectGradient = {}, onSelectScene = {}, onAddCustomPhoto = {},
+                    onSetActiveCustom = {}, onRemoveCustom = {}, onReorderCustom = {}, onGenerateAi = {}, onGeneratePhaseAi = {}, onAddPresets = {}, onDismissAiImages = {},
+                    themeId = "violet", onSelectTheme = {}, onOpenAccount = {},
+                    onBack = {}, onToggleDark = {}, onTogglePhoto = {},
+                    onSetApiKey = {}, onSetGoals = { _, _ -> },
+                    onSetStartView = {}, onSetDateRecognition = {}, onSetWeekStartMonday = {},
+                    onSetCompletionSound = {}, onSetSwipeRightCompletes = {},
+                    onOpenPool = {}, onOpenImport = {}
+                )
+            }
+        }
+    }
+
+    @Test
+    fun taskDetailSheet() {
         GlassTheme.dark = false
         paparazzi.snapshot {
             TodoistoTheme {
@@ -134,16 +259,25 @@ class ScreenshotTest {
                     androidx.compose.foundation.layout.Box(
                         modifier = androidx.compose.ui.Modifier
                             .fillMaxWidth()
-                            .background(
-                                pl.media30.todoisto.ui.theme.GlassSurface,
-                                androidx.compose.foundation.shape.RoundedCornerShape(28.dp)
-                            )
-                            .padding(top = 20.dp)
+                            .background(GlassSurface, androidx.compose.foundation.shape.RoundedCornerShape(34.dp))
+                            .padding(top = 14.dp)
                     ) {
-                        pl.media30.todoisto.ui.screens.QuickAddContent(
-                            initialText = "Spotkanie z Beatą o 15:00 2h @fundacja",
+                        TaskDetailSheet(
+                            task = Task(
+                                id = 5, title = "Kupić prezent dla Zosi", notes = "Inspiracja z internetu",
+                                priority = Priority.P2, dueDate = today, deadline = today + 3,
+                                durationMinutes = 30, projectId = 2, labelIds = listOf(2),
+                                attachments = listOf("https://allegro.pl/oferta/tort-jednorozec")
+                            ),
                             projects = projects,
-                            onAdd = { _, _ -> }
+                            labels = labels,
+                            subtasks = listOf(Task(10, "Zapytać Kasię o rozmiar", parentId = 5, isCompleted = true), Task(11, "Zamówić do czwartku", parentId = 5)),
+                            onPatch = {},
+                            onToggleSubtask = {},
+                            onAddSubtask = {},
+                            onDuplicate = {},
+                            onDelete = {},
+                            onClose = {}
                         )
                     }
                 }
@@ -152,30 +286,97 @@ class ScreenshotTest {
     }
 
     @Test
-    fun editTask() {
+    fun taskDetailAiExpanded() {
         GlassTheme.dark = false
         paparazzi.snapshot {
             TodoistoTheme {
                 GlassBackground {
-                    AddEditTaskScreen(
-                        existing = Task(
-                            id = 1, title = "Zadzwonić do Beaty", notes = "Ustalić budżet",
-                            priority = Priority.P1, dueDate = today, deadline = today + 3,
-                            recurrence = Recurrence.WEEKLY, durationMinutes = 30,
-                            projectId = 1, labelIds = listOf(1)
-                        ),
-                        projects = projects,
-                        labels = labels,
-                        subtasks = listOf(Task(10, "Przygotować pytania", parentId = 1)),
-                        onSave = {},
-                        onAddSubtask = {},
-                        onToggleSubtask = {},
-                        onDuplicate = {},
-                        onDelete = {},
-                        onClose = {}
+                    androidx.compose.foundation.layout.Box(
+                        modifier = androidx.compose.ui.Modifier
+                            .fillMaxWidth()
+                            .background(GlassSurface, androidx.compose.foundation.shape.RoundedCornerShape(34.dp))
+                            .padding(top = 14.dp)
+                    ) {
+                        TaskDetailSheet(
+                            task = Task(id = 1, title = "Przygotować raport miesięczny", priority = Priority.P1, dueDate = today, projectId = 1),
+                            projects = projects, labels = labels, subtasks = emptyList(),
+                            onPatch = {}, onToggleSubtask = {}, onAddSubtask = {}, onDuplicate = {}, onDelete = {}, onClose = {},
+                            onAskAi = {}, aiExpanded = true
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private val poolActivities = listOf(
+        Activity(1, "Spacer w parku", EffortType.PHYSICAL, durationMinutes = 30, place = Place.OUTSIDE, energyCost = EnergyCost.LOW, frequencyTarget = 4),
+        Activity(2, "Czytanie książki", EffortType.RELAX, durationMinutes = 45, place = Place.HOME, energyCost = EnergyCost.LOW),
+        Activity(3, "Nauka hiszpańskiego", EffortType.MENTAL, durationMinutes = 20, place = Place.HOME, energyCost = EnergyCost.MED, frequencyTarget = 3),
+        Activity(4, "Trening siłowy", EffortType.PHYSICAL, durationMinutes = 60, place = Place.OUTSIDE, windowStartMin = 17 * 60, windowEndMin = 21 * 60, energyCost = EnergyCost.HIGH)
+    )
+
+    @Composable
+    private fun sheet(content: @Composable () -> Unit) {
+        GlassBackground {
+            androidx.compose.foundation.layout.Box(
+                modifier = androidx.compose.ui.Modifier
+                    .fillMaxWidth()
+                    .background(GlassSurface, androidx.compose.foundation.shape.RoundedCornerShape(34.dp))
+                    .padding(top = 14.dp)
+            ) { content() }
+        }
+    }
+
+    @Test
+    fun freeTimePanel() {
+        GlassTheme.dark = false
+        GlassTheme.phase = pl.media30.todoisto.ui.theme.DayPhase.NOON
+        val suggestions = listOf(
+            Suggestion(poolActivities[0], FreeSlot(15 * 60, 16 * 60 + 30), 15 * 60)
+        )
+        paparazzi.snapshot {
+            TodoistoTheme {
+                sheet {
+                    FreeTimePanel(
+                        state = FreeTimeState(freeMinutes = 90, suggestions = suggestions, poolEmpty = false, noWindows = false),
+                        onAccept = {}, onReroll = {}, onAddFirst = {}
                     )
                 }
             }
         }
+    }
+
+    @Test
+    fun activityPoolSheet() {
+        GlassTheme.dark = false
+        paparazzi.snapshot {
+            TodoistoTheme {
+                sheet { ActivityPoolSheet(activities = poolActivities, onAdd = {}, onEdit = {}) }
+            }
+        }
+    }
+
+    @Test
+    fun activityFormSheet() {
+        GlassTheme.dark = false
+        paparazzi.snapshot {
+            TodoistoTheme {
+                sheet {
+                    ActivityFormSheet(existing = poolActivities[0], onSave = {}, onDelete = {}, onClose = {})
+                }
+            }
+        }
+    }
+
+    @Test
+    fun freeTimePanelDark() {
+        GlassTheme.dark = true
+        paparazzi.snapshot {
+            TodoistoTheme {
+                sheet { ActivityPoolSheet(activities = poolActivities, onAdd = {}, onEdit = {}) }
+            }
+        }
+        GlassTheme.dark = false
     }
 }

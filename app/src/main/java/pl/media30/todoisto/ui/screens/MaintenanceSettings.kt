@@ -273,3 +273,87 @@ internal fun NotionSettings(vm: pl.media30.todoisto.ui.TodoViewModel?) {
         )
     }
 }
+
+/**
+ * Google Health (dawniej Fitbit): sen, tętno spoczynkowe i HRV → energia dnia.
+ * Aplikacja nie zna żadnych kluczy Google; zgoda wraca do funkcji w Supabase.
+ */
+@Composable
+internal fun HealthSettings() {
+    val ctx = LocalContext.current
+    val app = ctx.applicationContext as pl.media30.todoisto.TodoApplication
+    val connected by app.settings.healthConnected.collectAsState()
+    val json by app.settings.healthSignals.collectAsState()
+    var busy by remember { mutableStateOf(false) }
+    var msg by remember { mutableStateOf<String?>(null) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+
+    fun sync() {
+        busy = true
+        scope.launch {
+            msg = when (val r = app.health.sync()) {
+                is pl.media30.todoisto.data.HealthStore.Result.Ok ->
+                    if (r.signals == null) "Połączono, ale Google nie ma jeszcze dzisiejszych danych (zsynchronizuj zegarek/aplikację Health)." else "Dane odświeżone."
+                pl.media30.todoisto.data.HealthStore.Result.NotConnected -> "Nie połączono."
+                pl.media30.todoisto.data.HealthStore.Result.Expired -> "Dostęp wygasł (tryb testowy Google: co 7 dni) — połącz ponownie."
+                is pl.media30.todoisto.data.HealthStore.Result.Error -> r.message
+            }
+            busy = false
+        }
+    }
+    // Po powrocie z przeglądarki (zgoda) od razu sprawdź połączenie.
+    val owner = LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(owner) {
+        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME && app.cloud.signedIn && !busy) sync() }
+        owner.lifecycle.addObserver(obs); onDispose { owner.lifecycle.removeObserver(obs) }
+    }
+
+    if (!app.cloud.signedIn) { Hint("Najpierw zaloguj się w chmurze (Ustawienia → Konto)."); return }
+
+    val s = json?.let { runCatching { org.json.JSONObject(it) }.getOrNull() }
+    SettingsSection("Google Health")
+    SettingsCard {
+        NavRow(
+            Icons.Outlined.Schedule, if (connected) OK else GlassTextSecondary, "Połączenie",
+            if (connected) "Połączono — tylko odczyt (sen, tętno, HRV)" else "Nie połączono",
+            trailing = { StatusDot(connected) }
+        ) {
+            if (!busy) {
+                busy = true
+                scope.launch {
+                    val (url, err) = app.health.startUrl()
+                    busy = false
+                    if (url != null) runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                    else msg = err
+                }
+            }
+        }
+        if (connected) {
+            RowDivider()
+            NavRow(Icons.Outlined.History, OK, "Odśwież teraz", "Pobierz sen i tętno z Google Health") { if (!busy) sync() }
+            RowDivider()
+            NavRow(Icons.Outlined.RestartAlt, GlassTextSecondary, "Rozłącz", "Usuwa dostęp po stronie serwera") {
+                if (!busy) { busy = true; scope.launch { app.health.disconnect(); msg = "Rozłączono."; busy = false } }
+            }
+        }
+    }
+    if (connected && s != null) {
+        SettingsSection("Ostatnie dane")
+        SettingsCard {
+            fun v(k: String, unit: String, div: Double = 1.0) = if (s.isNull(k) || !s.has(k)) "brak" else "%.0f%s".format(s.getDouble(k) / div, unit)
+            NavRow(Icons.Outlined.Schedule, GlassTextSecondary, "Sen (ostatnia noc)", "${v("sleepMinutes", " h", 60.0)}  ·  typowo ${v("sleepBaselineMinutes", " h", 60.0)}") {}
+            RowDivider()
+            NavRow(Icons.Outlined.Schedule, GlassTextSecondary, "Tętno spoczynkowe", "${v("restingHr", "")}  ·  typowo ${v("restingHrBaseline", "")}") {}
+            RowDivider()
+            NavRow(Icons.Outlined.Schedule, GlassTextSecondary, "HRV (ms)", "${v("hrv", "")}  ·  typowo ${v("hrvBaseline", "")}") {}
+        }
+    }
+    Hint(
+        when {
+            busy -> "Pracuję…"
+            msg != null -> msg!!
+            else -> "Dane wpływają na szacunek energii dnia (kolejność zadań w „Dziś”). Ręczna odpowiedź zawsze wygrywa. " +
+                "Przy pierwszym połączeniu Google pokaże ostrzeżenie „niezweryfikowana aplikacja” — wybierz Zaawansowane → Przejdź."
+        }
+    )
+}

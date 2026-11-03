@@ -93,6 +93,19 @@ class SettingsStore(context: Context) {
         _energyManual.value = level?.let { day to it }
     }
 
+    // Google Health: ostatnie sygnały z funkcji health-sync (JSON) + czy konto jest połączone.
+    private val _healthSignals = MutableStateFlow(prefs.getString(KEY_HEALTH_SIGNALS, null))
+    val healthSignals: StateFlow<String?> = _healthSignals.asStateFlow()
+    private val _healthConnected = MutableStateFlow(prefs.getBoolean(KEY_HEALTH_CONNECTED, false))
+    val healthConnected: StateFlow<Boolean> = _healthConnected.asStateFlow()
+    fun setHealth(connected: Boolean, signalsJson: String?) {
+        prefs.edit().putBoolean(KEY_HEALTH_CONNECTED, connected).apply {
+            if (signalsJson == null) remove(KEY_HEALTH_SIGNALS) else putString(KEY_HEALTH_SIGNALS, signalsJson)
+        }.apply()
+        _healthConnected.value = connected
+        _healthSignals.value = signalsJson
+    }
+
     // Klucz OpenAI — przechowywany lokalnie na urządzeniu (nigdy w repo).
     private val _openAiKey = MutableStateFlow(prefs.getString(KEY_OPENAI, "").orEmpty())
     val openAiKey: StateFlow<String> = _openAiKey.asStateFlow()
@@ -339,6 +352,8 @@ class SettingsStore(context: Context) {
         const val KEY_AREA = "active_area"
         const val KEY_ENERGY_DAY = "energy_day"
         const val KEY_ENERGY_LEVEL = "energy_level"
+        const val KEY_HEALTH_SIGNALS = "health_signals"
+        const val KEY_HEALTH_CONNECTED = "health_connected"
         const val KEY_OPENAI = "openai_key"
         const val KEY_OPENAI_ADMIN = "openai_admin_key"
         const val KEY_GMAIL_USER = "gmail_user"

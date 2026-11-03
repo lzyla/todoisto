@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Gradient
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material.icons.outlined.Calculate
@@ -170,7 +171,7 @@ fun SettingsScreen(
 
     GlassBackground {
         Column(Modifier.fillMaxSize()) {
-            TopBar(when (route) { 1 -> "Ogólne"; 2 -> "Tło"; 3 -> "Motyw"; 4 -> "Przypomnienia"; 5 -> "Dane i kopie"; 6 -> "Notion"; else -> "Ustawienia" }) {
+            TopBar(when (route) { 1 -> "Ogólne"; 2 -> "Tło"; 3 -> "Motyw"; 4 -> "Przypomnienia"; 5 -> "Dane i kopie"; 6 -> "Notion"; 7 -> "Google Health"; else -> "Ustawienia" }) {
                 if (route != 0) route = 0 else onBack()
             }
             Column(
@@ -185,6 +186,7 @@ fun SettingsScreen(
                 else if (route == 4) ReminderSettings()
                 else if (route == 5) DataSettings(vm)
                 else if (route == 6) NotionSettings(vm)
+                else if (route == 7) HealthSettings()
                 else if (route == 0) MainSettings(
                     dark, photo, activeCustomBg, hasApiKey, dailyGoal, weeklyGoal,
                     aiPromptTokens, aiCompletionTokens, aiImageCount, onResetAiUsage,
@@ -194,7 +196,7 @@ fun SettingsScreen(
                     onOpenTheme = { route = 3 }, onOpenAccount = onOpenAccount,
                     onOpenKey = { showKey = true }, onOpenGoals = { showGoals = true },
                     onOpenPool, onOpenImport,
-                    onOpenReminders = { route = 4 }, onOpenData = { route = 5 }, onOpenNotion = { route = 6 }
+                    onOpenReminders = { route = 4 }, onOpenData = { route = 5 }, onOpenNotion = { route = 6 }, onOpenHealth = { route = 7 }
                 ) else GeneralSettings(
                     startViewToday, dateRecognition, weekStartMonday, completionSound, swipeRightCompletes,
                     onSetStartView, onSetDateRecognition, onSetWeekStartMonday, onSetCompletionSound, onSetSwipeRightCompletes
@@ -219,7 +221,7 @@ private fun MainSettings(
     themeName: String, onOpenTheme: () -> Unit, onOpenAccount: () -> Unit,
     onOpenKey: () -> Unit, onOpenGoals: () -> Unit,
     onOpenPool: () -> Unit, onOpenImport: () -> Unit,
-    onOpenReminders: () -> Unit, onOpenData: () -> Unit, onOpenNotion: () -> Unit
+    onOpenReminders: () -> Unit, onOpenData: () -> Unit, onOpenNotion: () -> Unit, onOpenHealth: () -> Unit = {}
 ) {
     SettingsHero()
     Spacer(Modifier.height(22.dp))
@@ -235,6 +237,8 @@ private fun MainSettings(
         NavRow(Icons.Outlined.Backup, Color(0xFF34D399), "Dane i kopie", "Eksport, import, kopie lokalne", onClick = onOpenData)
         RowDivider()
         NavRow(Icons.Outlined.CloudUpload, Color(0xFF9AA6FF), "Przekazywanie do Notion", "Projekt → baza (kanban)", onClick = onOpenNotion)
+        RowDivider()
+        NavRow(Icons.Outlined.Schedule, Color(0xFFF472B6), "Google Health", "Sen, tętno i HRV → energia dnia", onClick = onOpenHealth)
     }
     Spacer(Modifier.height(22.dp))
 

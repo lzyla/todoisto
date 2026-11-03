@@ -140,7 +140,8 @@ private data class Prefs(
     val sort: SortMode,
     val goalDaily: Int,
     val goalWeekly: Int,
-    val energyManual: Pair<Long, pl.media30.todoisto.data.EnergyLevel>? = null
+    val energyManual: Pair<Long, pl.media30.todoisto.data.EnergyLevel>? = null,
+    val healthJson: String? = null
 )
 
 @kotlinx.coroutines.FlowPreview
@@ -744,7 +745,7 @@ class TodoViewModel(
         repository.allTasks, repository.allSections, repository.allProjects, repository.allLabels
     ) { tasks, sections, projects, labels -> Sources(tasks, sections, projects, labels) }
 
-    private val prefsFlow = combine(_sort, settings.dailyGoal, settings.weeklyGoal, settings.energyManual) { s, d, w, e -> Prefs(s, d, w, e) }
+    private val prefsFlow = combine(_sort, settings.dailyGoal, settings.weeklyGoal, settings.energyManual, settings.healthSignals) { s, d, w, e, h -> Prefs(s, d, w, e, h) }
 
     val uiState: StateFlow<TodoUiState> =
         combine(sources, _view, prefsFlow, settings.activeArea) { src, view, prefs, area ->
@@ -797,7 +798,8 @@ class TodoViewModel(
         val yDone = src.tasks.filter { it.isCompleted && (it.completedAt ?: 0L) in yStart until tStart }
         val lastMin = yDone.maxOfOrNull { it.completedAt!! }?.let { Instant.ofEpochMilli(it).atZone(zoneE).toLocalTime().let { lt -> lt.hour * 60 + lt.minute } }
         val estimate = pl.media30.todoisto.data.EnergyModel.estimate(
-            pl.media30.todoisto.data.EnergySignals(
+            (prefs.healthJson?.let { runCatching { pl.media30.todoisto.data.HealthStore.parse(org.json.JSONObject(it)) }.getOrNull() }
+                ?: pl.media30.todoisto.data.EnergySignals()).copy(
                 prevDayWorkMinutes = yDone.sumOf { it.durationMinutes ?: 25 },
                 prevDayLastWorkMinute = lastMin
             )

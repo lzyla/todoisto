@@ -26,6 +26,8 @@ class TodoApplication : Application() {
     val cloud: pl.media30.todoisto.data.CloudStore by lazy { pl.media30.todoisto.data.CloudStore(this) }
     val routing: pl.media30.todoisto.data.RoutingStore by lazy { pl.media30.todoisto.data.RoutingStore(this, cloud) }
 
+    val health: pl.media30.todoisto.data.HealthStore by lazy { pl.media30.todoisto.data.HealthStore(cloud, settings) }
+
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
@@ -33,6 +35,8 @@ class TodoApplication : Application() {
         // Konto demo (zalogowane) + bogate dane demonstracyjne przy pierwszym uruchomieniu.
         account.seedDemoIfEmpty()
         appScope.launch { DemoSeeder.seedIfEmpty(db, settings) }
+        // Sen/HRV/tętno z Google Health (jeśli połączono) — odświeżenie przy starcie.
+        appScope.launch { if (settings.healthConnected.value && cloud.signedIn) runCatching { health.sync() } }
         // Przypomnienia w miejscu: cykliczny worker + sprawdzenie na starcie.
         runCatching { pl.media30.todoisto.data.GeoReminders.schedule(this) }
         appScope.launch {

@@ -252,6 +252,12 @@ fun TodoistoApp(
             context.startActivity(android.content.Intent.createChooser(send, "Wyślij plan dnia"))
         },
         onDeferToTomorrow = viewModel::deferToTomorrow,
+        onSetEnergy = viewModel::setEnergy,
+        onEaseWithAi = { task ->
+            detailTaskId = task.id
+            detailAiExpanded = true
+            viewModel.askAi(viewModel.easePrompt(task))
+        },
         onOpenAutomation = { task ->
             detailTaskId = task.id
             detailAiExpanded = true

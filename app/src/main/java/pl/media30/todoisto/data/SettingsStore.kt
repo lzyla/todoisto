@@ -76,6 +76,23 @@ class SettingsStore(context: Context) {
     fun isDemoSeeded(): Boolean = prefs.getBoolean(KEY_SEEDED, false)
     fun markDemoSeeded() { prefs.edit().putBoolean(KEY_SEEDED, true).apply() }
 
+    // Poranna odpowiedź „jak z energią?” — ważna tylko w dniu, w którym ją podano.
+    private val _energyManual = MutableStateFlow(loadEnergy())
+    val energyManual: StateFlow<Pair<Long, EnergyLevel>?> = _energyManual.asStateFlow()
+    private fun loadEnergy(): Pair<Long, EnergyLevel>? {
+        val day = prefs.getLong(KEY_ENERGY_DAY, -1L)
+        val lvl = runCatching { EnergyLevel.valueOf(prefs.getString(KEY_ENERGY_LEVEL, "").orEmpty()) }.getOrNull()
+        return if (day >= 0 && lvl != null) day to lvl else null
+    }
+    fun setEnergy(level: EnergyLevel?) {
+        val day = java.time.LocalDate.now().toEpochDay()
+        prefs.edit().apply {
+            if (level == null) { remove(KEY_ENERGY_DAY); remove(KEY_ENERGY_LEVEL) }
+            else { putLong(KEY_ENERGY_DAY, day); putString(KEY_ENERGY_LEVEL, level.name) }
+        }.apply()
+        _energyManual.value = level?.let { day to it }
+    }
+
     // Klucz OpenAI — przechowywany lokalnie na urządzeniu (nigdy w repo).
     private val _openAiKey = MutableStateFlow(prefs.getString(KEY_OPENAI, "").orEmpty())
     val openAiKey: StateFlow<String> = _openAiKey.asStateFlow()
@@ -320,6 +337,8 @@ class SettingsStore(context: Context) {
         // (v4: po dodaniu Obszarów baza jest przebudowywana, więc dosiewamy z obszarami).
         const val KEY_SEEDED = "demo_seeded_v7"
         const val KEY_AREA = "active_area"
+        const val KEY_ENERGY_DAY = "energy_day"
+        const val KEY_ENERGY_LEVEL = "energy_level"
         const val KEY_OPENAI = "openai_key"
         const val KEY_OPENAI_ADMIN = "openai_admin_key"
         const val KEY_GMAIL_USER = "gmail_user"

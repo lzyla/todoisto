@@ -244,7 +244,9 @@ fun TaskListScreen(
     onScanNote: (ByteArray) -> Unit = {},
     onReschedule: (Task, Long) -> Unit = { _, _ -> },
     routinesExpandedInitially: Boolean = false,
-    weekTasks: List<Task> = emptyList()
+    weekTasks: List<Task> = emptyList(),
+    onSetEnergy: (pl.media30.todoisto.data.EnergyLevel?) -> Unit = {},
+    onEaseWithAi: (Task) -> Unit = {}
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -374,7 +376,7 @@ fun TaskListScreen(
             // ── Treść — zaczyna się i PRZYCINA tuż pod paskiem pigułek, więc tekst
             //    nigdy nie wjeżdża na przyciski (pozostaje pod nimi). ───────────
             Box(Modifier.fillMaxSize().padding(top = statusTop + 60.dp).haze(hazeState)) {
-                ZenContent(uiState, projects, labels, onToggle, onTaskClick, onDeferToTomorrow, onOpenAutomation, 0.dp, onReorder)
+                ZenContent(uiState, projects, labels, onToggle, onTaskClick, onDeferToTomorrow, onOpenAutomation, 0.dp, onReorder, onSetEnergy, onEaseWithAi)
             }
 
             // ── Pasek górny — jeden równy rząd (liquid glass) ────────────────
@@ -846,7 +848,9 @@ private fun ZenContent(
     onDefer: (Task) -> Unit,
     onOpenAutomation: (Task) -> Unit,
     statusTop: androidx.compose.ui.unit.Dp,
-    onReorder: (List<Long>) -> Unit = {}
+    onReorder: (List<Long>) -> Unit = {},
+    onSetEnergy: (pl.media30.todoisto.data.EnergyLevel?) -> Unit = {},
+    onEaseWithAi: (Task) -> Unit = {}
 ) {
     val today = AppClock.today()
     val collapsed = remember { mutableStateMapOf<String, Boolean>() }
@@ -910,6 +914,7 @@ private fun ZenContent(
                         Box(Modifier.size(34.dp, 3.dp).clip(RoundedCornerShape(2.dp)).background(GlassAccent.copy(alpha = 0.5f)))
                     }
                 }
+                item(key = "energy") { EnergyBanner(uiState, onSetEnergy, onEaseWithAi) }
                 if (orderedNodes.isEmpty()) {
                     item(key = "empty") {
                         // Dyskretna nagroda — tylko gdy lista opróżniła się na naszych oczach.
@@ -1627,6 +1632,70 @@ private fun SortSheet(current: SortMode, onPick: (SortMode) -> Unit, onDismiss: 
                     }
                     if (sel) Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(19.dp))
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Poranny pasek energii: jedno dotknięcie (słabo / średnio / dobrze) ustawia kolejność dnia.
+ * Pokazuje też, DLACZEGO lista wygląda tak, a nie inaczej, i pozwala to wyłączyć.
+ * Przy słabszej formie oferuje „Ułatw z AI” dla ciężkich zadań.
+ */
+@Composable
+private fun EnergyBanner(uiState: TodoUiState, onSet: (pl.media30.todoisto.data.EnergyLevel?) -> Unit, onEase: (Task) -> Unit) {
+    val level = uiState.energyLevel ?: return
+    var pickEase by remember { mutableStateOf(false) }
+    if (pickEase) {
+        QAPickSheet("Ułatw z AI — które zadanie?", onDismiss = { pickEase = false }) {
+            uiState.heavyTasks.forEach { t ->
+                QAPickRow(
+                    label = t.title, selected = false,
+                    onClick = { pickEase = false; onEase(t) },
+                    icon = { Icon(Icons.Outlined.AutoAwesome, null, tint = Color(0xFF6B3FE0), modifier = Modifier.size(20.dp)) }
+                )
+            }
+        }
+    }
+    val hint = when (level) {
+        pl.media30.todoisto.data.EnergyLevel.LOW -> "Słabsza forma — lekkie zadania wyżej"
+        pl.media30.todoisto.data.EnergyLevel.HIGH -> "Dobra forma — trudne zadania wyżej"
+        else -> "Kolejność bez zmian"
+    }
+    Column(
+        Modifier.fillMaxWidth().padding(vertical = 6.dp).glass(RoundedCornerShape(20.dp)).padding(horizontal = 14.dp, vertical = 11.dp)
+    ) {
+        if (!uiState.energyManual) {
+            Text("Jak dziś z energią?", fontSize = 13.5.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+            if (uiState.energyReasons.isNotEmpty())
+                Text("Szacuję: " + uiState.energyReasons.joinToString(", "), fontSize = 11.5.sp, color = GlassTextSecondary, modifier = Modifier.padding(top = 2.dp))
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                pl.media30.todoisto.data.EnergyLevel.entries.forEach { e ->
+                    Row(
+                        Modifier.weight(1f).clip(RoundedCornerShape(50)).background(GlassAccent.copy(alpha = 0.12f))
+                            .bouncy(0.95f) { onSet(e) }.padding(vertical = 9.dp),
+                        horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
+                    ) { Text(e.emoji + " " + e.label, fontSize = 12.5.sp, fontWeight = FontWeight.W800, color = GlassAccent) }
+                }
+            }
+            Text(hint, fontSize = 11.5.sp, color = GlassTextSecondary, modifier = Modifier.padding(top = 8.dp))
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(level.emoji + " " + level.label + " — " + hint, fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = GlassTextPrimary, modifier = Modifier.weight(1f))
+                Text("zmień", fontSize = 12.sp, fontWeight = FontWeight.W800, color = GlassAccent,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).bouncy(0.93f) { onSet(null) }.padding(horizontal = 10.dp, vertical = 4.dp))
+            }
+        }
+        if (level == pl.media30.todoisto.data.EnergyLevel.LOW && uiState.heavyTasks.isNotEmpty()) {
+            Row(
+                Modifier.padding(top = 9.dp).clip(RoundedCornerShape(50)).background(Color(0xFF6B3FE0))
+                    .bouncy(0.95f) { pickEase = true }.padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(15.dp))
+                Spacer(Modifier.width(7.dp))
+                Text("Ułatw z AI · ciężkie zadania (" + uiState.heavyTasks.size + ")", fontSize = 12.sp, fontWeight = FontWeight.W800, color = Color.White)
             }
         }
     }

@@ -120,7 +120,13 @@ data class TodoUiState(
     /** Routines already completed today (their due date has advanced). */
     val routinesDone: Int = 0,
     /** Szacowany czas potrzebny na dokończenie dzisiejszych zadań (suma durationMinutes; brak = 20 min). */
-    val estTodayMinutes: Int = 0
+    val estTodayMinutes: Int = 0,
+    /** Poziom energii dnia (ręczny albo szacowany); null = brak wpływu na kolejność. */
+    val energyLevel: pl.media30.todoisto.data.EnergyLevel? = null,
+    val energyManual: Boolean = false,
+    val energyReasons: List<String> = emptyList(),
+    /** Ciężkie zadania z widoku Dziś — kandydaci do „Ułatw z AI”. */
+    val heavyTasks: List<Task> = emptyList()
 )
 
 private data class Sources(
@@ -133,7 +139,8 @@ private data class Sources(
 private data class Prefs(
     val sort: SortMode,
     val goalDaily: Int,
-    val goalWeekly: Int
+    val goalWeekly: Int,
+    val energyManual: Pair<Long, pl.media30.todoisto.data.EnergyLevel>? = null
 )
 
 @kotlinx.coroutines.FlowPreview
@@ -737,7 +744,7 @@ class TodoViewModel(
         repository.allTasks, repository.allSections, repository.allProjects, repository.allLabels
     ) { tasks, sections, projects, labels -> Sources(tasks, sections, projects, labels) }
 
-    private val prefsFlow = combine(_sort, settings.dailyGoal, settings.weeklyGoal) { s, d, w -> Prefs(s, d, w) }
+    private val prefsFlow = combine(_sort, settings.dailyGoal, settings.weeklyGoal, settings.energyManual) { s, d, w, e -> Prefs(s, d, w, e) }
 
     val uiState: StateFlow<TodoUiState> =
         combine(sources, _view, prefsFlow, settings.activeArea) { src, view, prefs, area ->
@@ -773,7 +780,7 @@ class TodoViewModel(
             }
         }
 
-        val sorted = when (prefs.sort) {
+        val sortedBase = when (prefs.sort) {
             // Najbliższe: sortuj po dniu, a przy równym dniu po godzinie (nulle na koniec).
             SortMode.NEAREST -> matching.sortedWith(
                 compareBy({ it.dueDate ?: Long.MAX_VALUE }, { it.dueTimeMinutes ?: Int.MAX_VALUE })
@@ -782,6 +789,24 @@ class TodoViewModel(
             SortMode.ALPHA -> matching.sortedBy { it.title.lowercase() }
             SortMode.NEWEST -> matching.sortedByDescending { it.createdAt }
         }
+
+        // Energia dnia: ręczna odpowiedź albo szacunek z wczorajszego obciążenia (docelowo + sen z Google Health).
+        val zoneE = ZoneId.systemDefault()
+        val yStart = LocalDate.ofEpochDay(today - 1).atStartOfDay(zoneE).toInstant().toEpochMilli()
+        val tStart = LocalDate.ofEpochDay(today).atStartOfDay(zoneE).toInstant().toEpochMilli()
+        val yDone = src.tasks.filter { it.isCompleted && (it.completedAt ?: 0L) in yStart until tStart }
+        val lastMin = yDone.maxOfOrNull { it.completedAt!! }?.let { Instant.ofEpochMilli(it).atZone(zoneE).toLocalTime().let { lt -> lt.hour * 60 + lt.minute } }
+        val estimate = pl.media30.todoisto.data.EnergyModel.estimate(
+            pl.media30.todoisto.data.EnergySignals(
+                prevDayWorkMinutes = yDone.sumOf { it.durationMinutes ?: 25 },
+                prevDayLastWorkMinute = lastMin
+            )
+        )
+        val manual = prefs.energyManual?.takeIf { it.first == today }?.second
+        val energy = pl.media30.todoisto.data.EnergyModel.resolve(manual, estimate)
+        val subCount = { t: Task -> src.tasks.count { it.parentId == t.id } }
+        val sorted = if (view == AppView.Today && prefs.sort == SortMode.NEAREST)
+            pl.media30.todoisto.data.TaskLoad.reorder(sortedBase, energy, today, subCount) else sortedBase
 
         fun nodeOf(t: Task) = TaskNode(t, src.tasks.filter { it.parentId == t.id })
 
@@ -851,9 +876,24 @@ class TodoViewModel(
             routinesDone = routinesDone,
             estTodayMinutes = topLevel
                 .filter { !it.isCompleted && it.dueDate != null && it.dueDate <= today && !inArchived(it) && !isRoutine(it) }
-                .sumOf { it.durationMinutes ?: 20 }
+                .sumOf { it.durationMinutes ?: 20 },
+            energyLevel = if (view == AppView.Today) energy else null,
+            energyManual = manual != null,
+            energyReasons = estimate.reasons,
+            heavyTasks = if (view == AppView.Today)
+                matching.filter { pl.media30.todoisto.data.TaskLoad.isHeavy(it, subCount(it)) }.take(6) else emptyList()
         )
     }
+
+    fun setEnergy(level: pl.media30.todoisto.data.EnergyLevel?) = settings.setEnergy(level)
+
+    /** Prompt „ułatw”: rozbij zadanie na małe kroki, zacznij od najlżejszego. */
+    fun easePrompt(t: Task): String =
+        "Zadanie: \u201e" + t.title + "\u201d." +
+        (if (t.notes.isNotBlank() && !t.notes.startsWith("activity:")) " Notatki: " + t.notes.take(600) + "." else "") +
+        " Mam dziś mniej energii. Zaproponuj, jak je zrealizować możliwie lekko: 1) rozbij na 4–7 małych kroków po 5–15 minut," +
+        " pierwszy ma być bardzo łatwy (rozruch), 2) wskaż, co można pominąć, uprościć lub zlecić AI/narzędziu," +
+        " 3) na końcu podaj gotowy prompt do skopiowania, który zrobi najcięższą część za mnie. Kroki jako numerowana lista."
 
     fun setView(view: AppView) { _view.value = view }
 

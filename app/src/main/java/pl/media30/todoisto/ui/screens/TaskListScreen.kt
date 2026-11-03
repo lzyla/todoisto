@@ -403,36 +403,34 @@ fun TaskListScreen(
                                 pl.media30.todoisto.data.EnergyLevel.HIGH -> "Zdziałasz dużo"
                                 else -> "Przyzwoicie"
                             }
-                            Text(lvl.emoji + " " + headline, fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary,
-                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp))
+                            Row(Modifier.padding(horizontal = 18.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(lvl.emoji, fontSize = 36.sp)
+                                Spacer(Modifier.width(10.dp))
+                                Text(headline, fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                            }
+                            // Powody ogólnie — bez dokładnych liczb (sen, tętno).
                             val why = if (uiState.energyManual) listOf("Wybrane przez Ciebie")
-                                else uiState.energyReasons.take(2).map { it.replaceFirstChar { c -> c.uppercase() } }
+                                else uiState.energyReasons.take(2).map { it.replace(Regex("\\s*\\(.*?\\)"), "").replaceFirstChar { c -> c.uppercase() } }
                             why.forEach { r ->
                                 Text("• $r", fontSize = 12.5.sp, color = GlassTextSecondary, modifier = Modifier.padding(horizontal = 18.dp, vertical = 1.dp))
                             }
+                            val heavy = uiState.heavyTasks.size
                             Text(
                                 when (lvl) {
-                                    pl.media30.todoisto.data.EnergyLevel.LOW -> "Lżejsze zadania ułożyłem wyżej."
-                                    pl.media30.todoisto.data.EnergyLevel.HIGH -> "Trudne zadania ułożyłem wyżej."
+                                    pl.media30.todoisto.data.EnergyLevel.LOW ->
+                                        "Zacznij od lżejszych zadań." + when {
+                                            heavy == 1 -> " Przy jednym zadaniu skorzystaj z pomocy AI."
+                                            heavy > 1 -> " Przy kilku zadaniach skorzystaj z pomocy AI."
+                                            else -> ""
+                                        }
+                                    pl.media30.todoisto.data.EnergyLevel.HIGH -> "Zacznij od trudnych zadań."
                                     else -> "Kolejność bez zmian."
                                 },
-                                fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = GlassTextPrimary,
-                                modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 6.dp, bottom = 4.dp)
+                                fontSize = 12.5.sp, color = GlassTextPrimary,
+                                modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 6.dp, bottom = 6.dp)
                             )
-                            if (lvl == pl.media30.todoisto.data.EnergyLevel.LOW && uiState.heavyTasks.isNotEmpty()) {
-                                GlassMenuItem("Ułatw z AI (${uiState.heavyTasks.size})", Icons.Outlined.AutoAwesome) { energySheet = false; easeSheet = true }
-                            }
-                            GlassMenuDivider()
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                pl.media30.todoisto.data.EnergyLevel.entries.forEach { e ->
-                                    val sel = uiState.energyManual && uiState.energyLevel == e
-                                    Box(
-                                        Modifier.size(44.dp).clip(CircleShape)
-                                            .background(if (sel) GlassAccent.copy(alpha = 0.22f) else GlassAccent.copy(alpha = 0.08f))
-                                            .bouncy(0.9f) { onSetEnergy(e); energySheet = false },
-                                        contentAlignment = Alignment.Center
-                                    ) { Text(e.emoji, fontSize = 22.sp) }
-                                }
+                            if (lvl == pl.media30.todoisto.data.EnergyLevel.LOW && heavy > 0) {
+                                GlassMenuItem("Ułatw z AI ($heavy)", Icons.Outlined.AutoAwesome) { energySheet = false; easeSheet = true }
                             }
                             if (uiState.energyManual) GlassMenuItem("Wg danych", Icons.Outlined.Autorenew) { onSetEnergy(null); energySheet = false }
                         }

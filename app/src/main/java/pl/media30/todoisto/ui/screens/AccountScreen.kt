@@ -276,6 +276,9 @@ private fun CloudSection(
                     Box(Modifier.weight(1f)) { CloudButton("Zaloguj", primary = true, enabled = !cloud.busy) { onCloudSignIn(email, password) } }
                     Box(Modifier.weight(1f)) { CloudButton("Załóż konto", primary = false, enabled = !cloud.busy) { onCloudSignUp(email, password) } }
                 }
+                Spacer(Modifier.height(8.dp))
+                // Literówka w adresie/kluczu nie może być pułapką: czyścimy projekt i pokazujemy pola konfiguracji.
+                Text("Zmień projekt (adres / klucz)", fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = GlassTextSecondary, modifier = Modifier.bouncy(1f) { onCloudConfig("", "") }.padding(top = 4.dp))
             }
             // 3) Zalogowany → kopia / przywracanie.
             else -> {

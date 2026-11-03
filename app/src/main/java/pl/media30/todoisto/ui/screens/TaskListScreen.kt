@@ -403,16 +403,19 @@ fun TaskListScreen(
                                 pl.media30.todoisto.data.EnergyLevel.HIGH -> "Zdziałasz dużo"
                                 else -> "Przyzwoicie"
                             }
-                            Row(Modifier.padding(horizontal = 18.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(lvl.emoji, fontSize = 36.sp)
+                            Row(Modifier.padding(start = 18.dp, end = 18.dp, top = 6.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(lvl.emoji, fontSize = 38.sp)
                                 Spacer(Modifier.width(10.dp))
-                                Text(headline, fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
+                                Text(headline, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.W700, color = GlassTextPrimary)
                             }
-                            // Powody ogólnie — bez dokładnych liczb (sen, tętno).
-                            val why = if (uiState.energyManual) listOf("Wybrane przez Ciebie")
-                                else uiState.energyReasons.take(2).map { it.replace(Regex("\\s*\\(.*?\\)"), "").replaceFirstChar { c -> c.uppercase() } }
-                            why.forEach { r ->
-                                Text("• $r", fontSize = 12.5.sp, color = GlassTextSecondary, modifier = Modifier.padding(horizontal = 18.dp, vertical = 1.dp))
+                            // Powody w jednej linii, ogólnie — bez dokładnych liczb (sen, tętno).
+                            val why = if (uiState.energyManual) "Wybrane przez Ciebie"
+                                else uiState.energyReasons.take(2)
+                                    .map { it.replace(Regex("\\s*\\(.*?\\)"), "").replace(" spoczynkowe", "").lowercase() }
+                                    .joinToString(", ").replaceFirstChar { c -> c.uppercase() }
+                            if (why.isNotBlank()) {
+                                Text(why, fontSize = 13.sp, lineHeight = 17.sp, color = GlassTextSecondary,
+                                    modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 8.dp))
                             }
                             val heavy = uiState.heavyTasks.size
                             Text(
@@ -426,8 +429,8 @@ fun TaskListScreen(
                                     pl.media30.todoisto.data.EnergyLevel.HIGH -> "Zacznij od trudnych zadań."
                                     else -> "Kolejność bez zmian."
                                 },
-                                fontSize = 12.5.sp, color = GlassTextPrimary,
-                                modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 6.dp, bottom = 6.dp)
+                                fontSize = 13.5.sp, lineHeight = 18.sp, color = GlassTextPrimary,
+                                modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 8.dp)
                             )
                             if (lvl == pl.media30.todoisto.data.EnergyLevel.LOW && heavy > 0) {
                                 GlassMenuItem("Ułatw z AI ($heavy)", Icons.Outlined.AutoAwesome) { energySheet = false; easeSheet = true }

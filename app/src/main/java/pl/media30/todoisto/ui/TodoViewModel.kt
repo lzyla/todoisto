@@ -432,6 +432,50 @@ class TodoViewModel(
 
     fun clearCloudMessage() { _cloud.value = cloudSnapshot() }
 
+    // --- Dane i kopie: eksport/import pliku, kopie lokalne ---
+    data class DataOpState(val busy: Boolean = false, val message: String? = null, val error: String? = null)
+    private val _dataOp = MutableStateFlow(DataOpState())
+    val dataOp: StateFlow<DataOpState> = _dataOp.asStateFlow()
+    fun clearDataOp() { _dataOp.value = DataOpState() }
+
+    /** Zapisuje pełną migawkę (z nagrobkami) do pliku wybranego przez użytkownika. */
+    fun exportToUri(uri: android.net.Uri) {
+        _dataOp.value = DataOpState(busy = true)
+        viewModelScope.launch {
+            _dataOp.value = runCatching {
+                val json = repository.exportBackupJson()
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    settings.appCtx.contentResolver.openOutputStream(uri, "wt")!!.use { it.write(json.toByteArray(Charsets.UTF_8)) }
+                }
+                DataOpState(message = "Zapisano kopię (${json.length / 1024} KB).")
+            }.getOrElse { DataOpState(error = "Nie udało się zapisać: ${it.message}") }
+        }
+    }
+
+    /** Wczytuje kopię z pliku ZE SCALANIEM (nic lokalnego nie ginie). */
+    fun importFromUri(uri: android.net.Uri) {
+        _dataOp.value = DataOpState(busy = true)
+        viewModelScope.launch {
+            _dataOp.value = runCatching {
+                val json = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    settings.appCtx.contentResolver.openInputStream(uri)!!.use { it.readBytes().toString(Charsets.UTF_8) }
+                }
+                val n = repository.importBackupJson(json)
+                DataOpState(message = "Wczytano i scalono kopię ($n zadań).")
+            }.getOrElse { DataOpState(error = "Nieczytelna kopia: ${it.message}") }
+        }
+    }
+
+    fun importLocalBackup(file: java.io.File) {
+        _dataOp.value = DataOpState(busy = true)
+        viewModelScope.launch {
+            _dataOp.value = runCatching {
+                val n = repository.importBackupJson(kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { file.readText() })
+                DataOpState(message = "Przywrócono z ${file.name} ($n zadań, scalone).")
+            }.getOrElse { DataOpState(error = "Nie udało się: ${it.message}") }
+        }
+    }
+
     // --- Szacowanie czasu przez AI (porównanie z sumą zadań) ---
     data class EstimateAiState(val loading: Boolean = false, val minutes: Int? = null, val error: String? = null, val needsKey: Boolean = false)
     private val _estimateAi = MutableStateFlow(EstimateAiState())
@@ -844,8 +888,9 @@ class TodoViewModel(
                 ?: if (recurrence != null) LocalDate.now().toEpochDay() else null
 
             val dueTimeMinutes = parsed?.dueTimeMinutes
+            // Czas lokalny (wcześniej liczony jak UTC → w Polsce alarm o 1–2 h za późno).
             val reminderAt = if (dueDate != null && dueTimeMinutes != null) {
-                (dueDate * 24L * 60 * 60 * 1000) + dueTimeMinutes * 60L * 1000
+                pl.media30.todoisto.data.Reminders.localMillis(dueDate, dueTimeMinutes)
             } else null
 
             repository.insert(
@@ -869,11 +914,8 @@ class TodoViewModel(
     fun updateTask(task: Task) {
         if (task.title.isBlank()) return
         viewModelScope.launch {
+            // Alarm ustawia/odwołuje repozytorium (hak onReminderChanged) po każdym zapisie.
             repository.update(task.copy(title = task.title.trim(), notes = task.notes.trim()))
-            // Przypomnienie czasowe: ustaw/odwołaj dokładny alarm systemowy.
-            val at = task.reminderAt
-            if (at != null && !task.isCompleted) pl.media30.todoisto.data.Reminders.schedule(settings.appCtx, task.id, task.title, at)
-            else pl.media30.todoisto.data.Reminders.cancel(settings.appCtx, task.id)
         }
     }
 
@@ -889,7 +931,6 @@ class TodoViewModel(
     fun toggleCompleted(task: Task) = viewModelScope.launch {
         if (!task.isCompleted) {
             settings.recordActualCompletion(task.id) // liczymy realny czas przy ukończeniu
-            pl.media30.todoisto.data.Reminders.cancel(settings.appCtx, task.id) // alarm już niepotrzebny
         }
         repository.toggleCompleted(task)
     }

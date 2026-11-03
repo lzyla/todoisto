@@ -328,7 +328,8 @@ fun TodoistoApp(
             onOpenImport = { showSettings = false; showImport = true },
             themeId = themeId,
             onSelectTheme = onSelectTheme,
-            onOpenAccount = { showSettings = false; showAccount = true }
+            onOpenAccount = { showSettings = false; showAccount = true },
+            vm = viewModel
         )
     }
 

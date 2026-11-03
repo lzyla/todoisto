@@ -127,7 +127,8 @@ class TaskRepository {
         val recurrence = parsed?.recurrence
         val dueDate = parsed?.dueDate ?: (if (recurrence != null) LocalDate.now().toEpochDay() else defaultDue)
         val dueTime = parsed?.dueTimeMinutes
-        val reminderAt = if (dueDate != null && dueTime != null) dueDate * 86_400_000L + dueTime * 60_000L else null
+        // Czas LOKALNY (wcześniej UTC → przypomnienie 1–2 h za późno w Polsce).
+        val reminderAt = if (dueDate != null && dueTime != null) localMillis(dueDate, dueTime) else null
         return add(CloudTask(
             id = 0, title = title, priority = (parsed?.priority ?: Priority.P4).name,
             dueDate = dueDate, dueTimeMinutes = dueTime, durationMinutes = parsed?.durationMinutes,
@@ -149,7 +150,7 @@ class TaskRepository {
         val now = System.currentTimeMillis()
         val rec = t.recurrence?.let { Recurrence.fromNameSafe(it) }
         _tasks[i] = when {
-            rec != null && !t.isCompleted && t.dueDate != null -> t.copy(dueDate = rec.next(t.dueDate!!), completedAt = now, updatedAt = now)
+            rec != null && !t.isCompleted && t.dueDate != null -> rec.next(t.dueDate!!).let { nx -> t.copy(dueDate = nx, completedAt = now, updatedAt = now, reminderAt = shiftWithDueDate(t.reminderAt, t.dueDate, nx)) }
             !t.isCompleted -> t.copy(isCompleted = true, completedAt = now, updatedAt = now)
             else -> t.copy(isCompleted = false, completedAt = null, updatedAt = now)
         }
@@ -163,7 +164,11 @@ class TaskRepository {
     fun update(task: CloudTask) {
         if (task.title.isBlank()) return
         val i = _tasks.indexOfFirst { it.id == task.id }
-        if (i >= 0) { _tasks[i] = task.copy(title = task.title.trim(), notes = task.notes.trim(), updatedAt = System.currentTimeMillis()); save() }
+        if (i >= 0) {
+            val prev = _tasks[i]
+            val rem = if (prev.reminderAt == task.reminderAt) shiftWithDueDate(task.reminderAt, prev.dueDate, task.dueDate) else task.reminderAt
+            _tasks[i] = task.copy(title = task.title.trim(), notes = task.notes.trim(), reminderAt = rem, updatedAt = System.currentTimeMillis()); save()
+        }
     }
 
     fun reschedule(id: Long, epochDay: Long) { task(id)?.let { update(it.copy(dueDate = epochDay)) } }
@@ -642,4 +647,14 @@ fun buildDayPlanText(repo: TaskRepository): String {
     if (est > 0) sb.append("\nSzacowany czas: ${est / 60}h ${est % 60}min\n")
     sb.append("\n— wygenerowano w Todoisto")
     return sb.toString()
+}
+
+/** Moment „dzień + minuty od północy" w lokalnej strefie czasowej. */
+internal fun localMillis(epochDay: Long, minutes: Int, zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): Long =
+    LocalDate.ofEpochDay(epochDay).atStartOfDay(zone).plusMinutes(minutes.toLong()).toInstant().toEpochMilli()
+
+/** Przesuwa przypomnienie o tyle dni, o ile przesunięto termin (zachowuje godzinę). */
+internal fun shiftWithDueDate(reminderAt: Long?, oldDue: Long?, newDue: Long?, zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): Long? {
+    if (reminderAt == null || oldDue == null || newDue == null || oldDue == newDue) return reminderAt
+    return java.time.Instant.ofEpochMilli(reminderAt).atZone(zone).plusDays(newDue - oldDue).toInstant().toEpochMilli()
 }

@@ -13,7 +13,11 @@ import pl.media30.todoisto.data.TodoDatabase
 class TodoApplication : Application() {
     private val db by lazy { TodoDatabase.getInstance(this) }
     val repository: TaskRepository by lazy {
-        TaskRepository(db.taskDao(), db.projectDao(), db.sectionDao(), db.labelDao(), db.activityDao(), db.areaDao(), db.tombstoneDao())
+        TaskRepository(db.taskDao(), db.projectDao(), db.sectionDao(), db.labelDao(), db.activityDao(), db.areaDao(), db.tombstoneDao()).also { repo ->
+            // Każdy zapis zadania → alarm zgodny z danymi; dane z innego urządzenia → odtwórz alarmy.
+            repo.onReminderChanged = { t -> runCatching { pl.media30.todoisto.data.Reminders.sync(this, t) } }
+            repo.onImported = { appScope.launch { runCatching { pl.media30.todoisto.data.Reminders.rescheduleAll(this@TodoApplication) } } }
+        }
     }
     val settings: SettingsStore by lazy { SettingsStore(this) }
     val account: pl.media30.todoisto.data.AccountStore by lazy { pl.media30.todoisto.data.AccountStore(this) }
@@ -34,6 +38,8 @@ class TodoApplication : Application() {
             }
             // Przypomnienia czasowe — odtwórz przyszłe alarmy (np. po aktualizacji apki).
             runCatching { pl.media30.todoisto.data.Reminders.rescheduleAll(this@TodoApplication) }
+            // Codzienna lokalna kopia JSON (siatka bezpieczeństwa niezależna od chmury).
+            pl.media30.todoisto.data.DbSafety.dailyJsonBackup(this@TodoApplication, repository)
         }
     }
 }

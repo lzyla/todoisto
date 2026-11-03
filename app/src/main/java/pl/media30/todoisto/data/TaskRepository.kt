@@ -23,6 +23,8 @@ class TaskRepository(
     @Volatile var onRoutingQueued: () -> Unit = {}
     /** Wywoływane po wczytaniu danych z innego urządzenia (np. odtworzenie alarmów). */
     @Volatile var onImported: () -> Unit = {}
+    /** Wywoływane po każdym lokalnym zapisie zadania — utrzymuje alarm w zgodzie z danymi. */
+    @Volatile var onReminderChanged: (Task) -> Unit = {}
 
     private fun withRouting(task: Task): Task =
         if (task.remoteUrl == null && task.routeState == null && !task.deleted && routingPolicy(task))
@@ -110,19 +112,30 @@ class TaskRepository(
         val t = withRouting(if (task.id == 0L) task.copy(remoteUrl = null, routeState = null) else task)
         val id = taskDao.insert(t)
         if (t.routeState == "pending") onRoutingQueued()
+        onReminderChanged(t.copy(id = id))
         return id
     }
     suspend fun update(task: Task) {
-        val t = withRouting(task)
+        // Przełożenie terminu przesuwa przypomnienie o tyle samo dni (chyba że
+        // przypomnienie zmieniono w tej samej edycji).
+        val prev = taskDao.getTaskById(task.id)
+        val shifted = if (prev != null && prev.reminderAt == task.reminderAt)
+            task.copy(reminderAt = Reminders.shiftWithDueDate(task.reminderAt, prev.dueDate, task.dueDate)) else task
+        val t = withRouting(shifted)
         taskDao.update(t)
         if (t.routeState == "pending" && task.routeState != "pending") onRoutingQueued()
+        onReminderChanged(t)
     }
     /** Zapisuje ręczną kolejność: pozycja = indeks na liście. */
     suspend fun reorderTasks(orderedIds: List<Long>) {
         orderedIds.forEachIndexed { index, id -> taskDao.updatePosition(id, index) }
     }
     /** Usuwa jako nagrobek — usunięcie propaguje się przy synchronizacji. */
-    suspend fun deleteWithSubtasks(id: Long) = taskDao.softDeleteWithSubtasks(id, System.currentTimeMillis())
+    suspend fun deleteWithSubtasks(id: Long) {
+        val affected = listOfNotNull(taskDao.getTaskById(id)) + taskDao.getSubtasks(id)
+        taskDao.softDeleteWithSubtasks(id, System.currentTimeMillis())
+        affected.forEach { onReminderChanged(it.copy(deleted = true)) }
+    }
     suspend fun deleteCompleted() = taskDao.deleteCompleted()
 
     /**
@@ -133,13 +146,17 @@ class TaskRepository(
     suspend fun toggleCompleted(task: Task) {
         val rec = task.recurrence
         val now = System.currentTimeMillis()
-        if (rec != null && !task.isCompleted && task.dueDate != null) {
-            taskDao.update(task.copy(dueDate = rec.next(task.dueDate), completedAt = now))
+        val saved = if (rec != null && !task.isCompleted && task.dueDate != null) {
+            // Rutyna: następne wystąpienie dostaje przypomnienie o tej samej porze.
+            val next = rec.next(task.dueDate)
+            task.copy(dueDate = next, completedAt = now, reminderAt = Reminders.shiftWithDueDate(task.reminderAt, task.dueDate, next))
         } else if (!task.isCompleted) {
-            taskDao.update(task.copy(isCompleted = true, completedAt = now))
+            task.copy(isCompleted = true, completedAt = now)
         } else {
-            taskDao.update(task.copy(isCompleted = false, completedAt = null))
+            task.copy(isCompleted = false, completedAt = null)
         }
+        taskDao.update(saved)
+        onReminderChanged(saved)
         // Domknięcie pętli częstotliwości: ślad "activity:<id>" w notatce.
         if (!task.isCompleted) activityIdFromNotes(task.notes)?.let { aid ->
             activityDao.findById(aid)?.let { activityDao.update(it.copy(lastCompletedAt = now)) }

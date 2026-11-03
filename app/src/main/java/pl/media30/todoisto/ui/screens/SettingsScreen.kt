@@ -54,6 +54,8 @@ import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Shuffle
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.Backup
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import androidx.compose.material.icons.outlined.EmojiEvents
@@ -152,9 +154,10 @@ fun SettingsScreen(
     onSetCompletionSound: (Boolean) -> Unit,
     onSetSwipeRightCompletes: (Boolean) -> Unit,
     onOpenPool: () -> Unit,
-    onOpenImport: () -> Unit
+    onOpenImport: () -> Unit,
+    vm: pl.media30.todoisto.ui.TodoViewModel? = null
 ) {
-    var route by remember { mutableStateOf(0) } // 0 = główny, 1 = Ogólne
+    var route by remember { mutableStateOf(0) } // 0 = główny, 1 = Ogólne, 2 = Tło, 3 = Motyw, 4 = Przypomnienia, 5 = Dane i kopie
     var showKey by remember { mutableStateOf(false) }
     var showGoals by remember { mutableStateOf(false) }
     var showAdminKey by remember { mutableStateOf(false) }
@@ -166,7 +169,7 @@ fun SettingsScreen(
 
     GlassBackground {
         Column(Modifier.fillMaxSize()) {
-            TopBar(when (route) { 1 -> "Ogólne"; 2 -> "Tło"; 3 -> "Motyw"; else -> "Ustawienia" }) {
+            TopBar(when (route) { 1 -> "Ogólne"; 2 -> "Tło"; 3 -> "Motyw"; 4 -> "Przypomnienia"; 5 -> "Dane i kopie"; else -> "Ustawienia" }) {
                 if (route != 0) route = 0 else onBack()
             }
             Column(
@@ -178,6 +181,8 @@ fun SettingsScreen(
                     onSelectGradient, onSelectScene, onAddCustomPhoto, onSetActiveCustom, onRemoveCustom,
                     onReorderCustom, onAddPresets
                 ) else if (route == 3) ThemeSettings(themeId, onSelectTheme)
+                else if (route == 4) ReminderSettings()
+                else if (route == 5) DataSettings(vm)
                 else if (route == 0) MainSettings(
                     dark, photo, activeCustomBg, hasApiKey, dailyGoal, weeklyGoal,
                     aiPromptTokens, aiCompletionTokens, aiImageCount, onResetAiUsage,
@@ -186,7 +191,8 @@ fun SettingsScreen(
                     onToggleDark, themeName = pl.media30.todoisto.ui.theme.ThemePalettes.byId(themeId).name,
                     onOpenTheme = { route = 3 }, onOpenAccount = onOpenAccount,
                     onOpenKey = { showKey = true }, onOpenGoals = { showGoals = true },
-                    onOpenPool, onOpenImport
+                    onOpenPool, onOpenImport,
+                    onOpenReminders = { route = 4 }, onOpenData = { route = 5 }
                 ) else GeneralSettings(
                     startViewToday, dateRecognition, weekStartMonday, completionSound, swipeRightCompletes,
                     onSetStartView, onSetDateRecognition, onSetWeekStartMonday, onSetCompletionSound, onSetSwipeRightCompletes
@@ -210,7 +216,8 @@ private fun MainSettings(
     onToggleDark: () -> Unit,
     themeName: String, onOpenTheme: () -> Unit, onOpenAccount: () -> Unit,
     onOpenKey: () -> Unit, onOpenGoals: () -> Unit,
-    onOpenPool: () -> Unit, onOpenImport: () -> Unit
+    onOpenPool: () -> Unit, onOpenImport: () -> Unit,
+    onOpenReminders: () -> Unit, onOpenData: () -> Unit
 ) {
     SettingsHero()
     Spacer(Modifier.height(22.dp))
@@ -220,6 +227,10 @@ private fun MainSettings(
         NavRow(Icons.Outlined.AccountCircle, Color(0xFF9B6BFF), "Konto", "Profil, motyw, wylogowanie", onClick = onOpenAccount)
         RowDivider()
         NavRow(Icons.Outlined.Tune, Color(0xFF8AA0FF), "Ogólne", "Widok startowy, daty, tydzień, przesuwanie", onClick = onOpenGeneral)
+        RowDivider()
+        NavRow(Icons.Outlined.NotificationsActive, Color(0xFFEB8909), "Przypomnienia", "Diagnostyka, test, dziennik dostarczeń", onClick = onOpenReminders)
+        RowDivider()
+        NavRow(Icons.Outlined.Backup, Color(0xFF34D399), "Dane i kopie", "Eksport, import, kopie lokalne", onClick = onOpenData)
     }
     Spacer(Modifier.height(22.dp))
 
@@ -661,7 +672,7 @@ private fun GeneralSettings(
 }
 
 @Composable
-private fun TopBar(title: String, onBack: () -> Unit) {
+internal fun TopBar(title: String, onBack: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -698,7 +709,7 @@ private fun SettingsHero() {
 }
 
 @Composable
-private fun SettingsSection(title: String) {
+internal fun SettingsSection(title: String) {
     Text(
         title.uppercase(),
         fontSize = 11.sp, fontWeight = FontWeight.W800, letterSpacing = 1.3.sp, color = GlassAccent,
@@ -707,17 +718,17 @@ private fun SettingsSection(title: String) {
 }
 
 @Composable
-private fun SettingsCard(content: @Composable () -> Unit) {
+internal fun SettingsCard(content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth().glass(RoundedCornerShape(22.dp))) { content() }
 }
 
 @Composable
-private fun RowDivider() {
+internal fun RowDivider() {
     Box(Modifier.fillMaxWidth().padding(start = 66.dp, end = 16.dp).height(1.dp).background(GlassHair))
 }
 
 @Composable
-private fun SettingRowScaffold(
+internal fun SettingRowScaffold(
     icon: ImageVector, tint: Color, title: String, subtitle: String?,
     trailing: @Composable () -> Unit, onClick: (() -> Unit)?
 ) {
@@ -743,7 +754,7 @@ private fun SettingRowScaffold(
 }
 
 @Composable
-private fun NavRow(
+internal fun NavRow(
     icon: ImageVector, tint: Color, title: String, subtitle: String? = null,
     trailing: (@Composable () -> Unit)? = null, onClick: (() -> Unit)? = null
 ) {
@@ -755,7 +766,7 @@ private fun NavRow(
 }
 
 @Composable
-private fun ToggleRow(icon: ImageVector, tint: Color, title: String, subtitle: String?, on: Boolean, onToggle: () -> Unit) {
+internal fun ToggleRow(icon: ImageVector, tint: Color, title: String, subtitle: String?, on: Boolean, onToggle: () -> Unit) {
     SettingRowScaffold(icon, tint, title, subtitle, trailing = { GlassToggle(on) }, onClick = onToggle)
 }
 
@@ -769,7 +780,7 @@ private fun GlassToggle(on: Boolean) {
 }
 
 @Composable
-private fun StatusDot(on: Boolean) {
+internal fun StatusDot(on: Boolean) {
     Box(Modifier.size(10.dp).clip(CircleShape).background(if (on) Color(0xFF34D399) else GlassTextSecondary.copy(alpha = 0.4f)))
 }
 

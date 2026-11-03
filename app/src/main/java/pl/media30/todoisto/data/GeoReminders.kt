@@ -57,7 +57,7 @@ object GeoReminders {
             prefs.edit().putLong(key, now).apply()
             val open = context.packageManager.getLaunchIntentForPackage(context.packageName)
             val pi = PendingIntent.getActivity(
-                context, t.id.toInt(), open ?: Intent(), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                context, t.id.hashCode(), open ?: Intent(), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
             val notif = NotificationCompat.Builder(context, CHANNEL)
                 .setSmallIcon(android.R.drawable.ic_menu_mylocation)
@@ -66,7 +66,7 @@ object GeoReminders {
                 .setContentIntent(pi)
                 .setAutoCancel(true)
                 .build()
-            runCatching { nm.notify(t.id.toInt(), notif) }
+            runCatching { nm.notify(t.id.hashCode(), notif) }
         }
     }
 

@@ -253,6 +253,7 @@ fun TaskListScreen(
     var menuOpen by remember { mutableStateOf(false) }
     var sortMenuOpen by remember { mutableStateOf(false) }
     var energySheet by remember { mutableStateOf(false) }
+    var easeSheet by remember { mutableStateOf(false) }
     var scanSheetOpen by remember { mutableStateOf(false) }
     var voiceOpen by remember { mutableStateOf(false) }
     var qaOpen by remember { mutableStateOf(false) }
@@ -392,10 +393,49 @@ fun TaskListScreen(
                 }
                 AreaSwitcher(areas, activeAreaId, onSelectArea) { dialog = DialogKind.NewArea }
                 Spacer(Modifier.weight(1f))
-                // Buźka energii dnia (tylko w „Dziś") — dotknięcie otwiera wybór poziomu.
+                // Buźka energii dnia (tylko w „Dziś") — dotknięcie otwiera krótką chmurkę.
                 uiState.energyLevel?.let { lvl ->
-                    CircleGlassButton({ energySheet = true }) {
-                        Text(lvl.emoji, fontSize = 18.sp)
+                    Box {
+                        CircleGlassButton({ energySheet = true }) { Text(lvl.emoji, fontSize = 18.sp) }
+                        GlassMenu(expanded = energySheet, onDismiss = { energySheet = false }) {
+                            val headline = when (lvl) {
+                                pl.media30.todoisto.data.EnergyLevel.LOW -> "Dziś na luzie"
+                                pl.media30.todoisto.data.EnergyLevel.HIGH -> "Zdziałasz dużo"
+                                else -> "Przyzwoicie"
+                            }
+                            Text(lvl.emoji + " " + headline, fontSize = 15.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary,
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp))
+                            val why = if (uiState.energyManual) listOf("Wybrane przez Ciebie")
+                                else uiState.energyReasons.take(2).map { it.replaceFirstChar { c -> c.uppercase() } }
+                            why.forEach { r ->
+                                Text("• $r", fontSize = 12.5.sp, color = GlassTextSecondary, modifier = Modifier.padding(horizontal = 18.dp, vertical = 1.dp))
+                            }
+                            Text(
+                                when (lvl) {
+                                    pl.media30.todoisto.data.EnergyLevel.LOW -> "Lżejsze zadania ułożyłem wyżej."
+                                    pl.media30.todoisto.data.EnergyLevel.HIGH -> "Trudne zadania ułożyłem wyżej."
+                                    else -> "Kolejność bez zmian."
+                                },
+                                fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = GlassTextPrimary,
+                                modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 6.dp, bottom = 4.dp)
+                            )
+                            if (lvl == pl.media30.todoisto.data.EnergyLevel.LOW && uiState.heavyTasks.isNotEmpty()) {
+                                GlassMenuItem("Ułatw z AI (${uiState.heavyTasks.size})", Icons.Outlined.AutoAwesome) { energySheet = false; easeSheet = true }
+                            }
+                            GlassMenuDivider()
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                pl.media30.todoisto.data.EnergyLevel.entries.forEach { e ->
+                                    val sel = uiState.energyManual && uiState.energyLevel == e
+                                    Box(
+                                        Modifier.size(44.dp).clip(CircleShape)
+                                            .background(if (sel) GlassAccent.copy(alpha = 0.22f) else GlassAccent.copy(alpha = 0.08f))
+                                            .bouncy(0.9f) { onSetEnergy(e); energySheet = false },
+                                        contentAlignment = Alignment.Center
+                                    ) { Text(e.emoji, fontSize = 22.sp) }
+                                }
+                            }
+                            if (uiState.energyManual) GlassMenuItem("Wg danych", Icons.Outlined.Autorenew) { onSetEnergy(null); energySheet = false }
+                        }
                     }
                 }
                 // Tydzień (asystent AI) — kółko
@@ -426,22 +466,15 @@ fun TaskListScreen(
                         }
                     }
                 }
-                if (energySheet) {
-                    QAPickSheet("Jak dziś z energią?", onDismiss = { energySheet = false }) {
-                        pl.media30.todoisto.data.EnergyLevel.entries.forEach { e ->
+                if (easeSheet) {
+                    QAPickSheet("Ułatw z AI — które zadanie?", onDismiss = { easeSheet = false }) {
+                        uiState.heavyTasks.forEach { t ->
                             QAPickRow(
-                                label = e.label, selected = uiState.energyManual && uiState.energyLevel == e,
-                                onClick = { onSetEnergy(e); energySheet = false },
-                                icon = { Text(e.emoji, fontSize = 20.sp) }
+                                label = t.title, selected = false,
+                                onClick = { easeSheet = false; onEaseWithAi(t) },
+                                icon = { Icon(Icons.Outlined.AutoAwesome, null, tint = Color(0xFF6B3FE0), modifier = Modifier.size(20.dp)) }
                             )
                         }
-                        if (uiState.energyManual) QAPickRow(
-                            label = "Wg danych (sen, tętno, wczoraj)", selected = false,
-                            onClick = { onSetEnergy(null); energySheet = false },
-                            icon = { Icon(Icons.Outlined.Autorenew, null, tint = Color(0xFF6B3FE0), modifier = Modifier.size(20.dp)) }
-                        )
-                        if (uiState.energyReasons.isNotEmpty() && !uiState.energyManual)
-                            Text("Szacuję: " + uiState.energyReasons.joinToString(", "), fontSize = 12.sp, color = Color(0xFF6E6285), modifier = Modifier.padding(start = 6.dp, top = 8.dp))
                     }
                 }
                 if (sortMenuOpen) {
@@ -939,7 +972,6 @@ private fun ZenContent(
                         Box(Modifier.size(34.dp, 3.dp).clip(RoundedCornerShape(2.dp)).background(GlassAccent.copy(alpha = 0.5f)))
                     }
                 }
-                item(key = "energy") { EnergyBanner(uiState, onSetEnergy, onEaseWithAi) }
                 if (orderedNodes.isEmpty()) {
                     item(key = "empty") {
                         // Dyskretna nagroda — tylko gdy lista opróżniła się na naszych oczach.
@@ -1667,63 +1699,6 @@ private fun SortSheet(current: SortMode, onPick: (SortMode) -> Unit, onDismiss: 
  * Pokazuje też, DLACZEGO lista wygląda tak, a nie inaczej, i pozwala to wyłączyć.
  * Przy słabszej formie oferuje „Ułatw z AI” dla ciężkich zadań.
  */
-@Composable
-private fun EnergyBanner(uiState: TodoUiState, onSet: (pl.media30.todoisto.data.EnergyLevel?) -> Unit, onEase: (Task) -> Unit) {
-    val level = uiState.energyLevel ?: return
-    var pickEase by remember { mutableStateOf(false) }
-    if (pickEase) {
-        QAPickSheet("Ułatw z AI — które zadanie?", onDismiss = { pickEase = false }) {
-            uiState.heavyTasks.forEach { t ->
-                QAPickRow(
-                    label = t.title, selected = false,
-                    onClick = { pickEase = false; onEase(t) },
-                    icon = { Icon(Icons.Outlined.AutoAwesome, null, tint = Color(0xFF6B3FE0), modifier = Modifier.size(20.dp)) }
-                )
-            }
-        }
-    }
-    val hint = when (level) {
-        pl.media30.todoisto.data.EnergyLevel.LOW -> "lekkie zadania wyżej"
-        pl.media30.todoisto.data.EnergyLevel.HIGH -> "trudne zadania wyżej"
-        else -> "kolejność bez zmian"
-    }
-    Column(
-        Modifier.fillMaxWidth().padding(vertical = 6.dp).glass(RoundedCornerShape(20.dp)).padding(horizontal = 14.dp, vertical = 11.dp)
-    ) {
-        if (!uiState.energyManual) {
-            Text("Jak dziś z energią?", fontSize = 13.5.sp, fontWeight = FontWeight.W800, color = GlassTextPrimary)
-            if (uiState.energyReasons.isNotEmpty())
-                Text("Szacuję: " + uiState.energyReasons.joinToString(", "), fontSize = 11.5.sp, color = GlassTextSecondary, modifier = Modifier.padding(top = 2.dp))
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                pl.media30.todoisto.data.EnergyLevel.entries.forEach { e ->
-                    Row(
-                        Modifier.weight(1f).clip(RoundedCornerShape(50)).background(GlassAccent.copy(alpha = 0.12f))
-                            .bouncy(0.95f) { onSet(e) }.padding(vertical = 9.dp),
-                        horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
-                    ) { Text(e.emoji + " " + e.label, fontSize = 12.5.sp, fontWeight = FontWeight.W800, color = GlassAccent) }
-                }
-            }
-            Text(hint, fontSize = 11.5.sp, color = GlassTextSecondary, modifier = Modifier.padding(top = 8.dp))
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(level.emoji + " " + level.label + " — " + hint, fontSize = 12.5.sp, fontWeight = FontWeight.W700, color = GlassTextPrimary, modifier = Modifier.weight(1f))
-            }
-        }
-        if (level == pl.media30.todoisto.data.EnergyLevel.LOW && uiState.heavyTasks.isNotEmpty()) {
-            Row(
-                Modifier.padding(top = 9.dp).clip(RoundedCornerShape(50)).background(Color(0xFF6B3FE0))
-                    .bouncy(0.95f) { pickEase = true }.padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Outlined.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(15.dp))
-                Spacer(Modifier.width(7.dp))
-                Text("Ułatw z AI · ciężkie zadania (" + uiState.heavyTasks.size + ")", fontSize = 12.sp, fontWeight = FontWeight.W800, color = Color.White)
-            }
-        }
-    }
-}
-
 @Composable
 private fun EmptyState(head: String, sub: String) {
     Column(Modifier.fillMaxWidth().padding(vertical = 70.dp), horizontalAlignment = Alignment.CenterHorizontally) {

@@ -343,16 +343,7 @@ class TodoViewModel(
      * Zwraca ważny token sesji: gdy stary wygasł (Supabase: ~1 h), odświeża go
      * refresh tokenem. Null = trzeba zalogować się ponownie.
      */
-    private suspend fun freshToken(c: pl.media30.todoisto.data.CloudStore): String? {
-        if (!c.signedIn) return null
-        if (!c.tokenStale) return c.token0
-        val rt = c.refreshToken
-        if (rt.isBlank()) return null
-        val r = pl.media30.todoisto.data.SupabaseClient.refresh(c.url0, c.anonKey0, rt)
-        return if (r.token != null && r.userId != null) {
-            c.setSession(r.email ?: c.cloudEmail.value, r.token, r.userId, r.refreshToken, r.expiresAt); r.token
-        } else null
-    }
+    private suspend fun freshToken(c: pl.media30.todoisto.data.CloudStore): String? = c.freshToken()
     private val SESSION_EXPIRED = "Sesja w chmurze wygasła — wyloguj się i zaloguj ponownie."
 
     fun cloudSignOut() {
@@ -963,6 +954,7 @@ class TodoViewModel(
             .forEach { repository.update(it.copy(dueDate = today)) }
     }
     fun deleteTask(task: Task) = viewModelScope.launch { repository.deleteWithSubtasks(task.id) }
+    fun retryRoute(id: Long) = viewModelScope.launch { repository.retryRoute(id) }
     fun deleteCompleted() = viewModelScope.launch { repository.deleteCompleted() }
     fun duplicateTask(id: Long) = viewModelScope.launch { repository.duplicateTask(id) }
 

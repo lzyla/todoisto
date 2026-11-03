@@ -132,7 +132,8 @@ fun TaskDetailSheet(
     onClose: () -> Unit,
     onAskAi: (String) -> Unit = {},
     aiExpanded: Boolean = false,
-    aiState: pl.media30.todoisto.ui.AiAskState? = null
+    aiState: pl.media30.todoisto.ui.AiAskState? = null,
+    onRetryRoute: () -> Unit = {}
 ) {
     var newSubtask by remember { mutableStateOf("") }
     var newLink by remember { mutableStateOf("") }
@@ -264,6 +265,32 @@ fun TaskDetailSheet(
             PresetChip("Brak", task.durationMinutes == null, Color(0xFF6B3FE0)) { onPatch(task.copy(durationMinutes = null)) }
             listOf(15 to "15 min", 30 to "30 min", 45 to "45 min", 60 to "1h", 120 to "2h").forEach { (v, t) ->
                 PresetChip(t, task.durationMinutes == v, Color(0xFF6B3FE0)) { onPatch(task.copy(durationMinutes = v)) }
+            }
+        }
+
+        // Przekazanie do Notion (jednokierunkowe) — stan kolejki i link do strony.
+        if (task.routeState != null || task.remoteUrl != null) {
+            val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+            val err = task.routeState?.takeIf { it.startsWith("error:") }?.removePrefix("error:")
+            val summary = when {
+                task.remoteUrl != null -> "Wysłane"
+                task.routeState == "pending" -> "W kolejce"
+                err != null -> "Błąd"
+                else -> ""
+            }
+            DetailSection("Notion", Color(0xFF9AA6FF), summary = summary, defaultExpanded = err != null) {
+                Column {
+                    when {
+                        task.remoteUrl != null -> Text("Otwórz stronę w Notion", color = GlassAccent, fontSize = 14.sp,
+                            modifier = Modifier.bouncy(0.97f) { runCatching { uriHandler.openUri(task.remoteUrl!!) } }.padding(vertical = 6.dp))
+                        task.routeState == "pending" -> Text("Czeka na wysłanie — wyjdzie, gdy będzie sieć.", color = GlassTextSecondary, fontSize = 13.sp)
+                        err != null -> {
+                            Text(err, color = Color(0xFFFB7185), fontSize = 13.sp)
+                            Text("Spróbuj ponownie", color = GlassAccent, fontSize = 14.sp,
+                                modifier = Modifier.bouncy(0.97f, onRetryRoute).padding(vertical = 6.dp))
+                        }
+                    }
+                }
             }
         }
 

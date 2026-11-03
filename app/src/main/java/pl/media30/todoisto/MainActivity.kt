@@ -492,6 +492,7 @@ fun TodoistoApp(
                     detailTaskId = null
                 },
                 onClose = { detailTaskId = null; viewModel.dismissAi() },
+                onRetryRoute = { viewModel.retryRoute(detailTask.id) },
                 onAskAi = viewModel::askAi,
                 aiExpanded = detailAiExpanded,
                 aiState = aiAsk

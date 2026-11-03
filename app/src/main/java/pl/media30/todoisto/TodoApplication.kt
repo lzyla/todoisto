@@ -16,12 +16,15 @@ class TodoApplication : Application() {
         TaskRepository(db.taskDao(), db.projectDao(), db.sectionDao(), db.labelDao(), db.activityDao(), db.areaDao(), db.tombstoneDao()).also { repo ->
             // Każdy zapis zadania → alarm zgodny z danymi; dane z innego urządzenia → odtwórz alarmy.
             repo.onReminderChanged = { t -> runCatching { pl.media30.todoisto.data.Reminders.sync(this, t) } }
+            repo.routingPolicy = { t -> routing.shouldRoute(t) }
+            repo.onRoutingQueued = { pl.media30.todoisto.data.RouteWorker.enqueue(this) }
             repo.onImported = { appScope.launch { runCatching { pl.media30.todoisto.data.Reminders.rescheduleAll(this@TodoApplication) } } }
         }
     }
     val settings: SettingsStore by lazy { SettingsStore(this) }
     val account: pl.media30.todoisto.data.AccountStore by lazy { pl.media30.todoisto.data.AccountStore(this) }
     val cloud: pl.media30.todoisto.data.CloudStore by lazy { pl.media30.todoisto.data.CloudStore(this) }
+    val routing: pl.media30.todoisto.data.RoutingStore by lazy { pl.media30.todoisto.data.RoutingStore(this, cloud) }
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -38,6 +41,9 @@ class TodoApplication : Application() {
             }
             // Przypomnienia czasowe — odtwórz przyszłe alarmy (np. po aktualizacji apki).
             runCatching { pl.media30.todoisto.data.Reminders.rescheduleAll(this@TodoApplication) }
+            // Przekazywanie do Notion: odśwież konfigurację i dokończ zaległą kolejkę.
+            if (cloud.signedIn) runCatching { routing.refresh() }
+            if (repository.pendingRoutes().isNotEmpty()) pl.media30.todoisto.data.RouteWorker.enqueue(this@TodoApplication)
             // Codzienna lokalna kopia JSON (siatka bezpieczeństwa niezależna od chmury).
             pl.media30.todoisto.data.DbSafety.dailyJsonBackup(this@TodoApplication, repository)
         }

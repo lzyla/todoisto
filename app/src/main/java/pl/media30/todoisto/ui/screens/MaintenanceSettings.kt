@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import kotlinx.coroutines.launch
 import pl.media30.todoisto.data.DbSafety
 import pl.media30.todoisto.data.ReminderHealth
 import pl.media30.todoisto.data.ReminderLog
@@ -192,6 +193,83 @@ internal fun DataSettings(vm: pl.media30.todoisto.ui.TodoViewModel?) {
             text = { Text("Dane z ${f.nameWithoutExtension.removePrefix("todoisto-")} zostaną scalone z obecnymi. Nowsze wersje zadań zostają, usunięte nie wracają.") },
             confirmButton = { androidx.compose.material3.TextButton(onClick = { vm.importLocalBackup(f); confirmFile = null }) { Text("Scal") } },
             dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmFile = null }) { Text("Anuluj") } }
+        )
+    }
+}
+
+/**
+ * Przekazywanie do Notion: który projekt Todoisto trafia do której bazy (kanbanu).
+ * Token Notion NIE jest tu wpisywany — żyje wyłącznie w sekretach Edge Function.
+ */
+@Composable
+internal fun NotionSettings(vm: pl.media30.todoisto.ui.TodoViewModel?) {
+    val ctx = LocalContext.current
+    val app = ctx.applicationContext as pl.media30.todoisto.TodoApplication
+    if (vm == null) { Hint("Niedostępne w tym widoku."); return }
+    val projects by vm.projects.collectAsState()
+    val dests by app.routing.destinations.collectAsState()
+    var busy by remember { mutableStateOf(false) }
+    var msg by remember { mutableStateOf<String?>(null) }
+    var editing by remember { mutableStateOf<pl.media30.todoisto.data.Project?>(null) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    fun run(block: suspend () -> String?) { busy = true; scope.launch { msg = block() ?: "Zapisano."; busy = false } }
+
+    LaunchedEffect(Unit) { if (app.cloud.signedIn) { busy = true; msg = app.routing.refresh(); busy = false } }
+
+    if (!app.cloud.signedIn) {
+        Hint("Najpierw zaloguj się w chmurze (Ustawienia → Konto). Konfiguracja przekazywania jest zapisywana w Supabase.")
+        return
+    }
+    SettingsSection("Projekty → bazy Notion")
+    SettingsCard {
+        projects.filter { !it.isArchived }.forEachIndexed { i, p ->
+            if (i > 0) RowDivider()
+            val d = dests[p.id]
+            NavRow(
+                Icons.Outlined.CloudUpload, if (d != null) OK else GlassTextSecondary, p.name,
+                if (d != null) "Notion · status „${d.statusValue}”" else "Nie przekazywany",
+                trailing = { StatusDot(d != null) }
+            ) { editing = p }
+        }
+    }
+    Hint(
+        when {
+            busy -> "Pracuję…"
+            msg != null -> msg!!
+            else -> "Przekazywane są zadania główne utworzone PO włączeniu (bez podzadań i bez starych zadań). " +
+                "Baza musi mieć kolumnę tekstową „Todoisto ID” i być udostępniona integracji Notion."
+        }
+    )
+
+    editing?.let { p ->
+        val d = dests[p.id]
+        var link by remember(p.id) { mutableStateOf(d?.notionDatabaseId ?: "") }
+        var status by remember(p.id) { mutableStateOf(d?.statusValue ?: "To do") }
+        var statusCol by remember(p.id) { mutableStateOf(d?.statusProperty ?: "") }
+        var dateCol by remember(p.id) { mutableStateOf(d?.dateProperty ?: "") }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { editing = null },
+            title = { Text("„${p.name}” → Notion") },
+            text = {
+                androidx.compose.foundation.layout.Column {
+                    androidx.compose.material3.OutlinedTextField(link, { link = it }, label = { Text("Link do bazy Notion") }, singleLine = true)
+                    androidx.compose.material3.OutlinedTextField(status, { status = it }, label = { Text("Wartość statusu (kolumna „do zrobienia”)") }, singleLine = true)
+                    androidx.compose.material3.OutlinedTextField(statusCol, { statusCol = it }, label = { Text("Kolumna statusu (puste = wykryj)") }, singleLine = true)
+                    androidx.compose.material3.OutlinedTextField(dateCol, { dateCol = it }, label = { Text("Kolumna terminu (puste = wykryj)") }, singleLine = true)
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    editing = null
+                    run { app.routing.save(p.id, link, status, statusCol, dateCol) }
+                }) { Text("Zapisz") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    editing = null
+                    if (d != null) run { app.routing.remove(p.id) }
+                }) { Text(if (d != null) "Wyłącz" else "Anuluj") }
+            }
         )
     }
 }

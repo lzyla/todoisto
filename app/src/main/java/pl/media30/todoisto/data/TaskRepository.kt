@@ -121,9 +121,12 @@ class TaskRepository(
         val prev = taskDao.getTaskById(task.id)
         val shifted = if (prev != null && prev.reminderAt == task.reminderAt)
             task.copy(reminderAt = Reminders.shiftWithDueDate(task.reminderAt, prev.dueDate, task.dueDate)) else task
-        val t = withRouting(shifted)
+        // Stan przekazania należy do kolejki, nie do UI: edycja ze „starej" kopii
+        // zadania nie może cofnąć „sent" ani zgubić linku do Notion.
+        val kept = if (prev != null) shifted.copy(routeState = prev.routeState, remoteUrl = prev.remoteUrl ?: shifted.remoteUrl) else shifted
+        val t = withRouting(kept)
         taskDao.update(t)
-        if (t.routeState == "pending" && task.routeState != "pending") onRoutingQueued()
+        if (t.routeState == "pending" && prev?.routeState != "pending") onRoutingQueued()
         onReminderChanged(t)
     }
     /** Zapisuje ręczną kolejność: pozycja = indeks na liście. */
@@ -261,6 +264,12 @@ class TaskRepository(
     // --- przekazywanie do narzędzi projektów (Notion) ---
     suspend fun pendingRoutes(): List<Task> = taskDao.getPendingRoutes()
     suspend fun setRouteState(id: Long, state: String?, remoteUrl: String? = null) = taskDao.setRouteState(id, state, remoteUrl)
+
+    /** Ponowna próba po błędzie (np. po poprawieniu kolumn w Notion). */
+    suspend fun retryRoute(id: Long) {
+        taskDao.setRouteState(id, "pending", null)
+        onRoutingQueued()
+    }
 
     private suspend fun ensureActivityLabel(): Long =
         labelDao.findByName(ACTIVITY_LABEL)?.id

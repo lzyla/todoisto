@@ -59,13 +59,19 @@ data class UiState(
     val currentLabel: CloudLabel? = null,
     val routines: List<CloudTask> = emptyList(),
     val routinesDone: Int = 0,
-    val estTodayMinutes: Int = 0
+    val estTodayMinutes: Int = 0,
+    val energyLevel: EnergyLevel? = null,
+    val energyReasons: List<String> = emptyList(),
+    val energyManual: Boolean = false,
+    val heavyTasks: List<CloudTask> = emptyList(),
+    val allRoutines: List<CloudTask> = emptyList()
 )
 
 data class AiAskState(val loading: Boolean = false, val answer: String? = null, val error: String? = null, val needsKey: Boolean = false)
 data class ScanState(val loading: Boolean = false, val summary: String = "", val tasks: List<String> = emptyList(), val suggestion: String = "", val plan: String = "", val error: String? = null, val needsKey: Boolean = false)
 data class EstimateAiState(val loading: Boolean = false, val minutes: Int? = null, val error: String? = null, val needsKey: Boolean = false)
 data class AiCostState(val loading: Boolean = false, val amountUsd: Double? = null, val error: String? = null)
+data class HealthState(val busy: Boolean = false, val message: String? = null, val error: String? = null)
 data class CloudState(val busy: Boolean = false, val message: String? = null, val error: String? = null)
 data class GmailState(val loading: Boolean = false, val info: String? = null, val error: String? = null)
 data class FreeTimeState(val freeMinutes: Int, val suggestions: List<Suggestion>, val poolEmpty: Boolean, val noWindows: Boolean)
@@ -115,6 +121,17 @@ class AppState(val repo: TaskRepository, val settings: AppSettings, val scope: C
     var voiceHint by mutableStateOf(false)
     var quickAddOpen by mutableStateOf(false)
     var quickAddText by mutableStateOf("")
+    // Ręczne wybory w panelu „Nowe zadanie" (null = z tekstu / domyślnie)
+    var qaDue by mutableStateOf<Long?>(null)
+    var qaPriority by mutableStateOf<String?>(null)
+    var qaProject by mutableStateOf<Long?>(null)
+    var qaLabels by mutableStateOf<List<Long>>(emptyList())
+    fun qaOverrides() = QuickAddOverrides(qaDue, qaPriority, qaProject, qaLabels)
+    fun qaReset() { qaDue = null; qaPriority = null; qaProject = null; qaLabels = emptyList() }
+    var energyOpen by mutableStateOf(false)
+    var easeOpen by mutableStateOf(false)
+    var routEditOpen by mutableStateOf(false)
+    var health by mutableStateOf(HealthState())
     var editingActivity by mutableStateOf<Activity?>(null)
     var showActivityForm by mutableStateOf(false)
     var detailTaskId by mutableStateOf<Long?>(null)
@@ -170,16 +187,29 @@ class AppState(val repo: TaskRepository, val settings: AppSettings, val scope: C
             SortMode.ALPHA -> matching.sortedBy { it.title.lowercase() }
             SortMode.NEWEST -> matching.sortedByDescending { it.createdAt }
         }
+        // Energia dnia: sygnały zdrowotne + wczorajsza praca; ręczny wybór wygrywa.
+        val zoneE = ZoneId.systemDefault()
+        val yStart = LocalDate.now().minusDays(1).atStartOfDay(zoneE).toInstant().toEpochMilli()
+        val tStart = LocalDate.now().atStartOfDay(zoneE).toInstant().toEpochMilli()
+        val yDone = tasks.filter { it.isCompleted && (it.completedAt ?: 0L) in yStart until tStart }
+        val lastMin = yDone.maxOfOrNull { it.completedAt!! }?.let { Instant.ofEpochMilli(it).atZone(zoneE).toLocalTime().let { lt -> lt.hour * 60 + lt.minute } }
+        val healthSig = settings.healthSignals.takeIf { it.isNotBlank() }
+            ?.let { runCatching { HealthClient.parse(org.json.JSONObject(it)) }.getOrNull() } ?: EnergySignals()
+        val estimate = EnergyModel.estimate(healthSig.copy(prevDayWorkMinutes = yDone.sumOf { it.durationMinutes ?: 25 }, prevDayLastWorkMinute = lastMin))
+        val manual = settings.energyManualToday(today)
+        val energy = EnergyModel.resolve(manual, estimate)
+        val subCount = { t: CloudTask -> tasks.count { it.parentId == t.id } }
+        val ordered = if (v == AppView.Today && sort == SortMode.NEAREST) TaskLoad.reorder(sorted, energy, today, subCount) else sorted
         fun nodeOf(t: CloudTask) = TaskNode(t, tasks.filter { it.parentId == t.id })
         val groups: List<SectionGroup> = if (v is AppView.ProjectView) {
             val projectSections = repo.sections.filter { it.projectId == v.id }
-            val bySection = sorted.groupBy { it.sectionId }
+            val bySection = ordered.groupBy { it.sectionId }
             buildList {
                 val noSection = bySection[null].orEmpty().map(::nodeOf)
                 if (noSection.isNotEmpty()) add(SectionGroup(null, null, noSection))
                 projectSections.forEach { sec -> add(SectionGroup(sec.id, sec.name, bySection[sec.id].orEmpty().map(::nodeOf))) }
             }
-        } else listOf(SectionGroup(null, null, sorted.map(::nodeOf)))
+        } else listOf(SectionGroup(null, null, ordered.map(::nodeOf)))
 
         val title = when (v) {
             AppView.Today -> "Dzisiaj"; AppView.Upcoming -> "Nadchodzące"; AppView.Inbox -> "Skrzynka"; AppView.Completed -> "Ukończone"
@@ -206,7 +236,11 @@ class AppState(val repo: TaskRepository, val settings: AppSettings, val scope: C
             currentProject = (v as? AppView.ProjectView)?.let { repo.project(it.id) },
             currentLabel = (v as? AppView.LabelView)?.let { repo.label(it.id) },
             routines = routines, routinesDone = routinesDone,
-            estTodayMinutes = topLevel.filter { !it.isCompleted && it.dueDate != null && it.dueDate!! <= today && !inArchived(it) && !isRoutine(it) }.sumOf { it.durationMinutes ?: 20 }
+            estTodayMinutes = topLevel.filter { !it.isCompleted && it.dueDate != null && it.dueDate!! <= today && !inArchived(it) && !isRoutine(it) }.sumOf { it.durationMinutes ?: 20 },
+            energyLevel = if (v == AppView.Today) energy else null,
+            energyReasons = estimate.reasons, energyManual = manual != null,
+            heavyTasks = if (v == AppView.Today) matching.filter { TaskLoad.isHeavy(it, subCount(it)) } else emptyList(),
+            allRoutines = topLevelAll.filter { !it.isCompleted && !inArchived(it) && isRoutine(it) }.sortedBy { it.title.lowercase() }
         )
     }
 
@@ -225,13 +259,13 @@ class AppState(val repo: TaskRepository, val settings: AppSettings, val scope: C
     }
 
     // ── Akcje na zadaniach ─────────────────────────────────────────────────
-    fun quickAdd(raw: String): CloudTask? {
+    fun quickAdd(raw: String, overrides: QuickAddOverrides = QuickAddOverrides()): CloudTask? {
         val v = view
         val t = repo.quickAdd(
             raw, dateRecognition = settings.dateRecognition,
             viewProjectId = (v as? AppView.ProjectView)?.id,
             defaultDue = if (v == AppView.Today) today else null,
-            areaId = activeArea
+            areaId = activeArea, overrides = overrides
         ) ?: return null
         changed()
         toast = "Dodano: ${t.title}"
@@ -259,6 +293,8 @@ class AppState(val repo: TaskRepository, val settings: AppSettings, val scope: C
         detailTaskId = task.id; detailAiExpanded = true
         askAi(AutomationAdvisor.advise(task.title, task.notes).aiPrompt)
     }
+    fun setEnergy(level: EnergyLevel?) { settings.setEnergy(level, today); changed() }
+    fun easeWithAi(task: CloudTask) { detailTaskId = task.id; detailAiExpanded = true; askAi(easePrompt(task)) }
     fun changeSort(m: SortMode) { sort = m; settings.sortMode = m.name }
     // Historia widoków (strzałki ‹ › w pasku, jak w Todoist).
     private val history = mutableListOf<AppView>(view)
@@ -387,6 +423,38 @@ class AppState(val repo: TaskRepository, val settings: AppSettings, val scope: C
             else if (!autoSyncWarned) { autoSyncWarned = true; toastMillis = 8000; toast = "Synchronizacja nie działa: ${r.message}" }
             if (!auto) cloud = if (r.ok) CloudState(message = r.message) else CloudState(error = r.message)
         }
+    }
+
+    // ── Google Health ──────────────────────────────────────────────────────
+    private val healthClient by lazy { HealthClient(settings) }
+    /** Cicho odświeża sygnały (start aplikacji / powrót z przeglądarki). */
+    fun healthRefresh(silent: Boolean = true) {
+        if (!settings.healthConnected && silent) return
+        health = HealthState(busy = true)
+        scope.launch {
+            val r = withContext(Dispatchers.IO) { healthClient.sync() }
+            settingsChanged(); changed()
+            health = when (r) {
+                is HealthClient.Result.Ok -> HealthState(message = "Dane z Google Health odświeżone.")
+                HealthClient.Result.NotConnected -> HealthState(message = if (silent) null else "Google Health nie jest połączone.")
+                HealthClient.Result.Expired -> HealthState(error = "Zgoda Google wygasła — połącz ponownie.")
+                is HealthClient.Result.Error -> HealthState(error = r.message)
+            }
+        }
+    }
+    fun healthConnect() {
+        health = HealthState(busy = true)
+        scope.launch {
+            val (url, err) = withContext(Dispatchers.IO) { healthClient.startUrl() }
+            if (url == null) { health = HealthState(error = err ?: "Nie udało się rozpocząć łączenia."); return@launch }
+            runCatching { java.awt.Desktop.getDesktop().browse(java.net.URI(url)) }
+                .onFailure { health = HealthState(error = "Nie udało się otworzyć przeglądarki."); return@launch }
+            health = HealthState(message = "Zatwierdź zgodę w przeglądarce, potem wróć i naciśnij „Odśwież”.")
+        }
+    }
+    fun healthDisconnect() {
+        health = HealthState(busy = true)
+        scope.launch { withContext(Dispatchers.IO) { healthClient.disconnect() }; settingsChanged(); changed(); health = HealthState(message = "Rozłączono Google Health.") }
     }
 
     // ── Gmail ──────────────────────────────────────────────────────────────

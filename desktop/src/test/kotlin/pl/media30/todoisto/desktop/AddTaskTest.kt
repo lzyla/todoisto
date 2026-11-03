@@ -41,6 +41,14 @@ class AddTaskTest {
         assertNotNull(repo.tasks.single().dueDate)
     }
 
+    @Test fun `manual picks override parsed tokens`() {
+        val repo = TaskRepository()
+        val t = repo.quickAdd("Raport jutro p1", overrides = QuickAddOverrides(dueDate = LocalDate.now().plusDays(3).toEpochDay(), priority = "P2"))!!
+        assertEquals("P2", t.priority)
+        assertEquals(LocalDate.now().plusDays(3).toEpochDay(), t.dueDate)
+        assertEquals("Raport", t.title)
+    }
+
     @Test fun `unknown hashtag does not blank the title`() {
         val p = QuickAddParser().parse("#Praca raport dla szefa")
         assertTrue(p.title.isNotBlank())

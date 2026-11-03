@@ -113,24 +113,26 @@ class TaskRepository {
      */
     fun quickAdd(
         raw: String, dateRecognition: Boolean = true,
-        viewProjectId: Long? = null, defaultDue: Long? = null, areaId: Long? = null
+        viewProjectId: Long? = null, defaultDue: Long? = null, areaId: Long? = null,
+        overrides: QuickAddOverrides = QuickAddOverrides()
     ): CloudTask? {
         if (raw.isBlank()) return null
         val parsed = if (dateRecognition) QuickAddParser().parse(raw) else null
         val title = parsed?.title?.ifBlank { raw.trim() } ?: raw.trim()
         val projectId = when {
+            overrides.projectId != null -> overrides.projectId
             parsed?.projectName != null -> ensureProject(parsed.projectName!!)
             viewProjectId != null -> viewProjectId
             else -> null
         }
-        val labelIds = parsed?.labelNames?.map { ensureLabel(it) }?.filter { it != 0L } ?: emptyList()
+        val labelIds = ((parsed?.labelNames?.map { ensureLabel(it) }?.filter { it != 0L } ?: emptyList()) + overrides.labelIds).distinct()
         val recurrence = parsed?.recurrence
-        val dueDate = parsed?.dueDate ?: (if (recurrence != null) LocalDate.now().toEpochDay() else defaultDue)
+        val dueDate = overrides.dueDate ?: parsed?.dueDate ?: (if (recurrence != null) LocalDate.now().toEpochDay() else defaultDue)
         val dueTime = parsed?.dueTimeMinutes
         // Czas LOKALNY (wcześniej UTC → przypomnienie 1–2 h za późno w Polsce).
         val reminderAt = if (dueDate != null && dueTime != null) localMillis(dueDate, dueTime) else null
         return add(CloudTask(
-            id = 0, title = title, priority = (parsed?.priority ?: Priority.P4).name,
+            id = 0, title = title, priority = overrides.priority ?: (parsed?.priority ?: Priority.P4).name,
             dueDate = dueDate, dueTimeMinutes = dueTime, durationMinutes = parsed?.durationMinutes,
             deadline = parsed?.deadline, recurrence = recurrence?.name, reminderAt = reminderAt,
             projectId = projectId, labelIds = labelIds, areaId = if (projectId == null) areaId else null
@@ -453,6 +455,18 @@ class AppSettings {
     /** Dock na dole: domyślnie wysuwa się po najechaniu myszą; true = zawsze widoczny. */
     var dockAlwaysVisible: Boolean get() = bool("dock_always", false); set(v) = prefs.putBoolean("dock_always", v)
 
+    // Energia dnia + Google Health (sygnały zapisujemy jako JSON z funkcji health-sync)
+    var healthConnected: Boolean get() = bool("health_connected", false); set(v) = prefs.putBoolean("health_connected", v)
+    var healthSignals: String get() = str("health_signals"); set(v) = prefs.put("health_signals", v)
+    fun setHealth(connected: Boolean, signalsJson: String?) { healthConnected = connected; healthSignals = signalsJson ?: "" }
+    /** Ręczny wybór energii obowiązuje tylko w dniu, w którym go zapisano ("epochDay:LEVEL"). */
+    var energyManualRaw: String get() = str("energy_manual"); set(v) = prefs.put("energy_manual", v)
+    fun energyManualToday(today: Long): EnergyLevel? {
+        val p = energyManualRaw.split(":"); if (p.size != 2 || p[0].toLongOrNull() != today) return null
+        return runCatching { EnergyLevel.valueOf(p[1]) }.getOrNull()
+    }
+    fun setEnergy(level: EnergyLevel?, today: Long) { energyManualRaw = level?.let { "$today:${it.name}" } ?: "" }
+
     // Ogólne
     var startView: String get() = str("start_view", "today").ifBlank { "today" }; set(v) = prefs.put("start_view", v)
     var dateRecognition: Boolean get() = bool("date_recognition", true); set(v) = prefs.putBoolean("date_recognition", v)
@@ -529,6 +543,14 @@ object DesktopNotifier {
         runCatching { tray?.displayMessage(title, text, java.awt.TrayIcon.MessageType.INFO) }
     }
 }
+
+/** Ręczne wybory z panelu „Nowe zadanie" — wygrywają z tokenami z tekstu (jak na telefonie). */
+data class QuickAddOverrides(
+    val dueDate: Long? = null,
+    val priority: String? = null,
+    val projectId: Long? = null,
+    val labelIds: List<Long> = emptyList()
+)
 
 /** Wynik synchronizacji do pokazania w UI. */
 data class SyncResult(val ok: Boolean, val message: String)

@@ -319,6 +319,8 @@ fun BoxScope.RoutinesPanel(st: AppState) {
                 Text("Rutyny", fontSize = 13.5.sp, fontWeight = FontWeight.W800, color = g.textPrimary, fontFamily = Sora)
                 Spacer(Modifier.width(10.dp))
                 Text(if (ui.routines.isEmpty()) "wszystkie zrobione" else "${ui.routinesDone} z $total zrobione", fontSize = 12.sp, color = g.textSecondary, fontFamily = Manrope, modifier = Modifier.weight(1f))
+                Text("Edytuj", fontSize = 12.sp, fontWeight = FontWeight.W700, color = g.accent, fontFamily = Manrope, modifier = Modifier.clip(RoundedCornerShape(50)).clickable { st.routEditOpen = true }.padding(horizontal = 10.dp, vertical = 6.dp))
+                Spacer(Modifier.width(4.dp))
                 Box(Modifier.size(28.dp).clip(CircleShape).background(g.accent.copy(alpha = 0.12f)).clickable { st.routOpen = false }, contentAlignment = Alignment.Center) {
                     Icon(Icons.Filled.KeyboardArrowDown, "Zwiń", tint = g.accent, modifier = Modifier.size(18.dp))
                 }

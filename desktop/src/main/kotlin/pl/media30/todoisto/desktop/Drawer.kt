@@ -77,6 +77,8 @@ fun DrawerPanel(st: AppState) {
         DrawerRow(Icons.Outlined.Inbox, "Skrzynka", ui.inboxCount, st.view == AppView.Inbox) { st.showView(AppView.Inbox) }
         DrawerRow(Icons.Outlined.CheckCircle, "Ukończone", null, st.view == AppView.Completed) { st.showView(AppView.Completed) }
         DrawerRow(Icons.Outlined.Bolt, "Pula aktywności", null, false) { st.showPool = true }
+        DrawerRow(Icons.Outlined.Schedule, "Czas wolny", null, false) { st.suggestFreeTime() }
+        DrawerRow(Icons.Outlined.Autorenew, "Rutyny — edycja", null, false) { st.routEditOpen = true }
         DrawerRow(Icons.Outlined.Insights, "Statystyki", null, false) { st.showStats = true }
 
         // Szacowany czas na dziś

@@ -148,6 +148,8 @@ fun App(holder: AppHolder, dragArea: @Composable (@Composable () -> Unit) -> Uni
         }
     }
     LaunchedEffect(st.dirty) { if (st.dirty > 0 && st.settings.autoSync && st.settings.signedIn) { delay(4000); st.runSync(auto = true) } }
+    // Google Health: przy starcie odśwież sygnały energii (jeśli połączone).
+    LaunchedEffect(st.settings.signedIn) { if (st.settings.signedIn && st.settings.healthConnected) st.healthRefresh() }
     LaunchedEffect(st.toast) { if (st.toast != null) { delay(st.toastMillis); st.toast = null; st.toastMillis = 3200 } }
     // Po aktualizacji sesja chmury wymaga hasła — powiedz to wprost zamiast cicho nie synchronizować.
     LaunchedEffect(Unit) {
@@ -210,6 +212,9 @@ fun App(holder: AppHolder, dragArea: @Composable (@Composable () -> Unit) -> Uni
 fun AppState.closeTopmost() {
     when {
         dialog != null -> dialog = null
+        easeOpen -> easeOpen = false
+        routEditOpen -> routEditOpen = false
+        energyOpen -> energyOpen = false
         reschedTask != null -> reschedTask = null
         scan != null -> scan = null
         showSort -> showSort = false
@@ -284,6 +289,8 @@ private fun TopBar(st: AppState) {
         ToolbarIcon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Dalej", enabled = st.canGoForward) { st.goForward() }
         Spacer(Modifier.weight(1f))
         if (st.syncing) Text("☁ synchronizuję…", fontSize = 11.5.sp, color = g.textSecondary, fontFamily = Manrope, modifier = Modifier.padding(end = 8.dp))
+        EnergyFace(st, ui)
+        Spacer(Modifier.width(4.dp))
         ToolbarIcon(Icons.Outlined.AutoAwesome, "Asystent tygodnia", tint = g.accent) { st.briefOpen = !st.briefOpen }
         ToolbarIcon(Icons.AutoMirrored.Outlined.Sort, "Widok: sortowanie") { st.showSort = true }
         Box {
@@ -462,6 +469,8 @@ private fun Overlays(st: AppState) {
     if (st.showActivityForm) ActivityFormSheet(st)
     st.freeTime?.let { FreeTimeSheet(st, it) }
     if (st.showImport) ImportActivitiesDialog(st)
+    if (st.easeOpen) EaseSheet(st)
+    if (st.routEditOpen) RoutinesEditSheet(st)
     st.reschedTask?.let { ReschedSheet(st, it) }
     st.dialog?.let { AppDialog(st, it) }
 }

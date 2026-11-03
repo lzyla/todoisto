@@ -60,9 +60,10 @@ fun BoxScope.QuickAddPanel(st: AppState) {
     val g = LocalGlass.current
     val focus = remember { FocusRequester() }
     var showDatePicker by remember { mutableStateOf(false) }
+    var picker by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    fun close() { st.quickAddOpen = false; st.voiceHint = false; showDatePicker = false }
-    fun submit() { if (st.quickAddText.isNotBlank()) { st.quickAdd(st.quickAddText); st.quickAddText = ""; close() } }
+    fun close() { st.quickAddOpen = false; st.voiceHint = false; showDatePicker = false; st.qaReset() }
+    fun submit() { if (st.quickAddText.isNotBlank()) { st.quickAdd(st.quickAddText, st.qaOverrides()); st.quickAddText = ""; close() } }
     fun insert(token: String) { st.quickAddText = (st.quickAddText.trimEnd() + " " + token).trimStart() }
 
     // Przyciemnienie zamyka.
@@ -104,39 +105,65 @@ fun BoxScope.QuickAddPanel(st: AppState) {
         if (parsed == null) Text("Rozpoznam datę, godzinę, #projekt, @etykietę, priorytet i cykl.", fontSize = 12.sp, color = g.textSecondary, fontFamily = Manrope)
         else Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             val today = st.today
-            parsed.dueDate?.let { QAChip(fmtDay(it, today), g.success) }
+            if (st.qaDue == null) parsed.dueDate?.let { QAChip(fmtDay(it, today), g.success) }
             parsed.dueTimeMinutes?.let { QAChip(hm(it), g.accent) }
             parsed.recurrence?.let { QAChip("⟳ ${it.label.lowercase()}", g.textSecondary) }
-            if (parsed.priority.name != "P4") QAChip(parsed.priority.name, priorityColorRaw(parsed.priority.name))
-            parsed.projectName?.let { QAChip("#$it", Color(0xFF4D6BFF)) }
+            if (st.qaPriority == null && parsed.priority.name != "P4") QAChip(parsed.priority.name, priorityColorRaw(parsed.priority.name))
+            if (st.qaProject == null) parsed.projectName?.let { QAChip("#$it", Color(0xFF4D6BFF)) }
             parsed.labelNames.forEach { QAChip("@$it", Color(0xFFC24DFF)) }
             parsed.durationMinutes?.let { QAChip("$it min", g.textSecondary) }
             if (parsed.title.isNotBlank()) Text("→ „${parsed.title}”", fontSize = 12.sp, color = g.textSecondary, fontFamily = Manrope, modifier = Modifier.align(Alignment.CenterVertically))
         }
         Spacer(Modifier.height(12.dp))
-        // Skróty
+        // Pasek jak w Todoist: wybór z listy ZASTĘPUJE poprzedni (bez dublowania p1 + p2).
         androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Chip("Dzień…", icon = Icons.Outlined.CalendarToday) { showDatePicker = !showDatePicker }
-            Chip("dzisiaj") { insert("dzisiaj") }
-            Chip("jutro") { insert("jutro") }
+            Chip(st.qaDue?.let { fmtDay(it, st.today) } ?: "Termin", selected = st.qaDue != null || picker == "due", color = g.success, icon = Icons.Outlined.CalendarToday) { picker = if (picker == "due") null else "due" }
+            Chip(st.qaPriority ?: "Priorytet", selected = st.qaPriority != null || picker == "prio", color = st.qaPriority?.let { priorityColorRaw(it) }) { picker = if (picker == "prio") null else "prio" }
+            Chip(st.qaProject?.let { id -> st.repo.project(id)?.name?.let { "#$it" } } ?: "Projekt", selected = st.qaProject != null || picker == "proj", color = Color(0xFF4D6BFF)) { picker = if (picker == "proj") null else "proj" }
+            Chip(if (st.qaLabels.isEmpty()) "Etykiety" else st.qaLabels.mapNotNull { st.repo.label(it)?.name }.joinToString(" ") { "@$it" }, selected = st.qaLabels.isNotEmpty() || picker == "lab", color = Color(0xFFC24DFF)) { picker = if (picker == "lab") null else "lab" }
             Chip("o 15:00") { insert("o 15:00") }
             Chip("codziennie", color = Color(0xFF2E9C4F)) { insert("codziennie") }
             Chip("co tydzień", color = Color(0xFF2E9C4F)) { insert("co tydzień") }
-            Chip("P1", color = Color(0xFFD1453B)) { insert("p1") }
-            Chip("P2", color = Color(0xFFC6740A)) { insert("p2") }
-            st.repo.projects.filter { !it.isArchived }.take(2).forEach { p -> Chip("#${p.name}", color = Color(p.colorArgb)) { insert("#${p.name}") } }
-            st.repo.labels.take(1).forEach { l -> Chip("@${l.name}", color = Color(l.colorArgb)) { insert("@${l.name}") } }
+        }
+        picker?.let { kind ->
+            Spacer(Modifier.height(8.dp))
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                when (kind) {
+                    "due" -> {
+                        Chip("Dzisiaj", selected = st.qaDue == st.today) { st.qaDue = st.today; picker = null }
+                        Chip("Jutro", selected = st.qaDue == st.today + 1) { st.qaDue = st.today + 1; picker = null }
+                        Chip("Weekend", selected = st.qaDue == nextWeekend(st.today)) { st.qaDue = nextWeekend(st.today); picker = null }
+                        Chip("Dzień…", icon = Icons.Outlined.CalendarToday, selected = showDatePicker) { showDatePicker = !showDatePicker }
+                        if (st.qaDue != null) Chip("Brak daty", color = g.textSecondary) { st.qaDue = null; picker = null; showDatePicker = false }
+                    }
+                    "prio" -> {
+                        listOf("P1", "P2", "P3", "P4").forEach { pr -> Chip(pr, selected = st.qaPriority == pr, color = priorityColorRaw(pr)) { st.qaPriority = pr; picker = null } }
+                        if (st.qaPriority != null) Chip("Wg tekstu", color = g.textSecondary) { st.qaPriority = null; picker = null }
+                    }
+                    "proj" -> {
+                        Chip("Skrzynka", selected = st.qaProject == null, color = g.textSecondary) { st.qaProject = null; picker = null }
+                        st.repo.projects.filter { !it.isArchived }.forEach { p -> Chip("#${p.name}", selected = st.qaProject == p.id, color = Color(p.colorArgb)) { st.qaProject = p.id; picker = null } }
+                    }
+                    else -> {
+                        if (st.repo.labels.isEmpty()) Text("Brak etykiet — wpisz @nazwa w tekście.", fontSize = 12.sp, color = g.textSecondary, fontFamily = Manrope)
+                        st.repo.labels.forEach { l ->
+                            val on = l.id in st.qaLabels
+                            Chip("@${l.name}", selected = on, color = Color(l.colorArgb)) { st.qaLabels = if (on) st.qaLabels - l.id else st.qaLabels + l.id }
+                        }
+                    }
+                }
+            }
         }
         if (showDatePicker) {
-            val picker = rememberDatePickerState(initialSelectedDateMillis = st.today * 86_400_000L)
+            val picker2 = rememberDatePickerState(initialSelectedDateMillis = (st.qaDue ?: st.today) * 86_400_000L)
             Spacer(Modifier.height(8.dp))
             Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (g.dark) Color.White.copy(alpha = 0.06f) else Color.White)) {
-                DatePicker(state = picker, title = null, headline = null, showModeToggle = false,
+                DatePicker(state = picker2, title = null, headline = null, showModeToggle = false,
                     colors = DatePickerDefaults.colors(containerColor = Color.Transparent, selectedDayContainerColor = g.accent, todayDateBorderColor = g.accent, todayContentColor = g.accent))
             }
-            SecondaryBtn("Wstaw datę", Modifier.fillMaxWidth()) {
-                picker.selectedDateMillis?.let { insert(LocalDate.ofEpochDay(Math.floorDiv(it, 86_400_000L)).toString()) }
-                showDatePicker = false
+            SecondaryBtn("Ustaw datę", Modifier.fillMaxWidth()) {
+                picker2.selectedDateMillis?.let { st.qaDue = Math.floorDiv(it, 86_400_000L) }
+                showDatePicker = false; picker = null
             }
         }
         Spacer(Modifier.height(14.dp))

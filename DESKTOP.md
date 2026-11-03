@@ -153,3 +153,15 @@ pogodowy (Mac nie ma GPS), rozpoznawanie mowy `SpeechRecognizer` (zastąpione
 systemowym dyktowaniem macOS w polu tekstowym), aparat na żywo (zastąpiony wyborem
 pliku), przeciąganie kafelków palcem (zastąpione ikonami akcji), dźwięk ukończenia.
 Wszystko pozostałe działa tak samo.
+
+
+## Energia dnia, Google Health, wybory w „Nowe zadanie", Moje rutyny (zgodnie z Androidem)
+
+| Funkcja | Jak działa na Macu |
+|---|---|
+| Buźka energii | W pasku (tylko widok **Dziś**) obok ✦. Klik → krótka chmurka: nagłówek, jedna linia powodów, rada, „Ułatw z AI (n)" gdy energia niska i są ciężkie zadania, „Wg danych" po ręcznym wyborze; trzy buźki pozwalają wybrać energię ręcznie (na ten dzień). |
+| Kolejność w Dziś | Przy sortowaniu „Najbliższe": energia niska → lżejsze wyżej, wysoka → trudniejsze wyżej; zadania z godziną, bliskim terminem i dzisiejsze P1 zostają na miejscu. Logika 1:1 z telefonu (`Energy.kt`, test `EnergyTest`). |
+| Google Health | Ustawienia → **Google Health**: „Połącz" otwiera zgodę Google w przeglądarce (OAuth obsługuje Edge Function `health-sync` w Twoim Supabase), „Odśwież dane", „Rozłącz". Sen, tętno spoczynkowe i HRV zasilają model energii. Wymaga zalogowania w chmurze. W trybie testowym zgoda Google wygasa po 7 dniach. |
+| Nowe zadanie | Pasek **Termin / Priorytet / Projekt / Etykiety**: wybór z listy zastępuje poprzedni (bez „p1 p2") i ma pierwszeństwo przed tokenami z tekstu; obok skróty „o 15:00", „codziennie", „co tydzień". |
+| Moje rutyny | Menu boczne → **Rutyny — edycja** albo „Edytuj" w panelu Rutyn: lista wszystkich rutyn, klik otwiera zadanie, „Nowa rutyna" podpowiada „codziennie". |
+| Czas wolny | Menu boczne → **Czas wolny** (oraz ⋯ w pasku). |

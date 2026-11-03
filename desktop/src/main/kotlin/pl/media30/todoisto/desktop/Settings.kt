@@ -50,7 +50,7 @@ fun SettingsScreen(st: AppState) {
     val s = st.settings
     FullScreen {
         Column(Modifier.fillMaxSize()) {
-            ScreenTopBar(listOf("Ustawienia", "Ogólne", "Tło", "Motyw")[route], onBack = { if (route != 0) route = 0 else st.showSettings = false })
+            ScreenTopBar(listOf("Ustawienia", "Ogólne", "Tło", "Motyw", "Google Health")[route], onBack = { if (route != 0) route = 0 else st.showSettings = false })
             Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).padding(bottom = 28.dp)) {
                 Box(Modifier.widthIn(max = 720.dp).align(Alignment.CenterHorizontally)) {
                     when (route) {
@@ -58,6 +58,7 @@ fun SettingsScreen(st: AppState) {
                         1 -> GeneralSettings(st)
                         2 -> BackgroundSettings(st)
                         3 -> ThemeSettings(st)
+                        4 -> HealthSettings(st)
                     }
                 }
             }
@@ -102,6 +103,8 @@ private fun MainSettings(st: AppState, go: (Int) -> Unit) {
             SettingRow(Icons.Outlined.AccountCircle, Color(0xFF9B6BFF), "Konto", "Profil, chmura, Gmail, zużycie AI", onClick = { st.showAccount = true }) { Chevron() }
             RowDivider()
             SettingRow(Icons.Outlined.Tune, Color(0xFF8AA0FF), "Ogólne", "Widok startowy, daty, tydzień, przesuwanie", onClick = { go(1) }) { Chevron() }
+            RowDivider()
+            SettingRow(Icons.Outlined.Favorite, Color(0xFFFB7185), "Google Health", if (s.healthConnected) "Połączone — sen, tętno i HRV wpływają na energię dnia" else "Niepołączone", onClick = { go(4) }) { StatusDot(s.healthConnected) }
             RowDivider()
             SettingRow(Icons.Outlined.Sync, Color(0xFF2DD4BF), "Synchronizacja automatyczna", if (s.autoSync) "Włączona — start, co 2 min i po zmianie" else "Wyłączona (⌘S synchronizuje ręcznie)") { GlassToggle(s.autoSync) { s.autoSync = it; st.settingsChanged() } }
         }
@@ -154,6 +157,51 @@ private fun MainSettings(st: AppState, go: (Int) -> Unit) {
             SettingRow(Icons.Outlined.Lock, Color(0xFF34D399), "Dane", "Przechowywane lokalnie · synchronizacja tylko przez Twój projekt Supabase", null) {}
         }
         Text("Zrobione z ♥ dla spokojnego dnia.", fontSize = 11.5.sp, color = g.textSecondary.copy(alpha = 0.7f), fontFamily = Manrope, modifier = Modifier.padding(start = 8.dp, top = 10.dp))
+    }
+}
+
+/** Google Health: połączenie przez przeglądarkę (zgoda OAuth wraca do funkcji w Supabase). */
+@Composable
+private fun HealthSettings(st: AppState) {
+    val g = LocalGlass.current
+    val s = st.settings
+    st.settingsRev
+    val sig = remember(s.healthSignals, st.settingsRev) {
+        s.healthSignals.takeIf { it.isNotBlank() }?.let { runCatching { org.json.JSONObject(it) }.getOrNull() }
+    }
+    fun hm(min: Int) = "${min / 60} h ${min % 60} min"
+    Column {
+        Section("Połączenie")
+        SettingsCard {
+            SettingRow(Icons.Outlined.Favorite, Color(0xFFFB7185), "Google Health", when {
+                !s.signedIn -> "Najpierw zaloguj się w chmurze (Konto)"
+                s.healthConnected -> "Połączone"
+                else -> "Niepołączone"
+            }) { StatusDot(s.healthConnected) }
+        }
+        Spacer(Modifier.height(12.dp))
+        if (st.health.busy) Text("Chwileczkę…", fontSize = 12.5.sp, color = g.textSecondary, fontFamily = Manrope, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
+        st.health.message?.let { Text(it, fontSize = 12.5.sp, color = g.textSecondary, fontFamily = Manrope, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)) }
+        st.health.error?.let { Text(it, fontSize = 12.5.sp, color = g.warn, fontFamily = Manrope, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)) }
+        if (s.signedIn) {
+            if (!s.healthConnected) PrimaryBtn("Połącz z Google Health") { st.healthConnect() }
+            Spacer(Modifier.height(8.dp))
+            SecondaryBtn(if (s.healthConnected) "Odśwież dane" else "Sprawdź połączenie", Modifier.fillMaxWidth()) { st.healthRefresh(silent = false) }
+            if (s.healthConnected) {
+                Spacer(Modifier.height(8.dp))
+                SecondaryBtn("Rozłącz", Modifier.fillMaxWidth()) { st.healthDisconnect() }
+            }
+        }
+        if (s.healthConnected && sig != null) {
+            Spacer(Modifier.height(22.dp))
+            Section("Ostatnie dane (${sig.optString("date")})")
+            SettingsCard {
+                if (!sig.isNull("sleepMinutes")) SettingRow(Icons.Outlined.Bedtime, Color(0xFF8AA0FF), "Sen", hm(sig.optInt("sleepMinutes")) + (if (!sig.isNull("sleepBaselineMinutes")) " · typowo " + hm(sig.optInt("sleepBaselineMinutes")) else ""), null) {}
+                if (!sig.isNull("restingHr")) { RowDivider(); SettingRow(Icons.Outlined.Favorite, Color(0xFFFB7185), "Tętno spoczynkowe", "%.0f bpm".format(sig.optDouble("restingHr")) + (if (!sig.isNull("restingHrBaseline")) " · typowo %.0f".format(sig.optDouble("restingHrBaseline")) else ""), null) {} }
+                if (!sig.isNull("hrv")) { RowDivider(); SettingRow(Icons.Outlined.ShowChart, Color(0xFF2DD4BF), "HRV", "%.0f ms".format(sig.optDouble("hrv")) + (if (!sig.isNull("hrvBaseline")) " · typowo %.0f".format(sig.optDouble("hrvBaseline")) else ""), null) {} }
+            }
+        }
+        Text("Zgoda Google zostaje po stronie Twojego Supabase — aplikacja dostaje tylko gotowe sygnały. W trybie testowym zgoda wygasa po 7 dniach (wtedy połącz ponownie).", fontSize = 11.5.sp, color = g.textSecondary, fontFamily = Manrope, modifier = Modifier.padding(start = 8.dp, top = 12.dp))
     }
 }
 

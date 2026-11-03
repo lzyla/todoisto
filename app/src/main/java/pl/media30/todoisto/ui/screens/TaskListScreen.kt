@@ -286,7 +286,7 @@ fun TaskListScreen(
     } else null
 
     // Wstecz (systemowe) zamyka kolejno otwarte nakładki — intuicyjna nawigacja.
-    androidx.activity.compose.BackHandler(enabled = qaOpen) { qaOpen = false }
+    androidx.activity.compose.BackHandler(enabled = qaOpen) { qaOpen = false; qaReset() }
     androidx.activity.compose.BackHandler(enabled = briefOpen) { briefOpen = false }
     androidx.activity.compose.BackHandler(enabled = routOpen) { routOpen = false }
     androidx.activity.compose.BackHandler(enabled = drawerState.isOpen) { scope.launch { drawerState.close() } }
@@ -321,6 +321,7 @@ fun TaskListScreen(
                 onGoals = { dialog = DialogKind.Goals },
                 onToggleDark = onToggleTheme,
                 onOpenActivityPool = { onOpenActivityPool(); scope.launch { drawerState.close() } },
+                onFreeTime = { onFreeTime(); scope.launch { drawerState.close() } },
                 isPhotoBackground = isPhotoBackground,
                 onTogglePhotoBackground = onTogglePhotoBackground,
                 activities = activities,
@@ -458,7 +459,7 @@ fun TaskListScreen(
                 }
             }
 
-            // ── Dock: cztery ikony — Rutyny · Dziś · Nadchodzące · Mikrofon ──
+            // ── Dock: Rutyny · Dziś · Nadchodzące · Wolne (czas wolny) · Mikrofon ──
             Row(
                 Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 2.dp)
                     .controlCenterGlass(RoundedCornerShape(26.dp)).padding(horizontal = 4.dp, vertical = 3.dp),
@@ -481,6 +482,7 @@ fun TaskListScreen(
                 ) { routOpen = !routOpen }
                 DockItem(Icons.Outlined.CalendarToday, "Dziś", uiState.view == AppView.Today) { onSelectView(AppView.Today) }
                 DockItem(Icons.Outlined.DateRange, "Nadchodz.", uiState.view == AppView.Upcoming) { onSelectView(AppView.Upcoming) }
+                DockItem(Icons.Outlined.Bolt, "Wolne", selected = false) { onFreeTime() }
                 DockItem(Icons.Filled.Mic, "Mikrofon", selected = false) { voiceOpen = true }
             }
 
@@ -489,7 +491,7 @@ fun TaskListScreen(
                 Box(
                     Modifier.fillMaxSize()
                         .background(Color(0x4D1C0A42))
-                        .clickable(remember { MutableInteractionSource() }, null) { qaOpen = false }
+                        .clickable(remember { MutableInteractionSource() }, null) { qaOpen = false; qaReset() }
                 )
             }
 
@@ -1744,18 +1746,6 @@ private fun QuickAddMorph(
                         .clip(CircleShape).background(GlassAccent)
                 )
         ) {
-            // Plus / X
-            Box(
-                Modifier.align(Alignment.TopEnd).size(if (open) 58.dp else 64.dp)
-                    .bouncy(0.88f, onClick = onToggleOpen),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Filled.Add, if (open) "Zamknij" else "Dodaj zadanie",
-                    tint = if (open) GlassTextSecondary else Color.White,
-                    modifier = Modifier.size(24.dp).rotate(rot)
-                )
-            }
             if (open) {
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 15.dp, bottom = 12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 46.dp)) {
@@ -1862,6 +1852,18 @@ private fun QuickAddMorph(
                         )
                     }
                 }
+            }
+            // Plus / X — na końcu, żeby leżał NAD przewijaną treścią (inaczej nie łapie dotknięć)
+            Box(
+                Modifier.align(Alignment.TopEnd).size(if (open) 58.dp else 64.dp)
+                    .bouncy(0.88f, onClick = onToggleOpen),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Filled.Add, if (open) "Zamknij" else "Dodaj zadanie",
+                    tint = if (open) GlassTextSecondary else Color.White,
+                    modifier = Modifier.size(24.dp).rotate(rot)
+                )
             }
         }
     }
@@ -2077,6 +2079,7 @@ private fun DrawerContent(
     onGoals: () -> Unit,
     onToggleDark: () -> Unit,
     onOpenActivityPool: () -> Unit,
+    onFreeTime: () -> Unit = {},
     isPhotoBackground: Boolean,
     onTogglePhotoBackground: () -> Unit,
     activities: List<pl.media30.todoisto.data.Activity>,
@@ -2128,6 +2131,7 @@ private fun DrawerContent(
             DrawerRow(Icons.Outlined.DateRange, "Nadchodzące", null, current == AppView.Upcoming) { onSelect(AppView.Upcoming) }
             DrawerRow(Icons.Outlined.Inbox, "Skrzynka", uiState.inboxCount, current == AppView.Inbox) { onSelect(AppView.Inbox) }
             DrawerRow(Icons.Outlined.CheckCircle, "Ukończone", null, current == AppView.Completed) { onSelect(AppView.Completed) }
+            DrawerRow(Icons.Outlined.Bolt, "Czas wolny — co teraz?", null, false, onFreeTime)
             DrawerRow(Icons.Outlined.Bolt, "Pula aktywności", null, false, onOpenActivityPool)
             DrawerRow(Icons.Outlined.Insights, "Statystyki", null, false, onOpenStats)
 

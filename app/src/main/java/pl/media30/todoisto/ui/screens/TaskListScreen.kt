@@ -54,6 +54,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -251,6 +254,13 @@ fun TaskListScreen(
     var voiceOpen by remember { mutableStateOf(false) }
     var qaOpen by remember { mutableStateOf(false) }
     var qaText by remember { mutableStateOf("") }
+    // Wybory z chipów (Termin/Priorytet/Projekt/Etykiety) — nadpisują to, co wpisano w tekście,
+    // więc zmiana zdania (p1 → p2) po prostu podmienia wartość zamiast ją dublować.
+    var qaDue by remember { mutableStateOf<Long?>(null) }
+    var qaPrio by remember { mutableStateOf<Priority?>(null) }
+    var qaProject by remember { mutableStateOf<Long?>(null) }
+    var qaLabels by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    val qaReset = { qaDue = null; qaPrio = null; qaProject = null; qaLabels = emptySet() }
     var routOpen by remember { mutableStateOf(routinesExpandedInitially) }
     var briefOpen by remember { mutableStateOf(false) }
     var briefLoading by remember { mutableStateOf(false) }
@@ -490,13 +500,19 @@ fun TaskListScreen(
                 onText = { qaText = it },
                 projects = projects,
                 labels = labels,
+                due = qaDue, onDue = { qaDue = it },
+                prio = qaPrio, onPrio = { qaPrio = it },
+                projectId = qaProject, onProject = { qaProject = it },
+                labelIds = qaLabels, onLabelIds = { qaLabels = it },
                 onToggleOpen = {
                     qaOpen = !qaOpen
-                    if (!qaOpen) onPrefillConsumed()
+                    if (!qaOpen) { onPrefillConsumed(); qaReset() }
                 },
                 onSubmit = {
                     if (qaText.isNotBlank()) {
-                        onQuickAdd(qaText, QuickAddOverrides())
+                        onQuickAdd(qaText, QuickAddOverrides(
+                            dueDate = qaDue, priority = qaPrio, projectId = qaProject, labelIds = qaLabels.toList()))
+                        qaReset()
                         qaText = ""
                         qaOpen = false
                         onPrefillConsumed()
@@ -1416,7 +1432,8 @@ private fun ReschedSheet(
     todayEpoch: Long,
     initialEpochDay: Long,
     onPick: (Long) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onClear: (() -> Unit)? = null
 ) {
     androidx.compose.material3.ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1433,6 +1450,7 @@ private fun ReschedSheet(
             ReschedRow(Icons.Outlined.WbSunny, "Dziś", weekdayShort(todayEpoch)) { onPick(todayEpoch) }
             ReschedRow(Icons.Outlined.WbSunny, "Jutro", weekdayShort(todayEpoch + 1)) { onPick(todayEpoch + 1) }
             ReschedRow(Icons.Outlined.Weekend, "Następny weekend", weekdayShort(nextWeekend(todayEpoch))) { onPick(nextWeekend(todayEpoch)) }
+            if (onClear != null) ReschedRow(Icons.Filled.Close, "Bez terminu", "") { onClear() }
             Spacer(Modifier.height(12.dp))
             // Wbudowany kalendarz — wybór dowolnego dnia bez osobnego okienka.
             val state = rememberDatePickerState(initialSelectedDateMillis = initialEpochDay * 86_400_000L)
@@ -1638,6 +1656,10 @@ private fun QuickAddMorph(
     onText: (String) -> Unit,
     projects: List<Project>,
     labels: List<Label>,
+    due: Long?, onDue: (Long?) -> Unit,
+    prio: Priority?, onPrio: (Priority?) -> Unit,
+    projectId: Long?, onProject: (Long?) -> Unit,
+    labelIds: Set<Long>, onLabelIds: (Set<Long>) -> Unit,
     onToggleOpen: () -> Unit,
     onSubmit: () -> Unit,
     onScanCamera: () -> Unit = {},
@@ -1653,18 +1675,55 @@ private fun QuickAddMorph(
         val bg by animateColorAsState(if (open) GlassSurface else GlassAccent, tween(400), label = "qaBg")
         val rot by animateFloatAsState(if (open) 45f else 0f, tween(500, easing = EASE), label = "qaRot")
         val parsed = remember(text) { QuickAddParser().parse(text) }
-        var showCal by remember { mutableStateOf(false) }
-        if (showCal) {
-            ReschedDatePicker(
-                initialEpochDay = parsed.dueDate ?: AppClock.today().toEpochDay(),
-                onDismiss = { showCal = false },
-                onPick = { day ->
-                    // Wstaw wybrany dzień jako datę ISO — parser rozpozna go jako termin.
-                    val iso = LocalDate.ofEpochDay(day).toString()
-                    onText((text.trimEnd() + " " + iso + " ").trimStart())
-                    showCal = false
-                }
+        // Który arkusz-lista jest wysunięty: "due" | "prio" | "project" | "labels" | null.
+        var sheet by remember { mutableStateOf<String?>(null) }
+        val focus = androidx.compose.ui.platform.LocalFocusManager.current
+        val open2: (String) -> Unit = { focus.clearFocus(); sheet = it }
+        val today = AppClock.today().toEpochDay()
+        val effDue = due ?: parsed.dueDate
+        val effPrio = prio ?: parsed.priority
+        val effProject = projects.firstOrNull { it.id == projectId }
+            ?: parsed.projectName?.let { n -> projects.firstOrNull { it.name.equals(n, true) } }
+        val projectLabel = effProject?.name ?: parsed.projectName
+        val effLabelNames = (labelIds.mapNotNull { id -> labels.firstOrNull { it.id == id }?.name } + parsed.labelNames).distinct()
+        when (sheet) {
+            "due" -> ReschedSheet(
+                todayEpoch = today, initialEpochDay = effDue ?: today,
+                onPick = { onDue(it); sheet = null }, onDismiss = { sheet = null },
+                onClear = if (effDue != null) ({ onDue(null); sheet = null }) else null
             )
+            "prio" -> QAPickSheet("Priorytet", onDismiss = { sheet = null }) {
+                Priority.entries.forEach { pr ->
+                    QAPickRow(
+                        label = pr.label, selected = effPrio == pr, onClick = { onPrio(pr); sheet = null },
+                        icon = { Icon(Icons.Outlined.Flag, null, tint = pr.color, modifier = Modifier.size(21.dp)) }
+                    )
+                }
+            }
+            "project" -> QAPickSheet("Projekt", onDismiss = { sheet = null }) {
+                QAPickRow(
+                    label = "Skrzynka", selected = effProject == null && projectLabel == null,
+                    onClick = { onProject(null); sheet = null },
+                    icon = { Icon(Icons.Outlined.Inbox, null, tint = GlassTextSecondary, modifier = Modifier.size(21.dp)) }
+                )
+                projects.filter { !it.isArchived }.forEach { pj ->
+                    QAPickRow(
+                        label = pj.name, selected = effProject?.id == pj.id, onClick = { onProject(pj.id); sheet = null },
+                        icon = { Text("#", fontSize = 18.sp, fontWeight = FontWeight.W800, color = Color(pj.colorArgb)) }
+                    )
+                }
+            }
+            "labels" -> QAPickSheet("Etykiety", onDismiss = { sheet = null }) {
+                if (labels.isEmpty()) Text("Brak etykiet — dodaj je w menu bocznym albo wpisz @nazwa.", fontSize = 13.sp, color = GlassTextSecondary, modifier = Modifier.padding(8.dp))
+                labels.forEach { lb ->
+                    val on = lb.id in labelIds
+                    QAPickRow(
+                        label = lb.name, selected = on,
+                        onClick = { onLabelIds(if (on) labelIds - lb.id else labelIds + lb.id) },
+                        icon = { Icon(Icons.Outlined.LocalOffer, null, tint = Color(lb.colorArgb), modifier = Modifier.size(20.dp)) }
+                    )
+                }
+            }
         }
 
         Box(
@@ -1729,44 +1788,38 @@ private fun QuickAddMorph(
                         if (text.isBlank()) {
                             Text("Rozpoznam datę, godzinę, #projekt, @etykietę, priorytet i cykl.", fontSize = 11.5.sp, color = GlassTextSecondary.copy(alpha = 0.75f))
                         } else {
-                            parsed.dueDate?.let { QAChip(if (it == AppClock.today().toEpochDay()) "Dzisiaj" else if (it == AppClock.today().toEpochDay() + 1) "Jutro" else shortDate(it), Color(0xFF1F8A5B)) }
                             parsed.dueTimeMinutes?.let { QAChip("%d:%02d".format(it / 60, it % 60), GlassAccent) }
                             parsed.recurrence?.let { QAChip("⟳ " + it.label.lowercase(), GlassTextSecondary) }
-                            if (parsed.priority != Priority.P4) QAChip("P${parsed.priority.ordinal + 1}", parsed.priority.color)
-                            parsed.projectName?.let { QAChip("#$it", Color(0xFF4D6BFF)) }
-                            parsed.labelNames.forEach { QAChip("@$it", Color(0xFFC24DFF)) }
                             parsed.durationMinutes?.let { QAChip("$it min", GlassTextSecondary) }
                         }
                     }
                     Spacer(Modifier.height(8.dp))
-                    // Tokeny-skróty (wstawiają tekst)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        val addToken: (String) -> Unit = { tok ->
-                            onText((text.trimEnd() + " " + tok + " ").trimStart())
-                        }
-                        // Ikona kalendarza — rozwija wybór konkretnego dnia.
-                        Row(
-                            Modifier.clip(RoundedCornerShape(50)).background(GlassAccent.copy(alpha = 0.15f))
-                                .bouncy(0.9f) { showCal = true }.padding(horizontal = 10.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Outlined.CalendarToday, "Wybierz dzień", tint = GlassAccent, modifier = Modifier.size(13.dp))
-                            Spacer(Modifier.width(5.dp))
-                            Text("Dzień…", fontSize = 11.5.sp, fontWeight = FontWeight.W800, color = GlassAccent)
-                        }
-                        QAToken("dzisiaj", GlassAccent) { addToken("dzisiaj") }
-                        QAToken("jutro", GlassAccent) { addToken("jutro") }
+                    // Przewijany w bok pasek wyborów (jak w Todoist) — dotknięcie wysuwa listę od dołu.
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        val addToken: (String) -> Unit = { tok -> onText((text.trimEnd() + " " + tok + " ").trimStart()) }
+                        QAPickChip(
+                            icon = Icons.Outlined.CalendarToday,
+                            text = effDue?.let { if (it == today) "Dzisiaj" else if (it == today + 1) "Jutro" else shortDate(it) } ?: "Termin",
+                            color = Color(0xFF1F8A5B), active = effDue != null
+                        ) { open2("due") }
+                        QAPickChip(
+                            icon = Icons.Outlined.Flag,
+                            text = if (effPrio != Priority.P4) "P${effPrio.ordinal + 1}" else "Priorytet",
+                            color = effPrio.color, active = effPrio != Priority.P4
+                        ) { open2("prio") }
+                        QAPickChip(
+                            icon = Icons.Outlined.Inbox,
+                            text = projectLabel ?: "Skrzynka",
+                            color = effProject?.let { Color(it.colorArgb) } ?: Color(0xFF4D6BFF), active = projectLabel != null
+                        ) { open2("project") }
+                        QAPickChip(
+                            icon = Icons.Outlined.LocalOffer,
+                            text = if (effLabelNames.isEmpty()) "Etykiety" else effLabelNames.joinToString(", ") { "@$it" },
+                            color = Color(0xFFC24DFF), active = effLabelNames.isNotEmpty()
+                        ) { open2("labels") }
                         QAToken("o 15:00", GlassAccent) { addToken("o 15:00") }
                         QAToken("codziennie", Color(0xFF2E9C4F)) { addToken("codziennie") }
                         QAToken("co tydzień", Color(0xFF2E9C4F)) { addToken("co tydzień") }
-                        QAToken("P1", Color(0xFFD1453B)) { addToken("p1") }
-                        QAToken("P2", Color(0xFFC6740A)) { addToken("p2") }
-                        projects.filter { !it.isArchived }.take(2).forEach { p ->
-                            QAToken("#${p.name}", Color(p.colorArgb)) { addToken("#${p.name}") }
-                        }
-                        labels.take(1).forEach { l ->
-                            QAToken("@${l.name}", Color(l.colorArgb)) { addToken("@${l.name}") }
-                        }
                     }
                     Spacer(Modifier.height(10.dp))
                     // Skan listy z kartki — widoczne przyciski (aparat / galeria).
@@ -1818,6 +1871,53 @@ private fun QuickAddMorph(
 @Composable
 private fun BoxWithConstraintsFix(modifier: Modifier, content: @Composable (androidx.compose.ui.unit.Dp, androidx.compose.ui.unit.Dp) -> Unit) {
     androidx.compose.foundation.layout.BoxWithConstraints(modifier) { content(maxWidth, maxHeight) }
+}
+
+@Composable
+private fun QAPickChip(icon: ImageVector, text: String, color: Color, active: Boolean, onClick: () -> Unit) {
+    val eff = if (GlassTheme.dark) androidx.compose.ui.graphics.lerp(color, Color.White, 0.5f) else color
+    Row(
+        Modifier.clip(RoundedCornerShape(50))
+            .background(color.copy(alpha = if (active) 0.20f else 0.10f))
+            .border(1.dp, color.copy(alpha = if (active) 0.55f else 0.22f), RoundedCornerShape(50))
+            .bouncy(0.93f, onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = eff, modifier = Modifier.size(15.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(text, fontSize = 12.sp, fontWeight = FontWeight.W800, color = eff, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** Lista wysuwana od dołu (Todoist-style): tytuł + wiersze z ptaszkiem przy aktualnym wyborze. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QAPickSheet(title: String, onDismiss: () -> Unit, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFFF3EEFB),
+        dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle(color = Color(0xFFC9B8E8)) }
+    ) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 24.dp)) {
+            Text(title, fontSize = 17.sp, fontWeight = FontWeight.W800, color = Color(0xFF2E2542), modifier = Modifier.padding(start = 6.dp, bottom = 10.dp))
+            content()
+        }
+    }
+}
+
+@Composable
+private fun QAPickRow(label: String, selected: Boolean, onClick: () -> Unit, icon: @Composable () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = 7.dp).clip(RoundedCornerShape(14.dp))
+            .background(if (selected) Color(0xFFE6DAFB) else Color.White)
+            .bouncy(0.98f, onClick).padding(horizontal = 15.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.width(26.dp), contentAlignment = Alignment.CenterStart) { icon() }
+        Spacer(Modifier.width(10.dp))
+        Text(label, fontSize = 14.5.sp, fontWeight = FontWeight.W600, color = Color(0xFF2E2542), modifier = Modifier.weight(1f))
+        if (selected) Icon(Icons.Filled.Check, null, tint = Color(0xFF6B3FE0), modifier = Modifier.size(19.dp))
+    }
 }
 
 @Composable

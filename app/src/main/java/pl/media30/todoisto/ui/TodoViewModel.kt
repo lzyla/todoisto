@@ -44,7 +44,8 @@ data class QuickAddOverrides(
     val dueDate: Long? = null,
     val priority: Priority? = null,
     val projectId: Long? = null,
-    val recurrence: Recurrence? = null
+    val recurrence: Recurrence? = null,
+    val labelIds: List<Long> = emptyList()
 )
 
 /** Stan panelu „Czas wolny". */
@@ -872,7 +873,7 @@ class TodoViewModel(
                 currentView is AppView.ProjectView -> currentView.id
                 else -> null
             }
-            val labelIds = parsed?.labelNames?.map { repository.ensureLabel(it) }?.filter { it != 0L } ?: emptyList()
+            val labelIds = ((parsed?.labelNames?.map { repository.ensureLabel(it) }?.filter { it != 0L } ?: emptyList()) + overrides.labelIds).distinct()
 
             val recurrence = overrides.recurrence ?: parsed?.recurrence
             val dueDate = overrides.dueDate ?: parsed?.dueDate

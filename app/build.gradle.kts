@@ -23,6 +23,12 @@ android {
         }
     }
 
+    // Historia schematów Room (app/schemas/*.json) — podstawa do pisania i
+    // sprawdzania migracji zamiast kasowania bazy przy każdej zmianie.
+    ksp {
+        arg("room.schemaLocation", "$projectDir/schemas")
+    }
+
     // Jeden stały klucz podpisu dla WSZYSTKICH buildów (Mac, inne komputery, sesje
     // Claude). Bez tego każdy komputer podpisuje własnym kluczem debug i Android
     // odmawia aktualizacji („Nie zainstalowano"). To klucz aplikacji prywatnej,
